@@ -59,6 +59,22 @@ export class NWCService {
         return { preimage: result.preimage };
     }
 
+    async makeInvoice(amountSats: number, description?: string): Promise<{ invoice: string, paymentHash: string }> {
+        if (!this.connection) throw new Error("NWC not connected");
+        const result = await this.executeCommand('make_invoice', {
+            amount: amountSats * 1000, // msats
+            description
+        });
+        return { invoice: result.invoice, paymentHash: result.payment_hash };
+    }
+
+    async lookupInvoice(paymentHash: string): Promise<{ paid: boolean }> {
+        if (!this.connection) throw new Error("NWC not connected");
+        // Some implementations use invoice, some payment_hash. Spec says either.
+        const result = await this.executeCommand('lookup_invoice', { payment_hash: paymentHash });
+        return { paid: !!result.paid }; // Ensure boolean
+    }
+
     private async executeCommand(method: string, params: any): Promise<any> {
         if (!this.connection) throw new Error("NWC not connected");
 

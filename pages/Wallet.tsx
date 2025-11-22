@@ -510,8 +510,9 @@ export const Wallet: React.FC = () => {
 
                                 <Button
                                     variant="secondary"
-                                    onClick={() => {
-                                        if (confirm("Are you sure you want to disconnect? This will remove the connection string.")) {
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm("Are you sure you want to disconnect? This will remove the connection string.")) {
                                             setNwcConnection('');
                                             setLocalNwcString('');
                                             setWalletMode('cashu');
@@ -906,7 +907,7 @@ export const Wallet: React.FC = () => {
                             <div className="bg-brand-primary/20 p-2 rounded-full mb-1">
                                 <Icons.Receive size={20} className="text-brand-primary" />
                             </div>
-                            <span className="text-sm font-bold text-white">Deposit</span>
+                            <span className="text-sm font-bold text-white">{walletMode === 'nwc' ? 'Receive' : 'Deposit'}</span>
                         </button>
                     </div>
                 </div>

@@ -151,9 +151,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Persistence & Auto-Calculation
   useEffect(() => {
-    setWalletBalance(WalletService.calculateBalance(proofs));
+    if (walletMode === 'cashu') {
+      setWalletBalance(WalletService.calculateBalance(proofs));
+    }
     localStorage.setItem('cdg_proofs', JSON.stringify(proofs));
-  }, [proofs, mints]);
+  }, [proofs, mints, walletMode]);
 
   useEffect(() => localStorage.setItem('cdg_txs', JSON.stringify(transactions)), [transactions]);
   useEffect(() => localStorage.setItem('cdg_mints', JSON.stringify(mints)), [mints]);
@@ -192,6 +194,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auto-refresh balance when wallet mode changes
   useEffect(() => {
+    setWalletBalance(0); // Clear balance to prevent stale data during switch
     refreshWalletBalance();
   }, [walletMode, nwcString]);
 
@@ -751,16 +754,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const depositFunds = async (amount: number): Promise<{ request: string, quote: string }> => {
+    if (walletMode === 'nwc') {
+      if (!nwcServiceRef.current) throw new Error("NWC not connected");
+      const { invoice, paymentHash } = await nwcServiceRef.current.makeInvoice(amount, "Deposit to NWC");
+      return { request: invoice, quote: paymentHash };
+    }
+
     if (!walletServiceRef.current) throw new Error("Wallet not connected");
     return await walletServiceRef.current.requestDeposit(amount);
   };
 
   const checkDepositStatus = async (quote: string): Promise<boolean> => {
+    if (walletMode === 'nwc') {
+      if (!nwcServiceRef.current) return false;
+      try {
+        const { paid } = await nwcServiceRef.current.lookupInvoice(quote);
+        return paid;
+      } catch (e) {
+        console.warn("NWC lookup failed", e);
+        return false;
+      }
+    }
+
     if (!walletServiceRef.current) return false;
     return await walletServiceRef.current.checkDepositQuoteStatus(quote);
   };
 
   const confirmDeposit = async (quote: string, amount: number): Promise<boolean> => {
+    if (walletMode === 'nwc') {
+      // For NWC, if confirmed, we just refresh balance and add tx
+      await refreshWalletBalance();
+      addTransaction('receive', amount, 'Received via NWC');
+      return true;
+    }
+
     if (!walletServiceRef.current) return false;
     try {
       const newProofs = await walletServiceRef.current.completeDeposit(quote, amount);
@@ -802,7 +829,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return true;
       } catch (e) {
         console.error("NWC Payment failed", e);
-        return false;
+        throw e; // Re-throw to let UI handle it
       }
     }
 
@@ -953,7 +980,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setNwcConnection = (uri: string) => {
     setNwcString(uri);
-    setWalletMode('nwc'); // Auto-switch
+    if (uri) {
+      setWalletMode('nwc'); // Auto-switch only if setting a valid string
+    }
   };
 
   return (
