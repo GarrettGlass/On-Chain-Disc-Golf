@@ -10,35 +10,11 @@ interface InfoModalProps {
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
-    const topics = [
-        {
-            title: 'Disc Golf',
-            icon: <Icons.Trophy className="text-brand-primary" size={24} />,
-            description: 'A flying disc sport in which players throw a disc at a target; it is played using rules similar to golf.',
-            link: 'https://www.pdga.com/introduction',
-            linkText: 'Learn at PDGA'
-        },
-        {
-            title: 'Bitcoin',
-            icon: <Icons.Zap className="text-orange-500" size={24} />,
-            description: 'A decentralized digital currency without a central bank or single administrator.',
-            link: 'https://bitcoin.org/en/how-it-works',
-            linkText: 'Learn about Bitcoin'
-        },
-        {
-            title: 'E-cash (Cashu)',
-            icon: <Icons.Wallet className="text-green-400" size={24} />,
-            description: 'A privacy-preserving Chaumian ecash protocol for Bitcoin Lightning.',
-            link: 'https://cashu.space/',
-            linkText: 'Learn about Cashu'
-        },
-        {
-            title: 'Nostr',
-            icon: <Icons.Users className="text-purple-400" size={24} />,
-            description: 'A decentralized network protocol for a censorship-resistant social media.',
-            link: 'https://nostr.com/',
-            linkText: 'Learn about Nostr'
-        }
+    const resources = [
+        { title: 'Disc Golf (PDGA)', link: 'https://www.pdga.com/introduction' },
+        { title: 'Bitcoin', link: 'https://bitcoin.org/en/how-it-works' },
+        { title: 'Cashu (E-cash)', link: 'https://cashu.space/' },
+        { title: 'Nostr', link: 'https://nostr.com/' },
     ];
 
     return (
@@ -46,7 +22,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
             <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-200">
 
                 <div className="sticky top-0 bg-slate-900/95 backdrop-blur p-4 border-b border-slate-800 flex items-center justify-between z-10">
-                    <h2 className="text-xl font-bold text-white">What is this app?</h2>
+                    <h2 className="text-xl font-bold text-white">How it Works</h2>
                     <button
                         onClick={onClose}
                         className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
@@ -55,33 +31,89 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
                     </button>
                 </div>
 
-                <div className="p-4 space-y-6">
-                    <p className="text-slate-300 text-sm leading-relaxed">
-                        On-Chains combines the sport of Disc Golf with the freedom of decentralized tech. Here's what powers it:
-                    </p>
+                <div className="p-4 space-y-8">
 
-                    <div className="space-y-4">
-                        {topics.map((topic) => (
-                            <div key={topic.title} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-slate-600 transition-colors">
-                                <div className="flex items-center space-x-3 mb-2">
-                                    {topic.icon}
-                                    <h3 className="font-bold text-white">{topic.title}</h3>
-                                </div>
-                                <p className="text-slate-400 text-sm mb-3">{topic.description}</p>
-                                <a
-                                    href={topic.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center text-xs font-bold text-brand-primary hover:text-emerald-300 hover:underline"
-                                >
-                                    {topic.linkText}
-                                    <Icons.Send size={12} className="ml-1" />
-                                </a>
+                    {/* Step 1: Profile */}
+                    <div className="space-y-3">
+                        <div className="flex items-center space-x-3 text-brand-primary">
+                            <Icons.Users size={24} />
+                            <h3 className="font-bold text-lg text-white">1. Create Your Profile</h3>
+                        </div>
+                        <p className="text-slate-300 text-sm leading-relaxed">
+                            Start by going to the <strong>Profile</strong> tab. You can create a new Nostr identity or login if you already have one.
+                        </p>
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-start space-x-3">
+                            <Icons.Shield className="text-red-500 shrink-0 mt-0.5" size={18} />
+                            <div className="space-y-1">
+                                <p className="text-red-200 font-bold text-xs uppercase tracking-wide">Crucial Warning</p>
+                                <p className="text-red-100 text-xs leading-relaxed">
+                                    You MUST save your <strong>nsec</strong> (private key) securely. It is the <strong>ONLY</strong> way to recover your profile and funds. If you lose it, your account is gone forever.
+                                </p>
                             </div>
-                        ))}
+                        </div>
                     </div>
 
-                    <div className="pt-4">
+                    {/* Step 2: Funds */}
+                    <div className="space-y-3">
+                        <div className="flex items-center space-x-3 text-green-400">
+                            <Icons.Wallet size={24} />
+                            <h3 className="font-bold text-lg text-white">2. Fund Your Wallet</h3>
+                        </div>
+                        <p className="text-slate-300 text-sm leading-relaxed">
+                            This app uses <strong>Bitcoin Lightning</strong> and <strong>Cashu</strong> for instant payments. You'll need to deposit funds to play for money.
+                        </p>
+                        <a
+                            href="https://bitcoin.org/en/buy"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-sm font-bold text-brand-primary hover:underline"
+                        >
+                            Learn how to acquire Bitcoin <Icons.Send size={12} className="ml-1" />
+                        </a>
+                    </div>
+
+                    {/* Step 3: Gameplay */}
+                    <div className="space-y-3">
+                        <div className="flex items-center space-x-3 text-brand-accent">
+                            <Icons.Trophy size={24} />
+                            <h3 className="font-bold text-lg text-white">3. Play & Win</h3>
+                        </div>
+                        <ul className="space-y-2 text-sm text-slate-300">
+                            <li className="flex items-start space-x-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-slate-500 mt-2" />
+                                <span><strong>Entry Fee:</strong> Every player pays into the pot when the round starts.</span>
+                            </li>
+                            <li className="flex items-start space-x-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-slate-500 mt-2" />
+                                <span><strong>Ace Pot:</strong> An optional side-bet. If anyone hits a Hole-in-One (Ace), they take this pot!</span>
+                            </li>
+                            <li className="flex items-start space-x-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-slate-500 mt-2" />
+                                <span><strong>Payouts:</strong> Once scores are finalized, the smart contract automatically distributes funds to the winners.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* Resources */}
+                    <div className="pt-4 border-t border-slate-800">
+                        <p className="text-xs font-bold text-slate-500 uppercase mb-3">Learn More</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            {resources.map(r => (
+                                <a
+                                    key={r.title}
+                                    href={r.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-slate-400 hover:text-brand-primary transition-colors flex items-center space-x-1"
+                                >
+                                    <span>{r.title}</span>
+                                    <Icons.Send size={10} />
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="pt-2">
                         <Button fullWidth onClick={onClose} variant="secondary">
                             Got it
                         </Button>
