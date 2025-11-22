@@ -92,6 +92,8 @@ export interface AppState {
   isAuthenticated: boolean;
   isGuest: boolean;
   authMethod: 'local' | 'nip46' | null;
+  walletMode: 'cashu' | 'nwc';
+  nwcString: string;
 }
 
 export enum GameStatus {

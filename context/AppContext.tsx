@@ -6,6 +6,7 @@ import { AppState, Player, RoundSettings, WalletTransaction, UserProfile, UserSt
 import { DEFAULT_HOLE_COUNT } from '../constants';
 import { publishProfile, publishRound, publishScore, subscribeToRound, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, generateNewProfile, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages } from '../services/nostrService';
 import { WalletService } from '../services/walletService';
+import { NWCService } from '../services/nwcService';
 import { bytesToHex } from '@noble/hashes/utils';
 
 interface AppContextType extends AppState {
@@ -45,6 +46,10 @@ interface AppContextType extends AppState {
   performLogout: () => void;
   isProfileLoading: boolean;
   createToken: (amount: number) => Promise<string>;
+
+  // NWC Actions
+  setWalletMode: (mode: 'cashu' | 'nwc') => void;
+  setNwcConnection: (uri: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -114,8 +119,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     totalSatsWon: 0
   });
 
+  // Wallet Mode
+  const [walletMode, setWalletMode] = useState<'cashu' | 'nwc'>(() => {
+    const savedMode = localStorage.getItem('cdg_wallet_mode') as 'cashu' | 'nwc';
+    const savedString = localStorage.getItem('cdg_nwc_string');
+    // Only allow NWC as default if we have a connection string
+    if (savedMode === 'nwc' && savedString) return 'nwc';
+    return 'cashu';
+  });
+  const [nwcString, setNwcString] = useState<string>(() => {
+    return localStorage.getItem('cdg_nwc_string') || '';
+  });
+
   const subRef = useRef<any>(null);
   const walletServiceRef = useRef<WalletService | null>(null);
+  const nwcServiceRef = useRef<NWCService | null>(null);
 
   // --- Effects ---
 
@@ -159,6 +177,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       walletServiceRef.current.connect().catch(console.error);
     }
   }, [mints]);
+
+  // Init NWC Service
+  useEffect(() => {
+    if (nwcString) {
+      try {
+        nwcServiceRef.current = new NWCService(nwcString);
+        console.log("NWC Service initialized");
+      } catch (e) {
+        console.error("Invalid NWC String", e);
+      }
+    }
+  }, [nwcString]);
+
+  // Persist Wallet Mode
+  useEffect(() => {
+    localStorage.setItem('cdg_wallet_mode', walletMode);
+    localStorage.setItem('cdg_nwc_string', nwcString);
+  }, [walletMode, nwcString]);
 
   // Init Auth
   useEffect(() => {
@@ -394,6 +430,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const performLogout = () => {
     // 1. Clear authenticated user data from storage
     nostrLogout();
+
+    localStorage.removeItem('cdg_user_private_key');
+    localStorage.removeItem('cdg_user_public_key');
+    localStorage.removeItem('cdg_auth_method');
+    localStorage.removeItem('cdg_wallet_mode');
+    localStorage.removeItem('cdg_nwc_string');
+
+    setIsAuthenticated(false);
+    setAuthMethod(null);
+    setCurrentUserPubkey('');
+    setUserProfile({ name: 'Guest', picture: '' });
+
+    // Reset Wallet Mode
+    setWalletMode('cashu');
+    setNwcString('');
+    if (nwcServiceRef.current) {
+      nwcServiceRef.current = null;
+    }
+
+    // Clear recent players if desired, or keep them. 
+    // For now we keep them as they might be useful for re-login.
 
     // 2. Clear sensitive app state from memory
     setProofs([]);
@@ -658,6 +715,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // --- Wallet Actions ---
 
   const refreshWalletBalance = async () => {
+    if (walletMode === 'nwc') {
+      if (nwcServiceRef.current) {
+        try {
+          const bal = await nwcServiceRef.current.getBalance();
+          setWalletBalance(bal);
+        } catch (e) {
+          console.error("NWC Balance fetch failed", e);
+        }
+      }
+      return;
+    }
+
+    // Cashu Logic
     if (!walletServiceRef.current || proofs.length === 0) return;
     try {
       console.log("Verifying wallet proofs...");
@@ -718,6 +788,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const sendFunds = async (amount: number, invoice: string): Promise<boolean> => {
+    if (walletMode === 'nwc') {
+      if (!nwcServiceRef.current) throw new Error("NWC not connected");
+      try {
+        await nwcServiceRef.current.payInvoice(invoice);
+        addTransaction('send', amount, 'Paid via NWC');
+        refreshWalletBalance();
+        return true;
+      } catch (e) {
+        console.error("NWC Payment failed", e);
+        return false;
+      }
+    }
+
     if (!walletServiceRef.current) return false;
     if (walletBalance < amount) return false;
 
@@ -859,10 +942,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setMints(prev => prev.map(m => ({ ...m, isActive: m.url === url })));
   };
 
+  const setWalletModeAction = (mode: 'cashu' | 'nwc') => {
+    setWalletMode(mode);
+    // Trigger balance refresh immediately
+    setTimeout(() => refreshWalletBalance(), 100);
+  };
+
+  const setNwcConnection = (uri: string) => {
+    setNwcString(uri);
+    setWalletMode('nwc'); // Auto-switch
+  };
+
   return (
     <AppContext.Provider value={{
       walletBalance,
       transactions,
+      walletMode,
+      nwcString,
       activeRound,
       players,
       currentHole,
@@ -875,7 +971,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isAuthenticated,
       isGuest,
       authMethod,
-      isProfileLoading,
+      currentUserPubkey,
       createRound,
       updateUserProfile,
       updateScore,
@@ -884,23 +980,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       depositFunds,
       checkDepositStatus,
       confirmDeposit,
-      sendFunds,
-      receiveEcash,
-      getLightningQuote,
       joinRoundAndPay,
       resetRound,
       refreshStats,
-      currentUserPubkey,
       addMint,
       removeMint,
       setActiveMint,
+      sendFunds,
+      receiveEcash,
+      getLightningQuote,
+      refreshWalletBalance,
       addRecentPlayer,
       loginNsec,
       loginNip46,
       createAccount,
       performLogout,
+      isProfileLoading,
       createToken,
-      refreshWalletBalance
+      setWalletMode: setWalletModeAction,
+      setNwcConnection
     }}>
       {children}
     </AppContext.Provider>
