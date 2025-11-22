@@ -1008,7 +1008,7 @@ export const Home: React.FC = () => {
 
     // Default Menu View
     return (
-        <div className="p-6 flex flex-col h-full relative">
+        <div className="p-6 flex flex-col flex-1 w-full relative pb-20">
             {/* Help Button */}
             <div className="absolute top-6 right-6 z-10">
                 <button
