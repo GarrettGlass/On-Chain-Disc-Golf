@@ -9,6 +9,18 @@ A mobile-friendly Disc Golf Scorecard and Wallet application.
 - **Social:** Connect with friends using Nostr.
 - **PWA:** Installable on mobile devices for a native app experience.
 
+## How to Install (PWA)
+
+**iOS (Safari):**
+1. Open the app in Safari.
+2. Tap the "Share" button (square with arrow).
+3. Scroll down and tap "Add to Home Screen".
+
+**Android (Chrome):**
+1. Open the app in Chrome.
+2. Tap the menu icon (three dots).
+3. Tap "Add to Home Screen" or "Install App".
+
 ## Run Locally
 
 **Prerequisites:** Node.js
