@@ -6,10 +6,11 @@ import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
 // Default relays - Optimized order for profile discovery
 const DEFAULT_RELAYS = [
     'wss://relay.damus.io',
+    'wss://relay.nostr.band',
     'wss://nos.lol',
-    'wss://relay.primal.net',
     'wss://relay.snort.social',
-    'wss://relay.jb55.com'
+    'wss://relay.nostr.net',
+    'wss://relay.primal.net'
 ];
 
 // Load relays from storage or use defaults
