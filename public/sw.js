@@ -1,4 +1,4 @@
-const CACHE_NAME = 'on-chains-v2';
+const CACHE_NAME = 'on-chains-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -17,6 +17,18 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Network-First strategy for HTML navigation requests
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Cache-First strategy for assets
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
