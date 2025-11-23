@@ -1,5 +1,5 @@
 
-import { SimplePool, generateSecretKey, getPublicKey, finalizeEvent, nip19, Filter, Event, nip04 } from 'nostr-tools';
+import { SimplePool, generateSecretKey, getPublicKey, finalizeEvent, nip19, Filter, Event, nip04, nip44 } from 'nostr-tools';
 import { NOSTR_KIND_PROFILE, NOSTR_KIND_CONTACTS, NOSTR_KIND_ROUND, NOSTR_KIND_SCORE, NOSTR_KIND_APP_DATA, Player, RoundSettings, UserProfile, DisplayProfile, Proof, Mint, WalletTransaction } from '../types';
 import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
 
@@ -397,6 +397,84 @@ const decryptWrapper = async (senderPubkey: string, ciphertext: string): Promise
         return parsedResponse.result;
     }
 };
+// --- NIP-44 Wrappers ---
+
+const getConversationKeyWrapper = async (peerPubkey: string): Promise<Uint8Array> => {
+    const ctx = getAuthContext();
+    if (ctx.type === 'local') {
+        return nip44.v2.utils.getConversationKey(ctx.sk, peerPubkey);
+    } else {
+        throw new Error("NIP-44 not yet supported over NIP-46 (requires remote signer support)");
+    }
+};
+
+const encryptInternal = async (recipientPubkey: string, plaintext: string): Promise<string> => {
+    const ctx = getAuthContext();
+    if (ctx.type === 'local') {
+        const conversationKey = nip44.v2.utils.getConversationKey(ctx.sk, recipientPubkey);
+        return nip44.v2.encrypt(plaintext, conversationKey);
+    } else {
+        // Try NIP-46 nip44_encrypt
+        const id = Math.random().toString(36).substring(7);
+        const reqContent = {
+            id,
+            method: 'nip44_encrypt',
+            params: [recipientPubkey, plaintext]
+        };
+
+        const encryptedRequest = await nip04.encrypt(ctx.ephemeralSk, ctx.remotePubkey, JSON.stringify(reqContent));
+
+        const reqEvent = finalizeEvent({
+            kind: 24133,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['p', ctx.remotePubkey]],
+            content: encryptedRequest
+        }, ctx.ephemeralSk);
+
+        await promiseAny(pool.publish(ctx.relays, reqEvent));
+
+        const responseEvent = await waitForNip46Response(reqEvent.id, ctx.relays);
+        const decryptedResponse = await nip04.decrypt(ctx.ephemeralSk, ctx.remotePubkey, responseEvent.content);
+        const parsedResponse = JSON.parse(decryptedResponse);
+
+        if (parsedResponse.error) throw new Error(parsedResponse.error);
+        return parsedResponse.result;
+    }
+};
+
+const decryptInternal = async (senderPubkey: string, ciphertext: string): Promise<string> => {
+    const ctx = getAuthContext();
+    if (ctx.type === 'local') {
+        const conversationKey = nip44.v2.utils.getConversationKey(ctx.sk, senderPubkey);
+        return nip44.v2.decrypt(ciphertext, conversationKey);
+    } else {
+        // Try NIP-46 nip44_decrypt
+        const id = Math.random().toString(36).substring(7);
+        const reqContent = {
+            id,
+            method: 'nip44_decrypt',
+            params: [senderPubkey, ciphertext]
+        };
+
+        const encryptedRequest = await nip04.encrypt(ctx.ephemeralSk, ctx.remotePubkey, JSON.stringify(reqContent));
+
+        const reqEvent = finalizeEvent({
+            kind: 24133,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['p', ctx.remotePubkey]],
+            content: encryptedRequest
+        }, ctx.ephemeralSk);
+
+        await promiseAny(pool.publish(ctx.relays, reqEvent));
+
+        const responseEvent = await waitForNip46Response(reqEvent.id, ctx.relays);
+        const decryptedResponse = await nip04.decrypt(ctx.ephemeralSk, ctx.remotePubkey, responseEvent.content);
+        const parsedResponse = JSON.parse(decryptedResponse);
+
+        if (parsedResponse.error) throw new Error(parsedResponse.error);
+        return parsedResponse.result;
+    }
+};
 
 // --- Media Upload (NIP-98 / Blossom) ---
 
@@ -517,7 +595,7 @@ export const publishRecentPlayers = async (players: DisplayProfile[]) => {
     if (!session) return; // Silent fail if not auth
 
     const rawData = JSON.stringify(players);
-    const encryptedContent = await encryptWrapper(session.pk, rawData);
+    const encryptedContent = await encryptInternal(session.pk, rawData);
 
     const event = await signEventWrapper({
         kind: NOSTR_KIND_APP_DATA,
@@ -544,7 +622,7 @@ export const fetchRecentPlayers = async (pubkey: string): Promise<DisplayProfile
         if (events.length === 0) return [];
 
         const latest = events.sort((a, b) => b.created_at - a.created_at)[0];
-        const decrypted = await decryptWrapper(latest.pubkey, latest.content);
+        const decrypted = await decryptInternal(latest.pubkey, latest.content);
         return JSON.parse(decrypted);
     } catch (e) {
         console.warn("Failed to fetch recent players from Nostr", e);
@@ -621,8 +699,8 @@ export const publishWalletBackup = async (proofs: Proof[], mints: Mint[], transa
 
     const rawData = JSON.stringify({ proofs, mints, transactions, timestamp: Date.now() });
 
-    // Encrypt content using NIP-04 (self-encryption)
-    const encryptedContent = await encryptWrapper(session.pk, rawData);
+    // Encrypt content using NIP-44 (self-encryption)
+    const encryptedContent = await encryptInternal(session.pk, rawData);
 
     const event = await signEventWrapper({
         kind: NOSTR_KIND_WALLET_BACKUP,
@@ -653,7 +731,7 @@ export const fetchWalletBackup = async (pubkey: string): Promise<{ proofs: Proof
         const latestBackup = events.sort((a, b) => b.created_at - a.created_at)[0];
 
         // Decrypt
-        const decryptedContent = await decryptWrapper(latestBackup.pubkey, latestBackup.content);
+        const decryptedContent = await decryptInternal(latestBackup.pubkey, latestBackup.content);
         const data = JSON.parse(decryptedContent);
 
         return {

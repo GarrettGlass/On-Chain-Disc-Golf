@@ -120,7 +120,7 @@ export class WalletService {
     /**
      * Pay a Lightning Invoice (Melt)
      */
-    async payInvoice(invoice: string, proofs: Proof[]): Promise<{ remaining: Proof[], paid: boolean }> {
+    async payInvoice(invoice: string, proofs: Proof[]): Promise<{ remaining: Proof[], paid: boolean, preimage?: string }> {
         try {
             // Check fee
             const quote = await this.wallet.createMeltQuote(invoice);
@@ -137,7 +137,8 @@ export class WalletService {
 
             return {
                 remaining: change,
-                paid: true
+                paid: true,
+                preimage: response.payment_preimage || null
             };
         } catch (e) {
             console.error("Melt failed", e);
@@ -221,5 +222,18 @@ export class WalletService {
         const existingSecrets = new Set(existing.map(p => p.secret));
         const uniqueIncoming = incoming.filter(p => !existingSecrets.has(p.secret));
         return [...existing, ...uniqueIncoming];
+    }
+    /**
+     * Zap a user (Pay a Lightning Invoice using Cashu Tokens)
+     * This is effectively a "Melt" operation.
+     */
+    async zap(invoice: string, proofs: Proof[]): Promise<{ remaining: Proof[], paid: boolean, preimage?: string }> {
+        console.log("Initiating Zap payment...");
+        // Get quote to verify amount/fees
+        const quote = await this.getLightningQuote(invoice);
+        console.log(`Zap Quote: ${quote.amount} sats + ${quote.fee} fee`);
+
+        // Pay
+        return this.payInvoice(invoice, proofs);
     }
 }

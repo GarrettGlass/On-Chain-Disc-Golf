@@ -40,9 +40,14 @@ export class NWCService {
 
         this.walletPubkey = pubkey;
         this.relay = relay;
-        this.secret = secret;
+        this.secret = secret.trim();
 
-        this.connection = { pubkey, relay, secret, lud16: lud16 || undefined };
+        if (this.secret.length % 2 !== 0) {
+            console.error("Invalid NWC Secret Length:", this.secret.length);
+            throw new Error("NWC Secret must be a valid hex string (even length)");
+        }
+
+        this.connection = { pubkey, relay, secret: this.secret, lud16: lud16 || undefined };
     }
 
     async getBalance(): Promise<number> {

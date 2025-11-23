@@ -187,7 +187,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         nwcServiceRef.current = new NWCService(nwcString);
         console.log("NWC Service initialized");
       } catch (e) {
-        console.error("Invalid NWC String", e);
+        console.error("Invalid NWC String, clearing...", e);
+        setNwcString('');
+        localStorage.removeItem('cdg_nwc_string');
+        setWalletMode('cashu');
       }
     }
   }, [nwcString]);
