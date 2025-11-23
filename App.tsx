@@ -6,8 +6,11 @@ import { Home } from './pages/Home';
 import { Scorecard } from './pages/Scorecard';
 import { Wallet } from './pages/Wallet';
 import { Profile } from './pages/Profile';
+import { useSwipeBack } from './hooks/useSwipeBack';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  useSwipeBack(); // Enable global swipe-to-back
+
   return (
     <div className="min-h-screen bg-brand-dark text-white font-sans antialiased selection:bg-brand-primary selection:text-black pb-safe">
       <div className="max-w-md mx-auto min-h-screen relative bg-brand-dark shadow-2xl overflow-hidden flex flex-col">

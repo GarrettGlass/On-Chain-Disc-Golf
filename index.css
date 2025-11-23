@@ -12,3 +12,13 @@ body {
   background-color: #0f172a;
   color: white;
 }
+
+@layer utilities {
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+  .animate-wiggle {
+    animation: wiggle 0.2s ease-in-out 2;
+  }
+}

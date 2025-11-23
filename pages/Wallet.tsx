@@ -60,6 +60,8 @@ export const Wallet: React.FC = () => {
     const [localNwcString, setLocalNwcString] = useState(nwcString);
     const [isCameraLoading, setIsCameraLoading] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
+    const [showNwcError, setShowNwcError] = useState(false);
+    const [isWiggling, setIsWiggling] = useState(false);
 
     // Scanner Refs
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -463,7 +465,20 @@ export const Wallet: React.FC = () => {
         return (
             <div className="p-6 h-full flex flex-col overflow-y-auto pb-24">
                 <div className="flex items-center mb-6">
-                    <button onClick={() => setView('main')} className="mr-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700">
+                    <button
+                        onClick={() => {
+                            if (walletMode === 'nwc' && !nwcString) {
+                                setShowNwcError(true);
+                                setIsWiggling(true);
+                                setTimeout(() => setIsWiggling(false), 500);
+                                // Vibrate if supported
+                                if (navigator.vibrate) navigator.vibrate(200);
+                                return;
+                            }
+                            setView('main');
+                        }}
+                        className="mr-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700"
+                    >
                         <Icons.Prev />
                     </button>
                     <h2 className="text-xl font-bold">Wallet Settings</h2>
@@ -488,6 +503,14 @@ export const Wallet: React.FC = () => {
                             <span className="text-xs text-center text-slate-400">Self-Custody, Lightning</span>
                         </button>
                     </div>
+                    {showNwcError && walletMode === 'nwc' && !nwcString && (
+                        <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center animate-in fade-in slide-in-from-top-2">
+                            <Icons.Close className="text-red-500 mr-2" size={16} />
+                            <p className="text-xs text-red-400 font-bold">
+                                Please save a connection or switch to Cashu.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {walletMode === 'nwc' && (
@@ -524,13 +547,18 @@ export const Wallet: React.FC = () => {
                                 </Button>
                             </div>
                         ) : (
-                            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                                <label className="block text-xs text-slate-500 mb-2">Connection String (nostr+walletconnect://...)</label>
+                            <div className={`bg-slate-800 p-4 rounded-xl border transition-all duration-200 ${showNwcError ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-700'} ${isWiggling ? 'animate-wiggle' : ''}`}>
+                                <label className={`block text-xs mb-2 ${showNwcError ? 'text-red-400 font-bold' : 'text-slate-500'}`}>
+                                    {showNwcError ? 'Connection Required' : 'Connection String (nostr+walletconnect://...)'}
+                                </label>
                                 <textarea
                                     className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-xs font-mono h-24 focus:ring-2 focus:ring-brand-secondary outline-none resize-none mb-3"
                                     placeholder="nostr+walletconnect://..."
                                     value={localNwcString}
-                                    onChange={e => setLocalNwcString(e.target.value)}
+                                    onChange={e => {
+                                        setLocalNwcString(e.target.value);
+                                        if (showNwcError) setShowNwcError(false);
+                                    }}
                                 />
                                 <div className="flex justify-end mb-3">
                                     <Button
