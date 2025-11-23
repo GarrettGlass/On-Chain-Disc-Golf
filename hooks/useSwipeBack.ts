@@ -7,8 +7,8 @@ export const useSwipeBack = () => {
 
     useEffect(() => {
         const handleTouchStart = (e: TouchEvent) => {
-            // Only trigger if starting from the left edge (first 50px or 15% of screen)
-            const isLeftEdge = e.touches[0].clientX < 50 || e.touches[0].clientX < window.innerWidth * 0.15;
+            // Only trigger if starting from the left edge (first 100px or 20% of screen)
+            const isLeftEdge = e.touches[0].clientX < 100 || e.touches[0].clientX < window.innerWidth * 0.20;
 
             if (isLeftEdge) {
                 touchStartRef.current = {

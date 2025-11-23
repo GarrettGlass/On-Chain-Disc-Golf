@@ -1,5 +1,5 @@
 import React from 'react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { BottomNav } from './components/BottomNav';
 import { Home } from './pages/Home';
@@ -26,7 +26,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const App: React.FC = () => {
   return (
     <AppProvider>
-      <MemoryRouter>
+      <BrowserRouter>
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -35,7 +35,7 @@ const App: React.FC = () => {
             <Route path="/profile" element={<Profile />} />
           </Routes>
         </Layout>
-      </MemoryRouter>
+      </BrowserRouter>
     </AppProvider>
   );
 };
