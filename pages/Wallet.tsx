@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useQrScanner } from '../hooks/useQrScanner';
 import { useApp } from '../context/AppContext';
 import { sendGiftWrap } from '../services/nostrService';
 import { Button } from '../components/Button';
@@ -84,8 +85,6 @@ export const Wallet: React.FC = () => {
     const [newMintUrl, setNewMintUrl] = useState('');
     const [newMintName, setNewMintName] = useState('');
     const [localNwcString, setLocalNwcString] = useState(nwcString);
-    const [isCameraLoading, setIsCameraLoading] = useState(false);
-    const [cameraError, setCameraError] = useState<string | null>(null);
     const [showNwcError, setShowNwcError] = useState(false);
     const [isWiggling, setIsWiggling] = useState(false);
     const [helpModal, setHelpModal] = useState<{ isOpen: boolean, title: string, text: string } | null>(null);
@@ -196,118 +195,27 @@ export const Wallet: React.FC = () => {
 
 
     // Camera & Scanning Logic
-    useEffect(() => {
-        if (view !== 'send-scan') return;
-
-        let stream: MediaStream | null = null;
-        let animationFrameId: number;
-        let isMounted = true;
-
-        const tick = async (jsQR: any) => {
-            if (!isMounted) return;
-
-            if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
-                const canvas = canvasRef.current;
-                const video = videoRef.current;
-
-                canvas.height = video.videoHeight;
-                canvas.width = video.videoWidth;
-
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "dontInvert",
-                    });
-
-                    if (code) {
-                        let data = code.data;
-                        if (data.toLowerCase().startsWith('lightning:')) {
-                            data = data.substring(10);
-                        }
-
-                        if (isMounted) {
-                            if (data.startsWith('cashuA')) {
-                                const confirmReceive = window.confirm("This looks like an eCash token. Do you want to receive (claim) it?");
-                                if (confirmReceive) {
-                                    await handleReceiveToken(data);
-                                    return;
-                                }
-                            }
-                            setSendInput(data);
-                            setView('send-details');
-                        }
-                        return;
-                    }
-                }
+    const { isCameraLoading, cameraError, scannedData } = useQrScanner({
+        videoRef,
+        canvasRef,
+        active: view === 'send-scan',
+        onScan: (data) => {
+            let cleanData = data;
+            if (cleanData.toLowerCase().startsWith('lightning:')) {
+                cleanData = cleanData.substring(10);
             }
-            animationFrameId = requestAnimationFrame(() => tick(jsQR));
-        };
 
-        const startCamera = async () => {
-            setIsCameraLoading(true);
-            setCameraError(null);
-            try {
-                // @ts-ignore
-                const jsQRModule = await import('jsqr');
-                const jsQR = jsQRModule.default;
-
-                let mediaStream: MediaStream;
-                try {
-                    // Try environment camera first
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                } catch (envError) {
-                    console.warn("Environment camera failed, trying user camera...", envError);
-                    // Fallback to any video source
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                }
-
-                if (!isMounted) {
-                    mediaStream.getTracks().forEach(track => track.stop());
+            if (cleanData.startsWith('cashuA')) {
+                const confirmReceive = window.confirm("This looks like an eCash token. Do you want to receive (claim) it?");
+                if (confirmReceive) {
+                    handleReceiveToken(cleanData);
                     return;
                 }
-
-                stream = mediaStream;
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    videoRef.current.setAttribute('playsinline', 'true');
-
-                    // Wait for video to be ready
-                    await new Promise<void>((resolve) => {
-                        if (!videoRef.current) return resolve();
-                        videoRef.current.onloadedmetadata = () => {
-                            resolve();
-                        };
-                    });
-
-                    await videoRef.current.play();
-
-                    setIsCameraLoading(false);
-                    requestAnimationFrame(() => tick(jsQR));
-                }
-            } catch (err) {
-                console.error("Camera access denied or error", err);
-                if (isMounted) {
-                    setIsCameraLoading(false);
-                    setCameraError("Could not access camera. Please check permissions.");
-                }
             }
-        };
-
-        startCamera();
-
-        return () => {
-            isMounted = false;
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-        };
-    }, [view]);
+            setSendInput(cleanData);
+            setView('send-details');
+        }
+    });
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -878,7 +786,7 @@ export const Wallet: React.FC = () => {
                             </p>
                         </div>
                         <div className="w-full max-w-sm space-y-3 pt-4">
-                            <Button fullWidth onClick={() => { setCameraError(null); setView('main'); setTimeout(() => setView('send-scan'), 100); }} className="bg-brand-primary text-white hover:bg-brand-primary/90">
+                            <Button fullWidth onClick={() => { setView('main'); setTimeout(() => setView('send-scan'), 100); }} className="bg-brand-primary text-white hover:bg-brand-primary/90">
                                 <Icons.Refresh className="mr-2" size={20} />
                                 <span>Retry Camera</span>
                             </Button>

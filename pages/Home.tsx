@@ -9,7 +9,7 @@ import { COURSE_PRESETS } from '../constants';
 import { getPool, getRelays, listEvents, lookupUser } from '../services/nostrService';
 import { NOSTR_KIND_ROUND, DisplayProfile } from '../types';
 import { nip19 } from 'nostr-tools';
-import jsQR from 'jsqr';
+import { useQrScanner } from '../hooks/useQrScanner';
 
 // Helper Component for Success Animation (Reusable)
 const SuccessOverlay: React.FC<{ message: string, onClose: () => void }> = ({ message, onClose }) => {
@@ -57,7 +57,6 @@ export const Home: React.FC = () => {
     // Player Scanner State
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [isCameraLoading, setIsCameraLoading] = useState(false);
 
     // Customize View State
     const [excludedPlayers, setExcludedPlayers] = useState<Set<string>>(new Set());
@@ -92,6 +91,22 @@ export const Home: React.FC = () => {
     // Player QR Modal State
     const [showPlayerQr, setShowPlayerQr] = useState(false);
 
+    // Onboarding flow - wiggle login button for guest users
+    const [wiggleLogin, setWiggleLogin] = useState(false);
+    const [showLoginHint, setShowLoginHint] = useState(false);
+
+    const handleGuestActionAttempt = () => {
+        if (isGuest) {
+            // Wiggle the login button
+            setWiggleLogin(true);
+            setShowLoginHint(true);
+            setTimeout(() => setWiggleLogin(false), 400); // Match wiggle animation duration
+            setTimeout(() => setShowLoginHint(false), 3000); // Hide hint after 3 seconds
+            return true; // Indicates guest attempted action
+        }
+        return false; // User is logged in, allow action
+    };
+
     // Reset paid status when entering customize view
     useEffect(() => {
         if (view === 'customize') {
@@ -121,104 +136,33 @@ export const Home: React.FC = () => {
     }, [showPaymentModal, paymentQuote, paymentSuccess, checkDepositStatus]);
 
     // Scanner Logic for Adding Players
-    useEffect(() => {
-        if (view !== 'scan_player') return;
+    const { isCameraLoading } = useQrScanner({
+        videoRef,
+        canvasRef,
+        active: view === 'scan_player',
+        onScan: async (data) => {
+            let cleanData = data;
+            if (cleanData.startsWith('nostr:')) cleanData = cleanData.replace('nostr:', '');
+            if (cleanData.toLowerCase().startsWith('lightning:')) cleanData = cleanData.split(':')[1];
 
-        let stream: MediaStream | null = null;
-        let animationFrameId: number;
-        let isMounted = true;
+            setView('select_players');
+            setSearchQuery(cleanData);
+            setIsSearching(true);
 
-        const tick = async () => {
-            if (!isMounted) return;
-
-            if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA && canvasRef.current) {
-                const canvas = canvasRef.current;
-                const video = videoRef.current;
-
-                canvas.height = video.videoHeight;
-                canvas.width = video.videoWidth;
-
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "dontInvert",
-                    });
-
-                    if (code) {
-                        const data = code.data;
-                        let cleanData = data;
-                        if (cleanData.startsWith('nostr:')) cleanData = cleanData.replace('nostr:', '');
-                        if (cleanData.toLowerCase().startsWith('lightning:')) cleanData = cleanData.split(':')[1];
-
-                        if (isMounted) {
-                            setView('select_players');
-                            setSearchQuery(cleanData);
-                            setIsSearching(true);
-
-                            try {
-                                const user = await lookupUser(cleanData);
-                                if (user) {
-                                    setFoundUser(user);
-                                } else {
-                                    alert("Could not find user from QR code.");
-                                }
-                            } catch (e) {
-                                alert("Invalid QR Code format.");
-                            } finally {
-                                setIsSearching(false);
-                            }
-                        }
-                        return;
-                    }
-                }
-            }
-            animationFrameId = requestAnimationFrame(() => tick());
-        };
-
-        const startCamera = async () => {
-            setIsCameraLoading(true);
             try {
-                // jsQR is imported statically
-                const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-
-                if (!isMounted) {
-                    mediaStream.getTracks().forEach(track => track.stop());
-                    return;
+                const user = await lookupUser(cleanData);
+                if (user) {
+                    setFoundUser(user);
+                } else {
+                    alert("Could not find user from QR code.");
                 }
-
-                stream = mediaStream;
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    videoRef.current.setAttribute('playsinline', 'true');
-
-                    try {
-                        await videoRef.current.play();
-                    } catch (e) { }
-
-                    setIsCameraLoading(false);
-                    requestAnimationFrame(() => tick());
-                }
-            } catch (err) {
-                console.error("Camera error", err);
-                if (isMounted) {
-                    setIsCameraLoading(false);
-                    alert("Could not access camera.");
-                    setView('select_players');
-                }
+            } catch (e) {
+                alert("Invalid QR Code format.");
+            } finally {
+                setIsSearching(false);
             }
-        };
-
-        startCamera();
-
-        return () => {
-            isMounted = false;
-            if (stream) stream.getTracks().forEach(track => track.stop());
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        };
-    }, [view]);
+        }
+    });
 
     const handleStartRound = async () => {
         const holes = layout === '9' ? 9 : layout === '18' ? 18 : customHoles;
@@ -301,6 +245,9 @@ export const Home: React.FC = () => {
     };
 
     const handleCreateRoundClick = () => {
+        // If guest, wiggle login button instead
+        if (handleGuestActionAttempt()) return;
+
         if (activeRound && !activeRound.isFinalized) {
             setShowResetConfirm(true);
         } else {
@@ -1046,12 +993,22 @@ export const Home: React.FC = () => {
                     )}
 
                     {isGuest && (
-                        <Button fullWidth onClick={() => navigate('/profile')} className="bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20 mb-4 hover:bg-brand-accent/90">
+                        <Button
+                            fullWidth
+                            onClick={() => navigate('/profile')}
+                            className={`bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20 mb-4 hover:bg-brand-accent/90 transition-transform ${wiggleLogin ? 'animate-wiggle' : ''}`}
+                        >
                             <div className="flex items-center justify-center space-x-2">
                                 <Icons.Users />
                                 <span>Login or Create Profile</span>
                             </div>
                         </Button>
+                    )}
+
+                    {showLoginHint && isGuest && (
+                        <div className="text-brand-primary text-xs text-center bg-brand-primary/10 p-2 rounded-lg border border-brand-primary/20 animate-in fade-in slide-in-from-top-2 mb-2">
+                            👆 Create a profile to start playing!
+                        </div>
                     )}
 
                     <Button fullWidth onClick={handleCreateRoundClick}>
@@ -1061,7 +1018,11 @@ export const Home: React.FC = () => {
                         </div>
                     </Button>
 
-                    <Button fullWidth variant="secondary" onClick={() => setShowPlayerQr(true)}>
+                    <Button fullWidth variant="secondary" onClick={() => {
+                        // If guest, wiggle login button instead
+                        if (handleGuestActionAttempt()) return;
+                        setShowPlayerQr(true);
+                    }}>
                         <div className="flex items-center justify-center space-x-2">
                             <Icons.QrCode />
                             <span>Scan to Join</span>
