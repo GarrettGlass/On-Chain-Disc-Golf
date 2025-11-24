@@ -1,8 +1,9 @@
-const CACHE_NAME = 'on-chains-v3';
+const CACHE_NAME = 'on-chains-v4';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/icon.jpg'
 ];
 
 self.addEventListener('install', (event) => {
