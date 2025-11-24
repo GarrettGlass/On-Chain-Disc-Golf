@@ -30,19 +30,19 @@ const App: React.FC = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
-    // Minimum splash display time + exit animation
-    const minDisplayTime = setTimeout(() => {
-      setIsLoaded(true);
+    // Start exit animation after 1 second
+    const startExit = setTimeout(() => {
       setIsTransitioning(true);
     }, 1000);
 
-    // Hide splash after exit animation completes
+    // Hide splash and start content fade-in after exit completes
     const hideSplash = setTimeout(() => {
       setShowSplash(false);
-    }, 1500); // 1000ms display + 500ms exit up animation
+      setIsLoaded(true);
+    }, 1500); // Logo finishes exiting at 1500ms
 
     return () => {
-      clearTimeout(minDisplayTime);
+      clearTimeout(startExit);
       clearTimeout(hideSplash);
     };
   }, []);
@@ -50,7 +50,7 @@ const App: React.FC = () => {
   return (
     <AppProvider>
       <BrowserRouter>
-        <div className={`transition-opacity duration-400 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
           <Layout>
             <Routes>
               <Route path="/" element={<Home />} />

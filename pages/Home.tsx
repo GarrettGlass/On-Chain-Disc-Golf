@@ -1028,7 +1028,10 @@ export const Home: React.FC = () => {
                         />
                         <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse" />
                     </div>
-                    <h1 className="text-4xl font-extrabold tracking-tight text-white">On-Chain Disc Golf</h1>
+                    <h1 className="text-4xl font-extrabold tracking-tight">
+                        <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>{' '}
+                        <span className="text-white">Disc Golf</span>
+                    </h1>
                     <p className="text-slate-400 text-sm">Decentralized Disc Golf powered by Bitcoin, Nostr, and eCash</p>
                 </div>
 
