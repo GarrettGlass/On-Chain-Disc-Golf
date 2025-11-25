@@ -80,6 +80,7 @@ export const Wallet: React.FC = () => {
 
         let timeoutId: NodeJS.Timeout;
         const startTime = Date.now();
+        const THIRTY_SECONDS = 30 * 1000;
         const TWO_MINUTES = 2 * 60 * 1000;
 
         const poll = async () => {
@@ -91,12 +92,21 @@ export const Wallet: React.FC = () => {
             }
 
             const elapsed = Date.now() - startTime;
-            const delay = elapsed < TWO_MINUTES ? 5000 : 10000;
+
+            // Tiered polling: 2s → 3s → 5s
+            let delay;
+            if (elapsed < THIRTY_SECONDS) {
+                delay = 2000; // First 30s: Very aggressive (2s)
+            } else if (elapsed < TWO_MINUTES) {
+                delay = 3000; // 30s-2min: Moderate (3s)
+            } else {
+                delay = 5000; // After 2min: Lighter (5s)
+            }
 
             timeoutId = setTimeout(poll, delay);
         };
 
-        // Start polling
+        // Start polling immediately
         poll();
 
         return () => clearTimeout(timeoutId);
@@ -167,22 +177,44 @@ export const Wallet: React.FC = () => {
     // Auto-Polling for Deposit Confirmation
     useEffect(() => {
         if (view === 'deposit' && depositQuote && !depositSuccess) {
-            // Poll every 3 seconds
-            pollingRef.current = setInterval(async () => {
+            const startTime = Date.now();
+            const THIRTY_SECONDS = 30 * 1000;
+            const TWO_MINUTES = 2 * 60 * 1000;
+            let timeoutId: NodeJS.Timeout;
+
+            const poll = async () => {
                 const isPaid = await checkDepositStatus(depositQuote);
                 if (isPaid) {
-                    if (pollingRef.current) clearInterval(pollingRef.current);
                     const amount = parseInt(depositAmount);
                     const success = await confirmDeposit(depositQuote, amount);
                     if (success) {
                         setDepositSuccess(true);
+                        setSuccessMode('deposit');
                     }
+                    return; // Stop polling
                 }
-            }, 3000);
+
+                // Tiered polling: 2s → 3s → 5s
+                const elapsed = Date.now() - startTime;
+                let delay;
+                if (elapsed < THIRTY_SECONDS) {
+                    delay = 2000; // First 30s: Very aggressive
+                } else if (elapsed < TWO_MINUTES) {
+                    delay = 3000; // 30s-2min: Moderate
+                } else {
+                    delay = 5000; // After 2min: Lighter
+                }
+
+                timeoutId = setTimeout(poll, delay);
+            };
+
+            // Start polling immediately
+            poll();
+
+            return () => {
+                if (timeoutId) clearTimeout(timeoutId);
+            };
         }
-        return () => {
-            if (pollingRef.current) clearInterval(pollingRef.current);
-        };
     }, [view, depositQuote, depositSuccess, depositAmount, checkDepositStatus, confirmDeposit]);
 
     // Auto-Populate Invoice Details
@@ -907,7 +939,9 @@ export const Wallet: React.FC = () => {
                     <video
                         ref={videoRef}
                         className="absolute inset-0 w-full h-full object-cover z-10 border-2 border-red-500"
-                        muted autoPlay playsInline
+                        muted={true}
+                        autoPlay={true}
+                        playsInline={true}
                     />
                     <canvas ref={canvasRef} className="hidden" />
 

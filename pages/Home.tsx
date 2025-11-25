@@ -394,7 +394,13 @@ export const Home: React.FC = () => {
         return (
             <div className="relative h-full bg-black flex flex-col">
                 <div className="flex-1 relative overflow-hidden">
-                    <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover z-10 border-2 border-red-500" muted autoPlay playsInline />
+                    <video
+                        ref={videoRef}
+                        className="absolute inset-0 w-full h-full object-cover z-10 border-2 border-red-500"
+                        muted={true}
+                        autoPlay={true}
+                        playsInline={true}
+                    />
                     <canvas ref={canvasRef} className="hidden" />
 
                     {/* Debug Logs */}

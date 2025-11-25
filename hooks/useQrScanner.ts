@@ -170,7 +170,7 @@ export const useQrScanner = ({ videoRef, canvasRef, onScan, active }: UseQrScann
             isMountedRef.current = false;
             stopScanner();
         };
-    }, [active, startScanner, stopScanner]);
+    }, [active, startScanner, stopScanner, videoRef.current]);
 
     return {
         isCameraLoading,
