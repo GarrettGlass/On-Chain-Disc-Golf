@@ -66,6 +66,69 @@ export const Profile: React.FC = () => {
     // Settings State
     const [relayList, setRelayList] = useState<string[]>([]);
     const [newRelayUrl, setNewRelayUrl] = useState('');
+    const [openSection, setOpenSection] = useState<string | null>(null);
+
+    // Logout Hold State
+    const [holdProgress, setHoldProgress] = useState(0);
+    const holdIntervalRef = useRef<any>(null);
+    const [isExploding, setIsExploding] = useState(false);
+
+    const toggleSection = (section: string) => {
+        if (openSection === section) {
+            setOpenSection(null);
+        } else {
+            setOpenSection(section);
+        }
+    };
+
+    const startHold = () => {
+        if (holdIntervalRef.current) return;
+        setHoldProgress(0);
+        // 1.5 seconds to fill
+        // Update every 15ms -> 100 steps
+        // 100% / 100 steps = 1% per step
+        holdIntervalRef.current = setInterval(() => {
+            setHoldProgress(prev => {
+                if (prev >= 100) {
+                    clearInterval(holdIntervalRef.current);
+                    holdIntervalRef.current = null;
+                    handleLogoutSuccess();
+                    return 100;
+                }
+                return prev + 1.5;
+            });
+        }, 15);
+    };
+
+    const stopHold = () => {
+        if (holdIntervalRef.current) {
+            clearInterval(holdIntervalRef.current);
+            holdIntervalRef.current = null;
+        }
+        setHoldProgress(0);
+    };
+
+    const handleLogoutSuccess = () => {
+        setShowLogoutConfirm(false);
+        setIsExploding(true);
+        setTimeout(() => {
+            setIsExploding(false);
+            performLogout();
+        }, 2000);
+    };
+
+    const SectionHeader = ({ title, icon, id }: { title: string, icon?: React.ReactNode, id: string }) => (
+        <button
+            onClick={() => toggleSection(id)}
+            className={`w-full flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 ${openSection === id ? 'rounded-t-xl border-b-0 bg-slate-800' : 'rounded-xl hover:bg-slate-800 transition-colors'}`}
+        >
+            <div className="flex items-center font-bold text-white">
+                {icon}
+                <span className={icon ? 'ml-2' : ''}>{title}</span>
+            </div>
+            <Icons.Next size={16} className={`text-slate-500 transition-transform duration-200 ${openSection === id ? 'rotate-90' : ''}`} />
+        </button>
+    );
 
     useEffect(() => {
         if (isAuthenticated && !isProfileLoading) {
@@ -314,29 +377,8 @@ export const Profile: React.FC = () => {
     }
 
     // --- SETTINGS VIEW ---
+    // --- SETTINGS VIEW ---
     if (view === 'settings') {
-        const [openSection, setOpenSection] = useState<string | null>(null);
-
-        const toggleSection = (section: string) => {
-            if (openSection === section) {
-                setOpenSection(null);
-            } else {
-                setOpenSection(section);
-            }
-        };
-
-        const SectionHeader = ({ title, icon, id }: { title: string, icon?: React.ReactNode, id: string }) => (
-            <button
-                onClick={() => toggleSection(id)}
-                className={`w-full flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 ${openSection === id ? 'rounded-t-xl border-b-0 bg-slate-800' : 'rounded-xl hover:bg-slate-800 transition-colors'}`}
-            >
-                <div className="flex items-center font-bold text-white">
-                    {icon}
-                    <span className={icon ? 'ml-2' : ''}>{title}</span>
-                </div>
-                <Icons.Next size={16} className={`text-slate-500 transition-transform duration-200 ${openSection === id ? 'rotate-90' : ''}`} />
-            </button>
-        );
 
         return (
             <div className="p-6 flex flex-col h-full bg-brand-dark overflow-y-auto">
@@ -498,11 +540,11 @@ export const Profile: React.FC = () => {
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Source Code</span>
-                                        <a href="https://github.com/Plebeian-Tech/on-chain-disc-golf" target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">GitHub</a>
+                                        <a href="https://github.com/GarrettGlass/On-Chain-Disc-Golf" target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">GitHub</a>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Developer</span>
-                                        <a href="https://njump.me/npub1..." target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">Nostr Profile</a>
+                                        <a href="https://primal.net/Garrett" target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">Nostr Profile</a>
                                     </div>
                                 </div>
                             </div>
@@ -529,7 +571,10 @@ export const Profile: React.FC = () => {
             {/* Header Icons */}
             <div className="absolute top-6 right-6 z-10 flex space-x-2">
                 <button
-                    onClick={() => openHelp('Profile Help', 'Edit your profile, manage your keys, and view your stats.')}
+                    onClick={() => openHelp(
+                        'What is Nostr?',
+                        'Nostr gives you ownership over your digital identity. Instead of relying on a company that can delete your data, you have a "Key Pair" that is yours forever.\n\nThink of it like a magical mailbox that holds both your messages AND your money:\n\n• Public Key (npub): Your mailing address. Share this so people can find you and send you payments.\n\n• Private Key (nsec): The only key to open the mailbox. It controls your profile, your history, and your <span class="text-brand-accent font-bold">FUNDS</span>. If you lose this key, you lose your money forever.\n\nOne Key, Many Apps:\nYou can use this same key to log in to any other Nostr app. No more creating new usernames and passwords for every social media site. Your friends, followers, and profile come with you everywhere.'
+                    )}
                     className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                 >
                     <Icons.Help size={20} />
@@ -557,10 +602,29 @@ export const Profile: React.FC = () => {
                             <div className="w-12 h-12 rounded-full bg-brand-secondary/10 flex items-center justify-center text-brand-secondary mb-2">
                                 <Icons.Help size={24} />
                             </div>
-                            <h3 className="text-xl font-bold text-white">{helpModal.title}</h3>
-                            <p className="text-slate-300 text-sm leading-relaxed">
-                                {helpModal.text}
-                            </p>
+                            <h3 className="text-xl font-bold text-white">
+                                {helpModal.title === 'What is Nostr?' ? (
+                                    <a href="https://nostr.com" target="_blank" rel="noreferrer" className="text-purple-400 hover:text-purple-300 transition-colors underline decoration-purple-400/50">
+                                        What is Nostr?
+                                    </a>
+                                ) : helpModal.title}
+                            </h3>
+                            <div
+                                className="text-slate-300 text-sm leading-relaxed text-left whitespace-pre-line"
+                                dangerouslySetInnerHTML={{ __html: helpModal.text }}
+                            />
+                            {helpModal.title === 'What is Nostr?' && (
+                                <div className="mt-4 pt-4 border-t border-slate-700">
+                                    <p className="text-xs text-slate-400 mb-2 font-bold uppercase">Try your key on these apps:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <a href="https://damus.io" target="_blank" rel="noreferrer" className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] text-brand-primary transition-colors">Damus (iOS)</a>
+                                        <a href="https://amethyst.social" target="_blank" rel="noreferrer" className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] text-brand-primary transition-colors">Amethyst (Android)</a>
+                                        <a href="https://primal.net" target="_blank" rel="noreferrer" className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] text-brand-primary transition-colors">Primal</a>
+                                        <a href="https://jesterui.github.io" target="_blank" rel="noreferrer" className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] text-brand-primary transition-colors">Jester (Chess)</a>
+                                        <a href="https://zap.stream" target="_blank" rel="noreferrer" className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-full text-[10px] text-brand-primary transition-colors">Zap.Stream</a>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <Button variant="secondary" fullWidth onClick={() => setHelpModal(null)}>
@@ -625,10 +689,61 @@ export const Profile: React.FC = () => {
                             <Button variant="secondary" onClick={() => setShowLogoutConfirm(false)}>
                                 Cancel
                             </Button>
-                            <Button variant="danger" onClick={confirmLogout}>
-                                Log Out
-                            </Button>
+                            <button
+                                className="relative overflow-hidden bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 font-bold py-3 px-4 rounded-xl transition-all active:scale-95 select-none touch-none"
+                                onMouseDown={startHold}
+                                onMouseUp={stopHold}
+                                onMouseLeave={stopHold}
+                                onTouchStart={startHold}
+                                onTouchEnd={stopHold}
+                            >
+                                <div
+                                    className="absolute inset-0 bg-red-500 transition-all duration-75 ease-linear"
+                                    style={{ width: `${holdProgress}%` }}
+                                />
+                                <span className="relative z-10 flex items-center justify-center text-sm">
+                                    {holdProgress > 0 ? 'Keep Holding...' : 'Hold to Log Out'}
+                                </span>
+                            </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Explosion Animation Overlay */}
+            {isExploding && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="relative flex flex-col items-center">
+                        <div className="text-6xl mb-8 animate-bounce">👋</div>
+                        <h2 className="text-3xl font-bold text-white mb-2 animate-pulse">Logging Out...</h2>
+
+                        {/* CSS Particles */}
+                        {[...Array(20)].map((_, i) => {
+                            const angle = (i / 20) * 360;
+                            const rad = angle * (Math.PI / 180);
+                            const x = Math.cos(rad) * 300;
+                            const y = Math.sin(rad) * 300;
+                            const color = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][i % 5];
+
+                            return (
+                                <div
+                                    key={i}
+                                    className="absolute top-1/2 left-1/2 w-3 h-3 rounded-full"
+                                    style={{
+                                        backgroundColor: color,
+                                        boxShadow: `0 0 10px ${color}`,
+                                        animation: `explode-particle-${i} 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards`
+                                    }}
+                                >
+                                    <style>{`
+                                        @keyframes explode-particle-${i} {
+                                            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                                            100% { transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(0); opacity: 0; }
+                                        }
+                                    `}</style>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             )}
