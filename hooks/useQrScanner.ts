@@ -108,15 +108,24 @@ export const useQrScanner = ({ videoRef, canvasRef, onScan, active }: UseQrScann
                     throw new Error("navigator.mediaDevices not supported");
                 }
 
-                // Try environment camera first
+                // Try environment camera first with relaxed constraints
                 mediaStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
                 });
                 log("Env camera acquired");
             } catch (envError) {
                 log(`Env cam failed (${envError}), trying user...`);
-                // Fallback to any video source
-                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // Fallback to any video source with minimal constraints
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
                 log("User camera acquired");
             }
 
@@ -135,13 +144,18 @@ export const useQrScanner = ({ videoRef, canvasRef, onScan, active }: UseQrScann
                 video.setAttribute('playsinline', 'true'); // Critical for iOS
                 video.muted = true; // Critical for auto-play policies
 
-                // Robust play handling
+                // Robust play handling with AbortError tolerance
                 try {
                     await video.play();
                     log("Video playing");
-                } catch (playError) {
-                    log(`Play failed: ${playError}`);
-                    console.error("Video play failed", playError);
+                } catch (playError: any) {
+                    // AbortError is benign (race condition between play() calls)
+                    if (playError.name === 'AbortError') {
+                        log("Play aborted (benign race condition), continuing...");
+                    } else {
+                        log(`Play failed: ${playError}`);
+                        console.error("Video play failed", playError);
+                    }
                 }
 
                 setIsCameraLoading(false);
