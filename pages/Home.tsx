@@ -1000,16 +1000,16 @@ export const Home: React.FC = () => {
             {/* Header Icons */}
             <div className="absolute top-6 right-6 z-10 flex space-x-2">
                 <button
-                    onClick={() => setView('settings')}
-                    className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-                >
-                    <Icons.Settings size={20} />
-                </button>
-                <button
                     onClick={() => setShowInfoModal(true)}
                     className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                 >
                     <Icons.Help size={20} />
+                </button>
+                <button
+                    onClick={() => setView('settings')}
+                    className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                >
+                    <Icons.Settings size={20} />
                 </button>
             </div>
 
