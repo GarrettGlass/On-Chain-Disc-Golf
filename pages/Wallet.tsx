@@ -69,6 +69,13 @@ export const Wallet: React.FC = () => {
     const [sendInput, setSendInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Pull-to-refresh state
+    const [pullDistance, setPullDistance] = useState(0);
+    const [isPulling, setIsPulling] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const touchStartY = useRef<number | null>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
     const [quoteFee, setQuoteFee] = useState<number | null>(null);
     const [insufficientFunds, setInsufficientFunds] = useState(false);
     const [isCheckingInvoice, setIsCheckingInvoice] = useState(false);
@@ -386,6 +393,50 @@ export const Wallet: React.FC = () => {
         } catch (e) {
             alert("Failed to send simulation: " + e);
         }
+    };
+
+    // Pull-to-Refresh Handlers
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (scrollContainerRef.current && scrollContainerRef.current.scrollTop === 0) {
+            touchStartY.current = e.touches[0].clientY;
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (touchStartY.current === null || isRefreshing) return;
+
+        const currentY = e.touches[0].clientY;
+        const distance = currentY - touchStartY.current;
+
+        if (distance > 0 && scrollContainerRef.current && scrollContainerRef.current.scrollTop === 0) {
+            e.preventDefault();
+            setIsPulling(true);
+            setPullDistance(Math.min(distance, 100)); // Max 100px
+        }
+    };
+
+    const handleTouchEnd = async () => {
+        if (pullDistance > 60 && !isRefreshing) {
+            setIsRefreshing(true);
+            try {
+                await refreshWalletBalance();
+                // Show brief success feedback
+                setTimeout(() => {
+                    setIsRefreshing(false);
+                    setPullDistance(0);
+                    setIsPulling(false);
+                }, 500);
+            } catch (e) {
+                console.error("Refresh failed", e);
+                setIsRefreshing(false);
+                setPullDistance(0);
+                setIsPulling(false);
+            }
+        } else {
+            setPullDistance(0);
+            setIsPulling(false);
+        }
+        touchStartY.current = null;
     };
 
     // --- Success Overlay Renders ---
@@ -988,7 +1039,39 @@ export const Wallet: React.FC = () => {
     // --- Main View ---
 
     return (
-        <div className="flex flex-col h-full p-6 pb-24">
+        <div
+            ref={scrollContainerRef}
+            className="flex flex-col h-full p-6 pb-24 overflow-y-auto relative"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
+            {/* Pull-to-Refresh Indicator */}
+            {isPulling && (
+                <div
+                    className="absolute top-0 left-0 right-0 flex justify-center items-center transition-opacity z-50"
+                    style={{
+                        transform: `translateY(${pullDistance - 60}px)`,
+                        opacity: Math.min(pullDistance / 60, 1)
+                    }}
+                >
+                    <div className="bg-brand-primary/20 border border-brand-primary/30 backdrop-blur-md rounded-full p-3">
+                        {isRefreshing ? (
+                            <div className="w-6 h-6 border-3 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <Icons.Refresh
+                                size={24}
+                                className="text-brand-primary"
+                                style={{
+                                    transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)`,
+                                    transition: 'transform 0.2s'
+                                }}
+                            />
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold flex items-center">
                     <Icons.Wallet className="mr-2 text-brand-primary" /> Wallet

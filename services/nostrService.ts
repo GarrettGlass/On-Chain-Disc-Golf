@@ -825,6 +825,47 @@ const unwrapGiftWrap = async (event: Event): Promise<Event | null> => {
     }
 };
 
+/**
+ * Fetch historical Gift Wraps from the past to recover missed payments
+ * @param pubkey - User's public key
+ * @param since - Unix timestamp to fetch from (e.g., 7 days ago)
+ * @returns Array of unwrapped rumor events containing payment content
+ */
+export const fetchHistoricalGiftWraps = async (
+    pubkey: string,
+    since: number
+): Promise<Event[]> => {
+    try {
+        console.log(`Fetching Gift Wraps since ${new Date(since * 1000).toISOString()}...`);
+
+        const events = await listEvents(getRelays(), [{
+            kinds: [NOSTR_KIND_GIFT_WRAP],
+            '#p': [pubkey],
+            since: since
+        }], 8000); // 8 second timeout for historical fetch
+
+        console.log(`Found ${events.length} Gift Wrap events, unwrapping...`);
+
+        const unwrapped: Event[] = [];
+        for (const event of events) {
+            try {
+                const rumor = await unwrapGiftWrap(event);
+                if (rumor) {
+                    unwrapped.push(rumor);
+                }
+            } catch (e) {
+                console.warn(`Failed to unwrap Gift Wrap ${event.id.substring(0, 8)}`, e);
+            }
+        }
+
+        console.log(`Successfully unwrapped ${unwrapped.length} Gift Wraps`);
+        return unwrapped;
+    } catch (e) {
+        console.error("Failed to fetch historical Gift Wraps", e);
+        return [];
+    }
+};
+
 export const getMagicLightningAddress = (pubkey: string): string => {
     try {
         const npub = nip19.npubEncode(pubkey);

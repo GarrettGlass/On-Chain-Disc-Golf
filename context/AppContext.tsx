@@ -4,7 +4,7 @@ import { getDecodedToken } from '@cashu/cashu-ts';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, Player, RoundSettings, WalletTransaction, UserProfile, UserStats, NOSTR_KIND_SCORE, Mint, DisplayProfile, Proof } from '../types';
 import { DEFAULT_HOLE_COUNT } from '../constants';
-import { publishProfile, publishRound, publishScore, subscribeToRound, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, generateNewProfile, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps } from '../services/nostrService';
+import { publishProfile, publishRound, publishScore, subscribeToRound, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, generateNewProfile, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps, fetchHistoricalGiftWraps } from '../services/nostrService';
 import { WalletService } from '../services/walletService';
 import { NWCService } from '../services/nwcService';
 import { bytesToHex } from '@noble/hashes/utils';
@@ -310,6 +310,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
         }
       }).catch(e => console.warn("Recent players restore failed:", e));
+
+      // 5. Check for Missed Cashu Payments (Historical Gift Wraps)
+      const sevenDaysAgo = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
+      fetchHistoricalGiftWraps(currentUserPubkey, sevenDaysAgo).then(async (events) => {
+        if (events.length > 0) {
+          console.log(`Found ${events.length} historical Gift Wraps, checking for Cashu tokens...`);
+
+          let claimedCount = 0;
+          let totalAmount = 0;
+
+          for (const event of events) {
+            const content = event.content;
+            if (content && content.includes('cashuA')) {
+              const tokens = content.match(/cashuA[A-Za-z0-9_=-]+/g);
+              if (tokens) {
+                for (const token of tokens) {
+                  try {
+                    // Check if we've already processed this token
+                    const tokenId = token.substring(0, 20);
+                    const processedKey = `processed_token_${tokenId}`;
+                    if (localStorage.getItem(processedKey)) {
+                      console.log(`Token ${tokenId} already processed, skipping...`);
+                      continue;
+                    }
+
+                    const success = await receiveEcash(token);
+                    if (success) {
+                      claimedCount++;
+                      // Mark as processed
+                      localStorage.setItem(processedKey, Date.now().toString());
+                      console.log(`Auto-claimed historical Cashu token!`);
+                    }
+                  } catch (e) {
+                    console.warn("Failed to claim historical token", e);
+                  }
+                }
+              }
+            }
+          }
+
+          if (claimedCount > 0) {
+            console.log(`✅ Recovered ${claimedCount} missed payments!`);
+            // Optionally show a notification to user
+          }
+        }
+      }).catch(e => console.warn("Historical Gift Wrap fetch failed:", e));
     }
   }, [currentUserPubkey, isGuest]);
 
@@ -771,17 +817,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // Cashu Logic
-    if (!walletServiceRef.current || proofs.length === 0) return;
+    if (!walletServiceRef.current || proofs.length === 0) {
+      // Even if no proofs, check for missed payments
+      if (currentUserPubkey && !isGuest) {
+        const twoDaysAgo = Math.floor(Date.now() / 1000) - (48 * 60 * 60);
+        fetchHistoricalGiftWraps(currentUserPubkey, twoDaysAgo).then(async (events) => {
+          if (events.length > 0) {
+            console.log(`Pull-to-refresh: Found ${events.length} recent Gift Wraps`);
+            for (const event of events) {
+              const content = event.content;
+              if (content && content.includes('cashuA')) {
+                const tokens = content.match(/cashuA[A-Za-z0-9_=-]+/g);
+                if (tokens) {
+                  for (const token of tokens) {
+                    const tokenId = token.substring(0, 20);
+                    const processedKey = `processed_token_${tokenId}`;
+                    if (!localStorage.getItem(processedKey)) {
+                      try {
+                        await receiveEcash(token);
+                        localStorage.setItem(processedKey, Date.now().toString());
+                        console.log("Pull-to-refresh: Claimed missed payment!");
+                      } catch (e) {
+                        console.warn("Failed to claim token on refresh", e);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }).catch(e => console.warn("Refresh Gift Wrap check failed:", e));
+      }
+      return;
+    }
+
     try {
       console.log("Verifying wallet proofs...");
       const validProofs = await walletServiceRef.current.verifyProofs(proofs);
 
       if (validProofs.length !== proofs.length) {
-        console.log(`Found spent proofs.Updating balance. (${proofs.length} -> ${validProofs.length})`);
+        console.log(`Found spent proofs. Updating balance. (${proofs.length} -> ${validProofs.length})`);
         setProofs(validProofs);
         syncWallet(validProofs, mints, transactions); // Sync the corrected state
       } else {
         console.log("All proofs valid.");
+      }
+
+      // Also check for missed payments on manual refresh
+      if (currentUserPubkey && !isGuest) {
+        const twoDaysAgo = Math.floor(Date.now() / 1000) - (48 * 60 * 60);
+        fetchHistoricalGiftWraps(currentUserPubkey, twoDaysAgo).then(async (events) => {
+          if (events.length > 0) {
+            for (const event of events) {
+              const content = event.content;
+              if (content && content.includes('cashuA')) {
+                const tokens = content.match(/cashuA[A-Za-z0-9_=-]+/g);
+                if (tokens) {
+                  for (const token of tokens) {
+                    const tokenId = token.substring(0, 20);
+                    const processedKey = `processed_token_${tokenId}`;
+                    if (!localStorage.getItem(processedKey)) {
+                      try {
+                        await receiveEcash(token);
+                        localStorage.setItem(processedKey, Date.now().toString());
+                      } catch (e) {
+                        console.warn("Failed to claim token on refresh", e);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }).catch(e => console.warn("Refresh Gift Wrap check failed:", e));
       }
     } catch (e) {
       console.error("Wallet refresh failed:", e);
