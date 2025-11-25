@@ -461,10 +461,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createAccount = async () => {
-    const { pk } = generateNewProfile();
-    setCurrentUserPubkey(pk);
-    setAuthMethod('local');
-    setIsAuthenticated(true);
+    // DO NOT generate a new keypair - use the existing guest keypair
+    // This ensures the lightning address (npub@npub.cash) remains consistent
+    // The keypair was already generated when the app first opened
     setIsGuest(false);
     localStorage.removeItem('is_guest_mode');
     setUserProfile({ name: 'Disc Golfer', about: '', picture: '', lud16: '', nip05: '' });

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQrScanner } from '../hooks/useQrScanner';
 import { useApp } from '../context/AppContext';
-import { sendGiftWrap } from '../services/nostrService';
+import { sendGiftWrap, getMagicLightningAddress } from '../services/nostrService';
 import { Button } from '../components/Button';
 import { Icons } from '../components/Icons';
 import { useNavigate } from 'react-router-dom';
@@ -98,7 +98,7 @@ export const Wallet: React.FC = () => {
 
     const safeMints = Array.isArray(mints) ? mints : [];
     const activeMint = safeMints.find(m => m.isActive) || safeMints[0];
-    const receiveAddress = userProfile.lud16 || currentUserPubkey;
+    const receiveAddress = userProfile.lud16 || getMagicLightningAddress(currentUserPubkey);
 
     // Reset state when entering main view and verify balance
     useEffect(() => {

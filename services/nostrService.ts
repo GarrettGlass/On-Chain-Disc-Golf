@@ -828,10 +828,8 @@ const unwrapGiftWrap = async (event: Event): Promise<Event | null> => {
 export const getMagicLightningAddress = (pubkey: string): string => {
     try {
         const npub = nip19.npubEncode(pubkey);
-        // Use first 12 chars of npub for brevity, or full npub? 
-        // Standard practice for these bridges is often the full npub or a truncated version.
-        // Let's use the full npub for uniqueness and standard compliance with bridges like npubcash.
-        return `${npub}@npubcash.com`;
+        // Use npub.cash Lightning bridge service
+        return `${npub}@npub.cash`;
     } catch (e) {
         return '';
     }
