@@ -797,7 +797,7 @@ export const Home: React.FC = () => {
                                 onPaste={() => {
                                     // Golden glow on search button when user pastes
                                     setWiggleSearchButton(true);
-                                    setTimeout(() => setWiggleSearchButton(false), 2000);
+                                    setTimeout(() => setWiggleSearchButton(false), 5000);
                                 }}
                             />
                         </div>
@@ -948,7 +948,7 @@ export const Home: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 py-3 pb-32 space-y-4">
+                <div className="flex-1 overflow-y-auto px-4 py-3 pb-24 space-y-4">
 
                     <div className="space-y-2">
                         <div className="flex items-center text-slate-400 space-x-2">
@@ -1305,7 +1305,7 @@ export const Home: React.FC = () => {
                 </button>
             </div>
 
-            <div className="flex-1 flex flex-col justify-center items-center space-y-10">
+            <div className="flex-1 flex flex-col items-center pt-20 space-y-6">
                 <div className="text-center space-y-2">
                     <div className="inline-flex items-center justify-center mb-4 relative home-logo-container">
                         <img
