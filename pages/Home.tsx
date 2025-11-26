@@ -378,6 +378,40 @@ export const Home: React.FC = () => {
         }
     };
 
+    const handleHostPaysForCardmate = async () => {
+        if (!paymentTarget) return;
+
+        const totalAmount = entryFee + acePot;
+        setPaymentError(null);
+
+        // Double-check balance
+        if (walletBalance < totalAmount) {
+            setPaymentError(`Insufficient balance. Need ${totalAmount} sats.`);
+            return;
+        }
+
+        if (confirm(`Pay ${totalAmount} sats from your wallet to cover ${paymentTarget.name}'s entry fee? You can collect cash from them later.`)) {
+            setIsPayingWallet(true);
+            try {
+                // Pay the invoice using the host's wallet
+                const success = await sendFunds(totalAmount, paymentInvoice);
+                if (!success) {
+                    setPaymentError("Payment failed. Please try again.");
+                    setIsPayingWallet(false);
+                    return;
+                }
+
+                // The payment succeeded. The poller will detect it and call handlePaymentConfirmed.
+                // Note: Host is paying for cardmate out of pocket, to be reimbursed in cash.
+
+            } catch (e) {
+                console.error("Host payment for cardmate failed", e);
+                setPaymentError("Payment failed: " + (e instanceof Error ? e.message : "Unknown error"));
+                setIsPayingWallet(false);
+            }
+        }
+    };
+
     const handleOpenLightningWallet = () => {
         if (paymentInvoice) {
             window.location.href = `lightning:${paymentInvoice}`;
@@ -529,10 +563,12 @@ export const Home: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
                     <div className="space-y-3">
                         {allPlayers.map((p, idx) => {
-                            const isExcluded = excludedPlayers.has(p.pubkey);
-                            const isPaid = paidStatus[p.pubkey] || (p as any).isHost; // Host assumed paid
+                            const isPaid = paidStatus[p.pubkey] || false; // No longer assume host is paid
+                            const isHost = (p as any).isHost;
+                            const totalAmount = entryFee + acePot;
+
                             return (
-                                <div key={p.pubkey} className="bg-slate-800 rounded-xl p-3 flex flex-col space-y-3 border border-slate-700">
+                                <div key={p.pubkey} className="bg-slate-800 rounded-xl p-4 border border-slate-700">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-3 min-w-0 flex-1">
                                             <span className="font-bold text-lg text-slate-500 w-6 text-center">{idx + 1}</span>
@@ -540,39 +576,34 @@ export const Home: React.FC = () => {
                                                 {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : <Icons.Users className="p-2 text-slate-500" />}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <p className="font-bold truncate text-white">{p.name} {(p as any).isHost && '(You)'}</p>
+                                                <p className="font-bold truncate text-white">{p.name} {isHost && '(You)'}</p>
                                                 <p className="text-xs text-slate-400 truncate">
                                                     {p.nip05 ? (p.nip05.length > 20 ? p.nip05.substring(0, 15) + '...' : p.nip05) : 'Nostr User'}
                                                 </p>
                                             </div>
                                         </div>
 
-                                        {/* Payment Status Icon */}
-                                        {hasEntryFee && !(p as any).isHost && (
-                                            <button
-                                                onClick={() => !isPaid && openPaymentModal(p)}
-                                                className={`p-2 rounded-lg transition-colors ${isPaid ? 'text-green-500 bg-green-500/10 cursor-default' : 'text-red-500 bg-red-500/10 hover:bg-red-500/20'}`}
-                                            >
-                                                {isPaid ? <Icons.CheckMark size={24} strokeWidth={3} /> : <Icons.QrCode size={24} />}
-                                            </button>
+                                        {/* Payment Status & CTA */}
+                                        {hasEntryFee && (
+                                            <div className="flex items-center space-x-2 shrink-0">
+                                                {isPaid ? (
+                                                    <div className="flex items-center space-x-2 bg-green-500/10 px-3 py-2 rounded-lg border border-green-500/30">
+                                                        <Icons.CheckMark size={18} className="text-green-500" strokeWidth={3} />
+                                                        <span className="text-xs font-bold text-green-500">Paid</span>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => openPaymentModal(p)}
+                                                        className="flex items-center space-x-2 bg-brand-accent/20 hover:bg-brand-accent/30 px-3 py-2 rounded-lg border border-brand-accent/50 hover:border-brand-accent transition-all"
+                                                    >
+                                                        <Icons.Zap size={16} className="text-brand-accent" />
+                                                        <span className="text-xs font-bold text-brand-accent whitespace-nowrap">
+                                                            {isHost ? 'Pay Entry Fee' : 'Collect Payment'}
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
-                                    </div>
-
-                                    <div className="flex bg-slate-900/50 rounded-lg p-1">
-                                        <button
-                                            onClick={() => toggleScoreExclusion(p.pubkey)}
-                                            className={`flex-1 flex items-center justify-center py-2 rounded-md text-xs font-bold space-x-2 transition-all ${isExcluded ? 'bg-red-500/20 text-red-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                        >
-                                            <Icons.Close size={14} />
-                                            <span>Scores off</span>
-                                        </button>
-                                        <button
-                                            onClick={() => isExcluded && toggleScoreExclusion(p.pubkey)}
-                                            className={`flex-1 flex items-center justify-center py-2 rounded-md text-xs font-bold space-x-2 transition-all ${!isExcluded ? 'bg-brand-secondary/20 text-brand-secondary' : 'text-slate-500 hover:text-slate-300'}`}
-                                        >
-                                            <Icons.CheckMark size={14} />
-                                            <span>Scores on</span>
-                                        </button>
                                     </div>
                                 </div>
                             );
@@ -719,6 +750,22 @@ export const Home: React.FC = () => {
                                     >
                                         {isPayingWallet ? 'Processing...' : 'Pay with Wallet / Cash'}
                                     </Button>
+
+                                    {/* Host Pays for Cardmate Option */}
+                                    {paymentTarget.pubkey !== currentUserPubkey && (
+                                        <Button
+                                            fullWidth
+                                            onClick={handleHostPaysForCardmate}
+                                            variant="secondary"
+                                            className="text-xs py-2"
+                                            disabled={walletBalance < (entryFee + acePot) || isPayingWallet}
+                                        >
+                                            {walletBalance < (entryFee + acePot)
+                                                ? `Insufficient Balance (${walletBalance} sats)`
+                                                : `Pay for ${paymentTarget.name} from My Wallet`
+                                            }
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </div>
