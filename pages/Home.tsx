@@ -1280,13 +1280,13 @@ export const Home: React.FC = () => {
             <div className="absolute top-6 right-6 z-10 flex space-x-3">
                 <button
                     onClick={() => setShowInfoModal(true)}
-                    className="p-2 text-slate-400 hover:text-white transition-colors"
+                    className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                 >
                     <Icons.Help size={20} />
                 </button>
                 <button
                     onClick={() => setView('settings')}
-                    className="p-2 text-slate-400 hover:text-white transition-colors"
+                    className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                 >
                     <Icons.Settings size={20} />
                 </button>
