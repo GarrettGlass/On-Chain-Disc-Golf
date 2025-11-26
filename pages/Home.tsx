@@ -5,7 +5,6 @@ import { Button } from '../components/Button';
 import { Icons } from '../components/Icons';
 import { InfoModal } from '../components/InfoModal';
 import { useNavigate } from 'react-router-dom';
-import { COURSE_PRESETS } from '../constants';
 import { getPool, getRelays, listEvents, lookupUser } from '../services/nostrService';
 import { NOSTR_KIND_ROUND, DisplayProfile } from '../types';
 import { nip19 } from 'nostr-tools';
@@ -36,10 +35,10 @@ export const Home: React.FC = () => {
     const [view, setView] = useState<'menu' | 'setup' | 'select_players' | 'customize' | 'scan_player' | 'settings'>('menu');
 
     // Setup Form State
-    const [courseName, setCourseName] = useState(COURSE_PRESETS[0].name);
+    const [courseName, setCourseName] = useState('');
     const [recentCourses, setRecentCourses] = useState<string[]>(() => {
         const saved = localStorage.getItem('cdg_courses');
-        return saved ? JSON.parse(saved) : COURSE_PRESETS.map(c => c.name);
+        return saved ? JSON.parse(saved) : [];
     });
     const [layout, setLayout] = useState<'9' | '18' | 'custom'>('18');
     const [customHoles, setCustomHoles] = useState(21);
@@ -94,6 +93,29 @@ export const Home: React.FC = () => {
     // Onboarding flow - wiggle login button for guest users
     const [wiggleLogin, setWiggleLogin] = useState(false);
     const [showLoginHint, setShowLoginHint] = useState(false);
+
+    // Custom Entry Fee Presets
+    interface CustomPreset {
+        amount: number;
+        id: string;
+    }
+    const [customPresets, setCustomPresets] = useState<CustomPreset[]>(() => {
+        const saved = localStorage.getItem('cdg_custom_entry_presets');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error('Failed to load custom presets:', e);
+                return [];
+            }
+        }
+        return [];
+    });
+    const [showCustomInput, setShowCustomInput] = useState(false);
+    const [customAmount, setCustomAmount] = useState('');
+
+    // Setup Help Modal
+    const [showSetupHelp, setShowSetupHelp] = useState(false);
 
     const handleGuestActionAttempt = () => {
         if (isGuest) {
@@ -368,6 +390,39 @@ export const Home: React.FC = () => {
         } catch (e) {
             return currentUserPubkey;
         }
+    };
+
+    // Custom Preset Management
+    const handleSaveCustomPreset = () => {
+        const amount = parseInt(customAmount);
+        if (isNaN(amount) || amount <= 0) {
+            alert('Please enter a valid amount');
+            return;
+        }
+
+        // Check if we already have 3 custom presets
+        if (customPresets.length >= 3) {
+            alert('Maximum 3 custom presets allowed. Delete one to add another.');
+            return;
+        }
+
+        const newPreset: CustomPreset = {
+            amount,
+            id: Date.now().toString()
+        };
+
+        const updated = [...customPresets, newPreset];
+        setCustomPresets(updated);
+        localStorage.setItem('cdg_custom_entry_presets', JSON.stringify(updated));
+        setEntryFee(amount);
+        setCustomAmount('');
+        setShowCustomInput(false);
+    };
+
+    const handleDeleteCustomPreset = (id: string) => {
+        const updated = customPresets.filter(p => p.id !== id);
+        setCustomPresets(updated);
+        localStorage.setItem('cdg_custom_entry_presets', JSON.stringify(updated));
     };
 
     // Filter displayed list based on Tab and Search
@@ -858,11 +913,27 @@ export const Home: React.FC = () => {
     if (view === 'setup') {
         return (
             <div className="flex flex-col h-full">
-                <div className="p-4 flex items-center space-x-2">
-                    <button onClick={() => setView('menu')} className="text-slate-400 hover:text-white">
-                        <Icons.Prev size={24} />
-                    </button>
-                    <h2 className="text-lg font-bold">Round setup</h2>
+                <div className="p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                        <button onClick={() => setView('menu')} className="text-slate-400 hover:text-white">
+                            <Icons.Prev size={24} />
+                        </button>
+                        <h2 className="text-lg font-bold">Round setup</h2>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                        <button
+                            onClick={() => setShowSetupHelp(true)}
+                            className="text-slate-400 hover:text-white transition-colors"
+                        >
+                            <Icons.Help size={20} />
+                        </button>
+                        <button
+                            onClick={() => setView('settings')}
+                            className="text-slate-400 hover:text-white transition-colors"
+                        >
+                            <Icons.Settings size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -890,8 +961,8 @@ export const Home: React.FC = () => {
                                             key={course}
                                             onClick={() => setCourseName(course)}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${courseName === course
-                                                    ? 'bg-brand-primary text-black shadow-lg shadow-brand-primary/20'
-                                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-primary/30'
+                                                ? 'bg-brand-primary text-black shadow-lg shadow-brand-primary/20'
+                                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-primary/30'
                                                 }`}
                                         >
                                             {course}
@@ -946,8 +1017,14 @@ export const Home: React.FC = () => {
                     <hr className="border-slate-800" />
 
                     <div className="space-y-4">
+                        {/* Section Header with Zap Icon */}
+                        <div className="flex items-center text-slate-400 space-x-2">
+                            <Icons.Zap size={16} className="text-brand-primary" />
+                            <span className="text-sm font-bold uppercase tracking-wider">Entry Fee & Stakes</span>
+                        </div>
+
                         {/* Entry Fee Toggle */}
-                        <div className="bg-slate-800 rounded-lg p-1 border border-slate-700 flex mb-4">
+                        <div className="bg-slate-800 rounded-lg p-1 border border-slate-700 flex">
                             <button
                                 onClick={() => setHasEntryFee(true)}
                                 className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${hasEntryFee ? 'bg-brand-primary text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
@@ -964,8 +1041,8 @@ export const Home: React.FC = () => {
 
                         {hasEntryFee && (
                             <>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Entry Fee (Sats)</label>
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Entry Fee (Sats)</label>
                                     <input
                                         type="number"
                                         step="1000"
@@ -973,7 +1050,89 @@ export const Home: React.FC = () => {
                                         onChange={(e) => setEntryFee(Number(e.target.value))}
                                         className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-1 focus:ring-brand-primary outline-none"
                                     />
+
+                                    {/* Preset Entry Fee Buttons */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Quick Select</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {/* Default Presets */}
+                                            {[1000, 5000, 10000].map(amount => (
+                                                <button
+                                                    key={amount}
+                                                    onClick={() => setEntryFee(amount)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${entryFee === amount
+                                                        ? 'bg-brand-primary text-black shadow-lg shadow-brand-primary/20'
+                                                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-primary/30'
+                                                        }`}
+                                                >
+                                                    {amount / 1000}k
+                                                </button>
+                                            ))}
+
+                                            {/* Custom Presets */}
+                                            {customPresets.map(preset => (
+                                                <div key={preset.id} className="relative group">
+                                                    <button
+                                                        onClick={() => setEntryFee(preset.amount)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${entryFee === preset.amount
+                                                            ? 'bg-brand-secondary text-white shadow-lg shadow-brand-secondary/20'
+                                                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-secondary/30'
+                                                            }`}
+                                                    >
+                                                        {preset.amount >= 1000 ? `${preset.amount / 1000}k` : preset.amount}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteCustomPreset(preset.id)}
+                                                        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        title="Delete preset"
+                                                    >
+                                                        <Icons.Close size={10} className="text-white" strokeWidth={3} />
+                                                    </button>
+                                                </div>
+                                            ))}
+
+                                            {/* Add Custom Button */}
+                                            {customPresets.length < 3 && !showCustomInput && (
+                                                <button
+                                                    onClick={() => setShowCustomInput(true)}
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 transition-all"
+                                                >
+                                                    + Custom
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Custom Input UI */}
+                                    {showCustomInput && (
+                                        <div className="flex items-center gap-2 bg-slate-800/50 p-3 rounded-lg border border-brand-primary/30 animate-in fade-in slide-in-from-top-2">
+                                            <input
+                                                type="number"
+                                                value={customAmount}
+                                                onChange={(e) => setCustomAmount(e.target.value)}
+                                                placeholder="Enter amount..."
+                                                className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-brand-primary"
+                                                autoFocus
+                                            />
+                                            <button
+                                                onClick={handleSaveCustomPreset}
+                                                className="px-3 py-1.5 bg-brand-primary text-black font-bold text-xs rounded hover:bg-brand-primary/80 transition-colors"
+                                            >
+                                                Save
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowCustomInput(false);
+                                                    setCustomAmount('');
+                                                }}
+                                                className="px-3 py-1.5 bg-slate-700 text-white font-bold text-xs rounded hover:bg-slate-600 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
+
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Ace Pot (Sats)</label>
                                     <input
@@ -995,11 +1154,79 @@ export const Home: React.FC = () => {
                         fullWidth
                         onClick={() => setView('select_players')}
                         className="bg-brand-primary text-black font-bold py-4 rounded-2xl"
-                        disabled={!courseName.trim()}
                     >
                         Next
                     </Button>
                 </div>
+
+                {/* Setup Help Modal */}
+                {showSetupHelp && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full max-h-[80vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
+                            <button
+                                onClick={() => setShowSetupHelp(false)}
+                                className="absolute top-4 right-4 text-slate-400 hover:text-white z-10"
+                            >
+                                <Icons.Close size={24} />
+                            </button>
+
+                            <div className="flex items-center space-x-3 mb-6">
+                                <Icons.Help size={28} className="text-brand-primary" />
+                                <h2 className="text-xl font-bold text-white">Round Setup Help</h2>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                                <div className="space-y-3">
+                                    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                                        <div className="flex items-center space-x-2 mb-2">
+                                            <Icons.Zap size={16} className="text-brand-primary" />
+                                            <h3 className="font-bold text-white text-sm">Entry Fee</h3>
+                                        </div>
+                                        <p className="text-xs text-slate-400 leading-relaxed">
+                                            The entry fee is the amount each player pays to join the round. This creates the prize pool that gets distributed to winners at the end.
+                                        </p>
+                                    </div>
+
+                                    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                                        <div className="flex items-center space-x-2 mb-2">
+                                            <Icons.Trophy size={16} className="text-brand-secondary" />
+                                            <h3 className="font-bold text-white text-sm">Ace Pot</h3>
+                                        </div>
+                                        <p className="text-xs text-slate-400 leading-relaxed">
+                                            Optional bonus pool for hole-in-ones. Each player contributes this amount, and whoever gets an ace wins the entire pot!
+                                        </p>
+                                    </div>
+
+                                    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                                        <div className="flex items-center space-x-2 mb-2">
+                                            <Icons.Settings size={16} className="text-brand-primary" />
+                                            <h3 className="font-bold text-white text-sm">Custom Presets</h3>
+                                        </div>
+                                        <p className="text-xs text-slate-400 leading-relaxed">
+                                            Save your frequently used entry fees for quick access. You can create up to 3 custom presets. Hover over a custom preset to delete it.
+                                        </p>
+                                    </div>
+
+                                    <div className="bg-brand-primary/10 rounded-lg p-3 border border-brand-primary/30">
+                                        <p className="text-xs text-brand-primary leading-relaxed">
+                                            <strong>💡 Tip:</strong> All payments are handled automatically using Bitcoin Lightning and eCash for instant, low-fee transactions.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-4">
+                                <Button
+                                    fullWidth
+                                    variant="secondary"
+                                    onClick={() => setShowSetupHelp(false)}
+                                >
+                                    Got it!
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
