@@ -997,17 +997,27 @@ export const Home: React.FC = () => {
     // Default Menu View
     return (
         <div className="p-6 flex flex-col flex-1 w-full relative pb-20">
-            {/* Header Icons */}
-            <div className="absolute top-6 right-6 z-10 flex space-x-2">
+            {/* Wallet Balance Pill - Top Left */}
+            <div className="absolute top-6 left-6 z-10">
+                <div className="px-4 py-2 bg-gradient-to-r from-brand-primary/20 to-emerald-500/20 border border-brand-primary/40 rounded-full backdrop-blur-sm">
+                    <div className="flex items-center space-x-2">
+                        <Icons.Wallet size={16} className="text-brand-primary" />
+                        <span className="text-sm font-bold text-white">{walletBalance.toLocaleString()} Sats</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Header Icons - Top Right */}
+            <div className="absolute top-6 right-6 z-10 flex space-x-3">
                 <button
                     onClick={() => setShowInfoModal(true)}
-                    className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    className="p-2 text-slate-400 hover:text-white transition-colors"
                 >
                     <Icons.Help size={20} />
                 </button>
                 <button
                     onClick={() => setView('settings')}
-                    className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    className="p-2 text-slate-400 hover:text-white transition-colors"
                 >
                     <Icons.Settings size={20} />
                 </button>
@@ -1023,11 +1033,11 @@ export const Home: React.FC = () => {
                         />
                         <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse" />
                     </div>
-                    <h1 className="text-4xl font-extrabold tracking-tight">
+                    <h1 className="text-5xl font-extrabold tracking-tight">
                         <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>{' '}
                         <span className="text-white">Disc Golf</span>
                     </h1>
-                    <p className="text-slate-400 text-sm">Decentralized Disc Golf powered by Bitcoin, Nostr, and eCash</p>
+                    <p className="text-slate-200 text-base font-medium">Unstoppable Disc Golf Powered by Unstoppable Money</p>
                 </div>
 
                 <div className="w-full max-w-sm space-y-4">
@@ -1044,7 +1054,7 @@ export const Home: React.FC = () => {
                         <Button
                             fullWidth
                             onClick={() => navigate('/profile')}
-                            className={`bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20 mb-4 hover:bg-brand-accent/90 transition-transform ${wiggleLogin ? 'animate-wiggle' : ''}`}
+                            className={`bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20 mb-4 hover:bg-brand-accent/90 transition-transform button-gleam ${wiggleLogin ? 'animate-wiggle' : ''}`}
                         >
                             <div className="flex items-center justify-center space-x-2">
                                 <Icons.Users />
@@ -1066,16 +1076,19 @@ export const Home: React.FC = () => {
                         </div>
                     </Button>
 
-                    <Button fullWidth variant="secondary" onClick={() => {
-                        // If guest, wiggle login button instead
-                        if (handleGuestActionAttempt()) return;
-                        setShowPlayerQr(true);
-                    }}>
+                    <button
+                        onClick={() => {
+                            // If guest, wiggle login button instead
+                            if (handleGuestActionAttempt()) return;
+                            setShowPlayerQr(true);
+                        }}
+                        className="w-full py-3 px-4 rounded-xl border-2 border-brand-primary bg-transparent text-brand-primary hover:bg-brand-primary/10 font-bold transition-colors"
+                    >
                         <div className="flex items-center justify-center space-x-2">
                             <Icons.QrCode />
                             <span>Scan to Join</span>
                         </div>
-                    </Button>
+                    </button>
 
                     {joinError && (
                         <div className="text-red-400 text-sm text-center bg-red-500/10 p-2 rounded-lg border border-red-500/20">
