@@ -782,22 +782,11 @@ export const Home: React.FC = () => {
                             </button>
 
                             <div className="text-center space-y-4 pt-2">
-                                {/* Conditional header and body based on who is paying */}
-                                {paymentTarget.pubkey === currentUserPubkey ? (
-                                    <>
-                                        <h3 className="text-xl font-bold text-white">Pay Your Entry Fee</h3>
-                                        <p className="text-slate-400 text-sm">
-                                            Scan this invoice to deposit your entry fee into the round pot.
-                                        </p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <h3 className="text-xl font-bold text-white">Collect Entry Fee from {paymentTarget.name}</h3>
-                                        <p className="text-slate-400 text-sm">
-                                            Ask <span className="text-white font-bold">{paymentTarget.name}</span> to scan and pay this invoice.
-                                        </p>
-                                    </>
-                                )}
+                                {/* Simplified header - host-centric perspective */}
+                                <h3 className="text-xl font-bold text-white">Pay Your Entry Fee</h3>
+                                <p className="text-slate-400 text-sm">
+                                    Complete the entry fee payment for <span className="text-white font-bold">{paymentTarget.name}</span>.
+                                </p>
 
                                 {/* Error Banner */}
                                 {paymentError && (
@@ -807,6 +796,13 @@ export const Home: React.FC = () => {
                                     </div>
                                 )}
 
+                                {/* Amount Display - Moved BEFORE QR Code */}
+                                <div>
+                                    <p className="text-2xl font-bold text-brand-accent">{entryFee + acePot} SATS</p>
+                                    <p className="text-xs text-slate-500">Entry: {entryFee} | Ace Pot: {acePot}</p>
+                                </div>
+
+                                {/* QR Code Block */}
                                 <div className="bg-white p-4 rounded-xl inline-block mx-auto relative min-h-[200px] min-w-[200px] flex items-center justify-center">
                                     {isGeneratingInvoice ? (
                                         <div className="flex flex-col items-center">
@@ -822,79 +818,48 @@ export const Home: React.FC = () => {
                                     )}
                                 </div>
 
-                                {/* Copy Invoice Button */}
-                                {!isGeneratingInvoice && (
+                                {/* Payment Actions - Simplified Order */}
+                                <div className="pt-2 space-y-2">
+                                    {/* 1. Copy Lightning Invoice */}
+                                    {!isGeneratingInvoice && (
+                                        <Button
+                                            fullWidth
+                                            onClick={handleCopyInvoice}
+                                            variant="secondary"
+                                            className="text-xs py-2"
+                                        >
+                                            Copy Lightning Invoice
+                                        </Button>
+                                    )}
+
+                                    {/* 2. Pay with App Wallet - PRIMARY CTA */}
                                     <Button
                                         fullWidth
-                                        onClick={handleCopyInvoice}
+                                        onClick={handlePayWithWallet}
+                                        className="text-xs py-2"
+                                        disabled={isPayingWallet}
+                                    >
+                                        {isPayingWallet ? 'Processing...' : 'Pay with App Wallet'}
+                                    </Button>
+
+                                    {/* 3. Open Lightning Wallet */}
+                                    <Button
+                                        fullWidth
+                                        onClick={handleOpenLightningWallet}
                                         variant="secondary"
                                         className="text-xs py-2"
                                     >
-                                        Copy Lightning Invoice
+                                        Open Lightning Wallet
                                     </Button>
-                                )}
-
-                                <div>
-                                    <p className="text-2xl font-bold text-brand-accent">{entryFee + acePot} SATS</p>
-                                    <p className="text-xs text-slate-500">Entry: {entryFee} | Ace Pot: {acePot}</p>
                                 </div>
 
+                                {/* Listening Indicator - Moved to FINAL position */}
                                 {!isGeneratingInvoice && !paymentSuccess && (
                                     <div className="pt-2 flex items-center justify-center space-x-2 text-brand-primary animate-pulse">
                                         <Icons.Zap size={16} />
                                         <span className="text-xs font-bold">Listening for payment...</span>
                                     </div>
                                 )}
-
-                                <div className="pt-2 space-y-2">
-                                    {/* Conditional payment options */}
-                                    {paymentTarget.pubkey === currentUserPubkey ? (
-                                        /* Host Self-Payment: Only show Open Lightning Wallet */
-                                        <Button
-                                            fullWidth
-                                            onClick={handleOpenLightningWallet}
-                                            variant="secondary"
-                                            className="text-xs py-2"
-                                        >
-                                            Open Lightning Wallet
-                                        </Button>
-                                    ) : (
-                                        /* Cardmate Payment Collection: Show all options */
-                                        <>
-                                            <Button
-                                                fullWidth
-                                                onClick={handleOpenLightningWallet}
-                                                variant="secondary"
-                                                className="text-xs py-2"
-                                            >
-                                                Open Lightning Wallet
-                                            </Button>
-                                            <Button
-                                                fullWidth
-                                                onClick={handlePayWithWallet}
-                                                variant="secondary"
-                                                className="text-xs py-2"
-                                                disabled={isPayingWallet}
-                                            >
-                                                {isPayingWallet ? 'Processing...' : 'Pay with Wallet / Cash'}
-                                            </Button>
-
-                                            {/* Host Pays for Cardmate Option */}
-                                            <Button
-                                                fullWidth
-                                                onClick={handleHostPaysForCardmate}
-                                                variant="secondary"
-                                                className="text-xs py-2"
-                                                disabled={walletBalance < (entryFee + acePot) || isPayingWallet}
-                                            >
-                                                {walletBalance < (entryFee + acePot)
-                                                    ? `Insufficient Balance (${walletBalance} sats)`
-                                                    : `Pay for ${paymentTarget.name} from My Wallet`
-                                                }
-                                            </Button>
-                                        </>
-                                    )}
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -1503,7 +1468,7 @@ export const Home: React.FC = () => {
 
                 <div className="w-full max-w-sm space-y-4">
                     {activeRound && (
-                        <Button fullWidth onClick={() => navigate('/play')} className="bg-brand-accent text-black hover:bg-brand-accent/80 shadow-lg shadow-brand-accent/20">
+                        <Button fullWidth onClick={() => navigate('/play')} className="bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-transform button-gleam">
                             <div className="flex items-center justify-center space-x-2">
                                 <Icons.Play fill="currentColor" />
                                 <span>{activeRound.isFinalized ? 'View Final Score' : 'Continue Round'}</span>
@@ -1539,7 +1504,7 @@ export const Home: React.FC = () => {
                                         clearRoundCreationState();
                                     }
                                 }}
-                                className="bg-brand-secondary text-white hover:bg-brand-secondary/80 shadow-lg shadow-brand-secondary/20"
+                                className="bg-brand-accent text-black font-bold shadow-lg shadow-brand-accent/20 hover:bg-brand-accent/90 transition-transform button-gleam"
                             >
                                 <div className="flex items-center justify-center space-x-2">
                                     <Icons.Play fill="currentColor" />
