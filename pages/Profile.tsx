@@ -329,6 +329,11 @@ export const Profile: React.FC = () => {
                                 <Button fullWidth onClick={handleCreate} disabled={isLoading}>
                                     {isLoading ? 'Generating...' : 'Create Profile'}
                                 </Button>
+                                <div className="mt-4 p-3 bg-brand-primary/10 border border-brand-primary/30 rounded-lg">
+                                    <p className="text-xs text-brand-primary font-bold">
+                                        💡 After creating, add your name so cardmates can find you!
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     ) : (
@@ -988,25 +993,6 @@ export const Profile: React.FC = () => {
                             />
                         </div>
 
-                        <div>
-                            <div className="flex items-center gap-2 mb-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Verified Nostr ID</label>
-                                <button
-                                    onClick={() => openHelp('NIP-05 Identifier', 'A verified identifier like "yourname@domain.com" that proves you own this Nostr account. This is optional but helps others find and verify you.')}
-                                    className="text-slate-500 hover:text-brand-primary transition-colors"
-                                >
-                                    <Icons.Help size={14} />
-                                </button>
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="yourname@domain.com"
-                                value={formData.nip05}
-                                onChange={e => setFormData({ ...formData, nip05: e.target.value })}
-                                className="w-full bg-slate-800 p-3 rounded-xl border border-slate-600 text-white text-sm focus:ring-1 focus:ring-brand-primary outline-none"
-                            />
-                        </div>
-
                         <div className="flex space-x-2 pt-2">
                             <Button onClick={handleSaveProfile} fullWidth className="h-10 py-0">Save</Button>
                             <Button onClick={() => setIsEditing(false)} variant="secondary" fullWidth className="h-10 py-0">Cancel</Button>
@@ -1068,7 +1054,15 @@ export const Profile: React.FC = () => {
                 <div className="p-4 space-y-4">
                     {/* Public Key */}
                     <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Public Key (npub)</label>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Public Key (npub)</label>
+                            <button
+                                onClick={() => openHelp('What is npub?', '<p class="mb-3">Your <strong>npub</strong> is like your mailing address - it\'s safe to share!</p><p class="mb-2"><strong>Think of it like:</strong></p><p class="ml-4 mb-3">📬 Your public disc golf profile that anyone can see</p><p class="mb-2 text-slate-300"><strong>You can share it to:</strong></p><ul class="ml-6 mb-0 space-y-1 text-slate-300"><li>• Let cardmates find and add you</li><li>• Receive payments from anyone</li><li>• Prove it\'s really you across apps</li></ul>')}
+                                className="text-slate-500 hover:text-brand-primary transition-colors"
+                            >
+                                <Icons.Help size={12} />
+                            </button>
+                        </div>
                         <div className="flex items-center space-x-2">
                             <div className="flex-1 bg-slate-900/50 rounded p-2 text-xs text-slate-400 font-mono truncate">
                                 {(() => { try { return nip19.npubEncode(currentUserPubkey); } catch (e) { return '...'; } })()}
@@ -1082,7 +1076,15 @@ export const Profile: React.FC = () => {
                     {/* Private Key (only if local) */}
                     {authMethod === 'local' && (
                         <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Private Key (nsec)</label>
+                            <div className="flex items-center gap-1.5 mb-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase">private key (nsec)</label>
+                                <button
+                                    onClick={() => openHelp('What is nsec? 🔑', '<p class="mb-3">Your <strong class="text-red-400">nsec</strong> is like the <strong>only key to your mailbox</strong>. Keep it private!</p><p class="mb-2"><strong>Think of it like:</strong></p><p class="ml-4 mb-3">🔐 Your master password that controls everything</p><div class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-3"><p class="text-red-400 font-bold text-sm mb-2">⚠️ Important:</p><ul class="ml-4 space-y-1 text-sm text-slate-200"><li>• Your <strong class="text-brand-accent">wallet funds</strong> are tied to this key</li><li>• Never share it with anyone</li><li>• If lost, your money is gone forever</li></ul></div><p class="text-sm text-slate-300"><strong>Backup tip:</strong> Write it on paper and store somewhere safe (like a fireproof safe).</p>')}
+                                    className="text-slate-500 hover:text-red-400 transition-colors"
+                                >
+                                    <Icons.Help size={12} />
+                                </button>
+                            </div>
                             <div className="flex items-center space-x-2">
                                 {showSecrets ? (
                                     <div className="flex-1 bg-slate-900/50 rounded p-2 text-xs text-red-400 font-mono truncate border border-red-900/30">
@@ -1126,6 +1128,6 @@ export const Profile: React.FC = () => {
                 <Icons.LogOut size={18} className="mr-2" />
                 Log Out
             </Button>
-        </div>
+        </div >
     );
 };

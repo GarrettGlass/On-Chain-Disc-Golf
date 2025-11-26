@@ -891,7 +891,7 @@ export const Home: React.FC = () => {
 
                     <div className="space-y-3">
                         <div className="flex items-center text-slate-400 space-x-2">
-                            <Icons.Settings size={16} />
+                            <Icons.Trophy size={16} className="text-brand-secondary" />
                             <span className="text-sm font-bold uppercase tracking-wider">Number of Holes</span>
                         </div>
 
@@ -1048,11 +1048,15 @@ export const Home: React.FC = () => {
                         />
                         <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse" />
                     </div>
-                    <h1 className="text-5xl font-extrabold tracking-tight">
-                        <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>{' '}
-                        <span className="text-white">Disc Golf</span>
+                    <h1 className="font-extrabold tracking-tight leading-tight">
+                        <div className="text-6xl mb-1">
+                            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
+                        </div>
+                        <div className="text-4xl">
+                            <span className="text-white">Disc Golf</span>
+                        </div>
                     </h1>
-                    <p className="text-slate-200 text-base font-medium">Unstoppable Disc Golf Powered by Unstoppable Money</p>
+                    <p className="text-slate-200 text-base font-medium mt-3">Unstoppable Disc Golf Powered by Unstoppable Money</p>
                 </div>
 
                 <div className="w-full max-w-sm space-y-4">
