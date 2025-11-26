@@ -3,7 +3,7 @@ import { CashuMint, CashuWallet, getDecodedToken } from '@cashu/cashu-ts';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, Player, RoundSettings, WalletTransaction, UserProfile, UserStats, NOSTR_KIND_SCORE, Mint, DisplayProfile, Proof } from '../types';
 import { DEFAULT_HOLE_COUNT } from '../constants';
-import { publishProfile, publishRound, publishScore, subscribeToRound, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, loginWithAmber, generateNewProfile, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps, fetchHistoricalGiftWraps } from '../services/nostrService';
+import { publishProfile, publishRound, publishScore, subscribeToRound, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, loginWithAmber, generateNewProfile, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps, fetchHistoricalGiftWraps, getMagicLightningAddress } from '../services/nostrService';
 import { checkPendingPayments, NpubCashQuote } from '../services/npubCashService';
 import { WalletService } from '../services/walletService';
 import { NWCService } from '../services/nwcService';
@@ -523,7 +523,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // The keypair was already generated when the app first opened
     setIsGuest(false);
     localStorage.removeItem('is_guest_mode');
-    setUserProfile({ name: 'Disc Golfer', about: '', picture: '', lud16: '', nip05: '' });
+
+    // 1. Get the magic lightning address
+    const magicLUD16 = getMagicLightningAddress(currentUserPubkey);
+
+    // 2. Set the initial profile with the magic LUD16
+    const initialProfile: UserProfile = {
+      name: 'Disc Golfer',
+      about: '',
+      picture: '',
+      lud16: magicLUD16,
+      nip05: ''
+    };
+    setUserProfile(initialProfile);
+
+    // 3. Publish the new profile (with LUD16) to Nostr
+    await updateUserProfile(initialProfile);
+
+    // Profile.tsx handles setting isEditing(true) via the profile state/useEffect
+    // Profile.tsx also handles setting the default bio
   };
 
   const performLogout = () => {

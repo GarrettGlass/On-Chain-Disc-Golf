@@ -190,10 +190,10 @@ export const Profile: React.FC = () => {
         setAuthError('');
         setIsLoading(true);
         try {
-            await createAccount();
-            // Cheeky secret: Set default bio for new users
+            await createAccount(); // This now publishes the NIP-01 with LUD16
+            // Set default bio & open edit mode on success
             setFormData(prev => ({ ...prev, about: "I <3 OnChainDiscGolf.com" }));
-            setIsEditing(true); // Automatically open edit mode
+            setIsEditing(true);
         } catch (e) {
             setAuthError('Failed to generate keys.');
         }
