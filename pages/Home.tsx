@@ -1292,7 +1292,7 @@ export const Home: React.FC = () => {
                             className="p-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
                             title="Scan Player QR"
                         >
-                            <Icons.Camera size={20} />
+                            <Icons.Camera size={24} />
                         </button>
 
                         <button
@@ -1302,11 +1302,11 @@ export const Home: React.FC = () => {
                             title="Instant Invite (New Player)"
                         >
                             {isGeneratingInvite ? (
-                                <Icons.Zap className="animate-spin" size={20} />
+                                <Icons.Zap className="animate-spin" size={24} />
                             ) : (
                                 <>
-                                    <Icons.QrCode size={20} />
-                                    <Icons.PlusIcon size={12} className="absolute -top-1 -right-1 text-orange-500 stroke-[4]" />
+                                    <Icons.QrCode size={24} />
+                                    <Icons.PlusIcon size={16} className="absolute -top-2 -right-2 text-orange-500 stroke-[4]" />
                                 </>
                             )}
                         </button>
