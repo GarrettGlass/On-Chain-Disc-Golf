@@ -7,8 +7,10 @@ import { InfoModal } from '../components/InfoModal';
 import { useNavigate } from 'react-router-dom';
 import { getPool, getRelays, listEvents, lookupUser } from '../services/nostrService';
 import { NOSTR_KIND_ROUND, DisplayProfile } from '../types';
-import { nip19 } from 'nostr-tools';
+import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import { useQrScanner } from '../hooks/useQrScanner';
+import { sendGiftWrap } from '../services/giftWrapService';
+import { hexToBytes } from '@noble/hashes/utils';
 
 // Helper Component for Success Animation (Reusable)
 const SuccessOverlay: React.FC<{ message: string, onClose: () => void }> = ({ message, onClose }) => {
@@ -67,8 +69,8 @@ export const Home: React.FC = () => {
     const [layout, setLayout] = useState<'9' | '18' | 'custom'>('18');
     const [customHoles, setCustomHoles] = useState(21);
     const [hasEntryFee, setHasEntryFee] = useState(true);
-    const [entryFee, setEntryFee] = useState(1000);
-    const [acePot, setAcePot] = useState(500);
+    const [entryFee, setEntryFee] = useState(10); // Test default: 10 sats
+    const [acePot, setAcePot] = useState(0); // Test default: 0 sats
 
     // Player Selection State
     const [searchQuery, setSearchQuery] = useState('');
@@ -116,6 +118,39 @@ export const Home: React.FC = () => {
 
     // Player QR Modal State
     const [showPlayerQr, setShowPlayerQr] = useState(false);
+    const [inviteQrData, setInviteQrData] = useState('');
+    const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
+
+    const handleInstantInvite = async () => {
+        setIsGeneratingInvite(true);
+        try {
+            // 1. Generate Ephemeral Keypair
+            const sk = generateSecretKey();
+            const pk = getPublicKey(sk);
+            const nsec = nip19.nsecEncode(sk);
+
+            // 2. Create Invite Link
+            const inviteLink = `${window.location.origin}/invite?nsec=${nsec}`;
+            setInviteQrData(inviteLink);
+
+            // 3. Add Player to Card immediately
+            const newPlayer: DisplayProfile = {
+                pubkey: pk,
+                name: 'Guest Golfer',
+                image: '', // Could add a default avatar here
+                nip05: ''
+            };
+            addCardmate(newPlayer);
+
+            // 4. Show QR Code
+            setShowPlayerQr(true);
+        } catch (e) {
+            console.error("Failed to generate invite:", e);
+            alert("Failed to generate invite. Please try again.");
+        } finally {
+            setIsGeneratingInvite(false);
+        }
+    };
 
     // Onboarding flow - wiggle login button for guest users
     const [wiggleLogin, setWiggleLogin] = useState(false);
@@ -163,6 +198,17 @@ export const Home: React.FC = () => {
         setShowScoldingModal(false);
         setShowShieldModal(false);
     };
+
+    // Invoice Distribution State
+    interface PlayerInvoice {
+        invoice: string;
+        paymentHash: string;
+        amount: number;
+        timestamp: number;
+    }
+    const [playerInvoices, setPlayerInvoices] = useState<Map<string, PlayerInvoice>>(new Map());
+    const [isGeneratingInvoices, setIsGeneratingInvoices] = useState(false);
+    const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
 
     // Custom Entry Fee Presets
@@ -1224,6 +1270,23 @@ export const Home: React.FC = () => {
                         </button>
 
                         <button
+                            onClick={handleInstantInvite}
+                            className="p-3 bg-slate-800 border border-slate-700 rounded-lg text-brand-primary hover:text-white hover:border-brand-primary/50 transition-colors relative group"
+                            disabled={isGeneratingInvite}
+                        >
+                            {isGeneratingInvite ? (
+                                <Icons.Zap className="animate-spin" size={20} />
+                            ) : (
+                                <>
+                                    <Icons.QrCode size={20} />
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-brand-primary rounded-full flex items-center justify-center">
+                                        <Icons.Plus size={8} className="text-black font-bold" />
+                                    </div>
+                                </>
+                            )}
+                        </button>
+
+                        <button
                             onClick={handleSearch}
                             className={`p-3 rounded-lg transition-all duration-300 ${wiggleSearchButton
                                 ? 'bg-brand-accent/30 text-brand-accent border-2 border-brand-accent shadow-lg shadow-brand-accent/50 ring-4 ring-brand-accent/30 animate-pulse'
@@ -1331,6 +1394,47 @@ export const Home: React.FC = () => {
                         Confirm cardmates
                     </Button>
                 </div>
+
+                {/* INSTANT INVITE MODAL */}
+                {showPlayerQr && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+                        <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative">
+                            <button
+                                onClick={() => setShowPlayerQr(false)}
+                                className="absolute top-4 right-4 text-slate-400 hover:text-white z-10"
+                            >
+                                <Icons.Close size={24} />
+                            </button>
+
+                            <div className="text-center space-y-4 pt-2">
+                                <h3 className="text-xl font-bold text-white">Scan to Join</h3>
+                                <p className="text-slate-400 text-sm">
+                                    Have your friend scan this code to instantly join the game with a new account.
+                                </p>
+
+                                <div className="bg-white p-4 rounded-xl inline-block mx-auto">
+                                    <img
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(inviteQrData)}`}
+                                        className="w-48 h-48"
+                                        alt="Invite QR"
+                                    />
+                                </div>
+
+                                <p className="text-xs text-slate-500">
+                                    This creates a temporary keypair on their device.
+                                </p>
+
+                                <Button
+                                    fullWidth
+                                    onClick={() => setShowPlayerQr(false)}
+                                    className="mt-2"
+                                >
+                                    Done
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* FREEDOM MANIFESTO MODAL */}
                 {showShieldModal && (

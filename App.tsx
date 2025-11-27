@@ -7,6 +7,7 @@ import { Home } from './pages/Home';
 import { Scorecard } from './pages/Scorecard';
 import { Wallet } from './pages/Wallet';
 import { Profile } from './pages/Profile';
+import { InviteHandler } from './pages/InviteHandler';
 import { useSwipeBack } from './hooks/useSwipeBack';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -57,6 +58,7 @@ const App: React.FC = () => {
               <Route path="/play" element={<Scorecard />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/invite" element={<InviteHandler />} />
             </Routes>
           </Layout>
         </div>
