@@ -5,6 +5,7 @@ export interface Player {
   lightningAddress?: string; // lud16
   handicap: number;
   paid: boolean;
+  isBetting?: boolean; // Opt-out status
   scores: Record<number, number>; // hole number -> score
   totalScore: number;
   isCurrentUser: boolean;
@@ -18,6 +19,7 @@ export interface DisplayProfile {
   nip05?: string;
   totalRoundsPlayed?: number;
   paid?: boolean;
+  isBetting?: boolean;
 }
 
 export interface RoundSettings {

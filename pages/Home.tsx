@@ -39,6 +39,7 @@ interface RoundCreationState {
     selectedCardmates: DisplayProfile[];
     excludedPlayers: string[];
     paidStatus: Record<string, boolean>;
+    bettingStatus?: Record<string, boolean>;
     startDate: string;
     startTime: string;
     trackPenalties: boolean;
@@ -51,7 +52,7 @@ const clearRoundCreationState = () => {
 
 
 export const Home: React.FC = () => {
-    const { activeRound, players, createRound, joinRoundAndPay, recentPlayers, contacts, userProfile, resetRound, isAuthenticated, isGuest, currentUserPubkey, addRecentPlayer, depositFunds, checkDepositStatus, confirmDeposit, sendFunds, walletBalance, setWalletPulsing } = useApp();
+    const { activeRound, players, createRound, joinRoundAndPay, recentPlayers, contacts, userProfile, resetRound, isAuthenticated, isGuest, currentUserPubkey, addRecentPlayer, depositFunds, checkDepositStatus, confirmDeposit, sendFunds, walletBalance } = useApp();
     const navigate = useNavigate();
 
     // Local UI state for the creation wizard
@@ -83,7 +84,9 @@ export const Home: React.FC = () => {
 
     // Customize View State
     const [excludedPlayers, setExcludedPlayers] = useState<Set<string>>(new Set());
+
     const [paidStatus, setPaidStatus] = useState<Record<string, boolean>>({});
+    const [bettingStatus, setBettingStatus] = useState<Record<string, boolean>>({});
 
     // Payment Modal Logic
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -157,10 +160,13 @@ export const Home: React.FC = () => {
     useEffect(() => {
         if (view === 'customize') {
             const initialStatus: Record<string, boolean> = {};
+            const initialBetting: Record<string, boolean> = {};
             [currentUserPubkey, ...selectedCardmates.map(p => p.pubkey)].forEach(pk => {
-                if (!initialStatus[pk]) initialStatus[pk] = false;
+                if (initialStatus[pk] === undefined) initialStatus[pk] = false;
+                if (initialBetting[pk] === undefined) initialBetting[pk] = true; // Default to betting
             });
             setPaidStatus(prev => ({ ...initialStatus, ...prev }));
+            setBettingStatus(prev => ({ ...initialBetting, ...prev }));
         }
     }, [view, currentUserPubkey, selectedCardmates]);
 
@@ -179,6 +185,7 @@ export const Home: React.FC = () => {
                 selectedCardmates,
                 excludedPlayers: Array.from(excludedPlayers),
                 paidStatus,
+                bettingStatus,
                 startDate,
                 startTime,
                 trackPenalties,
@@ -189,7 +196,7 @@ export const Home: React.FC = () => {
             clearRoundCreationState();
         }
     }, [view, courseName, layout, customHoles, hasEntryFee, entryFee, acePot,
-        selectedCardmates, excludedPlayers, paidStatus, startDate, startTime, trackPenalties]);
+        selectedCardmates, excludedPlayers, paidStatus, bettingStatus, startDate, startTime, trackPenalties]);
 
     // Restore round creation state on mount
     useEffect(() => {
@@ -207,6 +214,7 @@ export const Home: React.FC = () => {
                 setSelectedCardmates(state.selectedCardmates);
                 setExcludedPlayers(new Set(state.excludedPlayers));
                 setPaidStatus(state.paidStatus);
+                setBettingStatus(state.bettingStatus || {});
                 setStartDate(state.startDate);
                 setStartTime(state.startTime);
                 setTrackPenalties(state.trackPenalties);
@@ -299,7 +307,7 @@ export const Home: React.FC = () => {
             startingHole: startHole,
             trackPenalties,
             hideOverallScore
-        }, finalPlayers);
+        }, finalPlayers, bettingStatus);
 
         clearRoundCreationState(); // Clear persisted state
         setView('menu');
@@ -381,7 +389,6 @@ export const Home: React.FC = () => {
     const openPaymentModal = async (player: DisplayProfile) => {
         setPaymentTarget(player);
         setShowPaymentModal(true);
-        setWalletPulsing(true);
         setPaymentInvoice('');
         setPaymentQuote('');
         setPaymentSuccess(false);
@@ -397,7 +404,6 @@ export const Home: React.FC = () => {
         } catch (e) {
             console.error("Failed to generate invoice for player", e);
             setPaymentError("Could not contact mint to generate invoice.");
-            setWalletPulsing(false);
             setShowPaymentModal(false);
         } finally {
             setIsGeneratingInvoice(false);
@@ -417,7 +423,6 @@ export const Home: React.FC = () => {
 
                 // Close modal after success animation
                 setTimeout(() => {
-                    setWalletPulsing(false);
                     setShowPaymentModal(false);
                     setPaymentTarget(null);
                 }, 2000);
@@ -652,7 +657,7 @@ export const Home: React.FC = () => {
                         <Icons.Prev size={24} />
                     </button>
                     <div className="flex flex-col items-center">
-                        <span className="text-xs text-slate-400 font-bold uppercase">Holes {layout === 'custom' ? customHoles : layout}</span>
+                        <span className="text-xs text-slate-400 font-bold uppercase">Round Setup</span>
                     </div>
                     <div className="w-6"></div>
                 </div>
@@ -661,6 +666,7 @@ export const Home: React.FC = () => {
                     <div className="space-y-3">
                         {allPlayers.map((p, idx) => {
                             const isPaid = paidStatus[p.pubkey] || false; // No longer assume host is paid
+                            const isBetting = bettingStatus[p.pubkey] ?? true;
                             const isHost = (p as any).isHost;
                             const totalAmount = entryFee + acePot;
 
@@ -680,8 +686,21 @@ export const Home: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* Payment Status & CTA */}
+                                        {/* Betting Toggle */}
                                         {hasEntryFee && (
+                                            <button
+                                                onClick={() => setBettingStatus(prev => ({ ...prev, [p.pubkey]: !isBetting }))}
+                                                className={`mr-3 px-2 py-1 rounded text-[10px] font-bold border transition-colors ${isBetting
+                                                    ? 'bg-green-500/10 text-green-500 border-green-500/30 hover:bg-green-500/20'
+                                                    : 'bg-slate-700 text-slate-400 border-slate-600 hover:bg-slate-600'
+                                                    }`}
+                                            >
+                                                {isBetting ? 'In Pot' : 'Opt Out'}
+                                            </button>
+                                        )}
+
+                                        {/* Payment Status & CTA */}
+                                        {hasEntryFee && isBetting && (
                                             <div className="flex items-center space-x-2 shrink-0">
                                                 {isPaid ? (
                                                     <div className="flex items-center space-x-2 bg-green-500/10 px-3 py-2 rounded-lg border border-green-500/30">
@@ -773,111 +792,111 @@ export const Home: React.FC = () => {
                 </div>
 
                 {/* PAYMENT MODAL */}
-                {showPaymentModal && paymentTarget && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                        <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative overflow-hidden">
+                {
+                    showPaymentModal && paymentTarget && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                            <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative overflow-hidden">
 
-                            {paymentSuccess && (
-                                <SuccessOverlay message="Paid!" onClose={() => {/* handled by timeout */ }} />
-                            )}
-
-                            <button
-                                onClick={() => {
-                                    setWalletPulsing(false);
-                                    setShowPaymentModal(false);
-                                }}
-                                className="absolute top-4 right-4 text-slate-400 hover:text-white z-10"
-                            >
-                                <Icons.Close size={24} />
-                            </button>
-
-                            <div className="text-center space-y-4 pt-2">
-                                {/* Simplified header - host-centric perspective */}
-                                <h3 className="text-xl font-bold text-white">Pay Your Entry Fee</h3>
-                                <p className="text-slate-400 text-sm">
-                                    Complete the entry fee payment for <span className="text-white font-bold">{paymentTarget.name}</span>.
-                                </p>
-
-                                {/* Error Banner */}
-                                {paymentError && (
-                                    <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 flex items-start space-x-2 text-left animate-in fade-in slide-in-from-top-2">
-                                        <Icons.Close className="text-red-500 shrink-0 mt-0.5" size={16} />
-                                        <p className="text-xs text-red-200 font-bold leading-tight">{paymentError}</p>
-                                    </div>
+                                {paymentSuccess && (
+                                    <SuccessOverlay message="Paid!" onClose={() => {/* handled by timeout */ }} />
                                 )}
 
-                                {/* Amount Display - Moved BEFORE QR Code */}
-                                <div>
-                                    <p className="text-2xl font-bold text-brand-accent">{entryFee + acePot} SATS</p>
-                                    <p className="text-xs text-slate-500">Entry: {entryFee} | Ace Pot: {acePot}</p>
-                                </div>
+                                <button
+                                    onClick={() => setShowPaymentModal(false)}
+                                    className="absolute top-4 right-4 text-slate-400 hover:text-white z-10"
+                                >
+                                    <Icons.Close size={24} />
+                                </button>
 
-                                {/* QR Code Block */}
-                                <div className="bg-white p-4 rounded-xl inline-block mx-auto relative min-h-[200px] min-w-[200px] flex items-center justify-center">
-                                    {isGeneratingInvoice ? (
-                                        <div className="flex flex-col items-center">
-                                            <Icons.Zap className="text-brand-accent animate-bounce mb-2" size={32} />
-                                            <span className="text-slate-900 text-xs font-bold">Generating Invoice...</span>
+                                <div className="text-center space-y-4 pt-2">
+                                    {/* Simplified header - host-centric perspective */}
+                                    <h3 className="text-xl font-bold text-white">Pay Your Entry Fee</h3>
+                                    <p className="text-slate-400 text-sm">
+                                        Complete the entry fee payment for <span className="text-white font-bold">{paymentTarget.name}</span>.
+                                    </p>
+
+                                    {/* Error Banner */}
+                                    {paymentError && (
+                                        <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 flex items-start space-x-2 text-left animate-in fade-in slide-in-from-top-2">
+                                            <Icons.Close className="text-red-500 shrink-0 mt-0.5" size={16} />
+                                            <p className="text-xs text-red-200 font-bold leading-tight">{paymentError}</p>
                                         </div>
-                                    ) : (
-                                        <img
-                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentInvoice)}`}
-                                            className="w-48 h-48"
-                                            alt="Payment QR"
-                                        />
                                     )}
-                                </div>
 
-                                {/* Payment Actions - Simplified Order */}
-                                <div className="pt-2 space-y-2">
-                                    {/* 1. Copy Lightning Invoice */}
+                                    {/* Amount Display - Moved BEFORE QR Code */}
+                                    <div>
+                                        <p className="text-2xl font-bold text-brand-accent">{entryFee + acePot} SATS</p>
+                                        <p className="text-xs text-slate-500">Entry: {entryFee} | Ace Pot: {acePot}</p>
+                                    </div>
+
+                                    {/* Inline Copy Invoice */}
                                     {!isGeneratingInvoice && (
+                                        <div
+                                            onClick={handleCopyInvoice}
+                                            className="flex items-center justify-center space-x-2 mb-2 cursor-pointer text-brand-primary hover:text-brand-accent transition-colors"
+                                        >
+                                            <span className="text-xs font-mono opacity-80">
+                                                {paymentInvoice.slice(0, 8)}...{paymentInvoice.slice(-8)}
+                                            </span>
+                                            <Icons.Copy size={12} />
+                                        </div>
+                                    )}
+
+                                    {/* QR Code Block with Pulse */}
+                                    <div className={`bg-white p-4 rounded-xl inline-block mx-auto relative min-h-[200px] min-w-[200px] flex items-center justify-center ${!isGeneratingInvoice && !paymentSuccess ? 'qr-pulse' : ''}`}>
+                                        {isGeneratingInvoice ? (
+                                            <div className="flex flex-col items-center">
+                                                <Icons.Zap className="text-brand-accent animate-bounce mb-2" size={32} />
+                                                <span className="text-slate-900 text-xs font-bold">Generating Invoice...</span>
+                                            </div>
+                                        ) : (
+                                            <img
+                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentInvoice)}`}
+                                                className="w-48 h-48"
+                                                alt="Payment QR"
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* Listening Indicator - Moved Closer */}
+                                    {!isGeneratingInvoice && !paymentSuccess && (
+                                        <div className="pt-2 flex items-center justify-center space-x-2 text-brand-primary animate-pulse">
+                                            <Icons.Zap size={14} />
+                                            <span className="text-[10px] font-bold uppercase tracking-wider">Listening for payment...</span>
+                                        </div>
+                                    )}
+
+                                    {/* Payment Actions */}
+                                    <div className="pt-4 space-y-3">
+                                        {/* Primary Pay with App Wallet */}
                                         <Button
                                             fullWidth
-                                            onClick={handleCopyInvoice}
+                                            onClick={handlePayWithWallet}
+                                            className="text-sm py-3 button-gleam"
+                                            disabled={isPayingWallet}
+                                        >
+                                            <div className="flex items-center justify-center space-x-2">
+                                                <Icons.Wallet size={18} />
+                                                <span>{isPayingWallet ? 'Processing...' : `Pay ${entryFee + acePot} SATS with App Wallet`}</span>
+                                            </div>
+                                        </Button>
+
+                                        {/* External Wallet */}
+                                        <Button
+                                            fullWidth
+                                            onClick={handleOpenLightningWallet}
                                             variant="secondary"
                                             className="text-xs py-2"
                                         >
-                                            Copy Lightning Invoice
+                                            Open Lightning Wallet
                                         </Button>
-                                    )}
-
-                                    {/* 2. Pay with App Wallet - PRIMARY CTA */}
-                                    <Button
-                                        fullWidth
-                                        onClick={handlePayWithWallet}
-                                        className="text-xs py-2"
-                                        disabled={isPayingWallet}
-                                    >
-                                        <div className="flex items-center justify-center space-x-2">
-                                            <Icons.Wallet className="wallet-pulse" size={16} />
-                                            <span>{isPayingWallet ? 'Processing...' : 'Pay with App Wallet'}</span>
-                                        </div>
-                                    </Button>
-
-                                    {/* 3. Open Lightning Wallet */}
-                                    <Button
-                                        fullWidth
-                                        onClick={handleOpenLightningWallet}
-                                        variant="secondary"
-                                        className="text-xs py-2"
-                                    >
-                                        Open Lightning Wallet
-                                    </Button>
-                                </div>
-
-                                {/* Listening Indicator - Moved to FINAL position */}
-                                {!isGeneratingInvoice && !paymentSuccess && (
-                                    <div className="pt-2 flex items-center justify-center space-x-2 text-brand-primary animate-pulse">
-                                        <Icons.Zap size={16} />
-                                        <span className="text-xs font-bold">Listening for payment...</span>
                                     </div>
-                                )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
         );
     }
 

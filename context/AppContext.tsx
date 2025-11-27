@@ -13,7 +13,8 @@ interface AppContextType extends AppState {
   // Actions
   createRound: (
     settings: Omit<RoundSettings, 'id' | 'isFinalized' | 'pubkey' | 'players' | 'eventId'>,
-    selectedPlayers: DisplayProfile[]
+    selectedPlayers: DisplayProfile[],
+    bettingMap?: Record<string, boolean>
   ) => Promise<void>;
   updateUserProfile: (profile: UserProfile) => Promise<void>;
   updateScore: (hole: number, score: number, playerId?: string) => void;
@@ -52,10 +53,6 @@ interface AppContextType extends AppState {
   setWalletMode: (mode: 'cashu' | 'nwc') => void;
   setNwcConnection: (uri: string) => void;
   checkForPayments: () => Promise<number>;
-
-  // UI State
-  isWalletPulsing: boolean;
-  setWalletPulsing: (pulsing: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -68,7 +65,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authMethod, setAuthMethod] = useState<'local' | 'nip46' | 'amber' | null>(null);
   const [currentUserPubkey, setCurrentUserPubkey] = useState('');
   const [isProfileLoading, setIsProfileLoading] = useState(false);
-  const [isWalletPulsing, setWalletPulsing] = useState(false);
 
   // Wallet & Local State
   const [proofs, setProofs] = useState<Proof[]>(() => {
@@ -659,7 +655,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createRound = async (
     settings: Omit<RoundSettings, 'id' | 'isFinalized' | 'pubkey' | 'players' | 'eventId'>,
-    selectedPlayers: DisplayProfile[]
+    selectedPlayers: DisplayProfile[],
+    bettingMap: Record<string, boolean> = {}
   ) => {
     const roundId = Math.random().toString(36).substring(7);
     const newRound: RoundSettings = {
@@ -677,11 +674,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveRound(newRound);
 
     // Add self as player (Host presumed paid)
+    const hostIsBetting = bettingMap[currentUserPubkey] ?? true;
     const initialPlayers: Player[] = [{
       id: currentUserPubkey,
       name: userProfile.name,
       handicap: 0,
-      paid: true,
+      paid: !hostIsBetting, // If opting out, marked as paid (nothing owed)
+      isBetting: hostIsBetting,
       scores: {},
       totalScore: 0,
       isCurrentUser: true,
@@ -692,11 +691,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Add other invited players
     selectedPlayers.forEach(p => {
       addRecentPlayer(p);
+      const isBetting = bettingMap[p.pubkey] ?? true;
       initialPlayers.push({
         id: p.pubkey,
         name: p.name,
         handicap: 0,
-        paid: !!p.paid, // Use passed paid status
+        paid: !isBetting ? true : (!!p.paid), // If opting out, marked as paid. Else use passed status.
+        isBetting: isBetting,
         scores: {},
         totalScore: 0,
         isCurrentUser: false,
@@ -1355,9 +1356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createToken,
       setWalletMode: setWalletModeAction,
       setNwcConnection,
-      checkForPayments,
-      isWalletPulsing,
-      setWalletPulsing
+      checkForPayments
     }}>
       {children}
     </AppContext.Provider>

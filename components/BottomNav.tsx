@@ -1,14 +1,11 @@
-
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Icons } from './Icons';
 
-import { useApp } from '../context/AppContext';
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isWalletPulsing } = useApp();
   const isActive = (path: string) => location.pathname === path;
 
   const navItems = [
@@ -38,11 +35,7 @@ export const BottomNav: React.FC = () => {
             className={`flex flex-col items-center space-y-1 w-16 transition-colors ${isActive(item.path) ? 'text-brand-primary' : 'text-slate-400 hover:text-slate-200'
               }`}
           >
-            <item.icon
-              size={24}
-              strokeWidth={isActive(item.path) ? 3 : 2}
-              className={item.label === 'Wallet' && isWalletPulsing ? 'wallet-pulse' : ''}
-            />
+            <item.icon size={24} strokeWidth={isActive(item.path) ? 3 : 2} />
             <span className="text-[10px] font-medium">{item.label}</span>
           </button>
         ))}
