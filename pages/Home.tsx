@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Icons } from '../components/Icons';
 import { InfoModal } from '../components/InfoModal';
 import { useNavigate } from 'react-router-dom';
-import { getPool, getRelays, listEvents, lookupUser } from '../services/nostrService';
+import { getPool, getRelays, listEvents, lookupUser, publishProfileWithKey, getMagicLightningAddress } from '../services/nostrService';
 import { NOSTR_KIND_ROUND, DisplayProfile } from '../types';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import { useQrScanner } from '../hooks/useQrScanner';
@@ -134,15 +134,28 @@ export const Home: React.FC = () => {
             setInviteQrData(inviteLink);
 
             // 3. Add Player to Card immediately
+            const guestName = searchQuery.trim() || 'Guest Golfer';
+            const magicLUD16 = getMagicLightningAddress(pk);
+
             const newPlayer: DisplayProfile = {
                 pubkey: pk,
-                name: 'Guest Golfer',
-                image: '', // Could add a default avatar here
-                nip05: ''
+                name: guestName,
+                image: '',
+                nip05: magicLUD16 // Display LUD16 as NIP05 for UI consistency if needed, or just rely on internal logic
             };
             addCardmate(newPlayer);
 
-            // 4. Show QR Code
+            // 4. Publish Profile to Relays (Async)
+            // We do this so when they scan, their profile is already waiting for them
+            publishProfileWithKey({
+                name: guestName,
+                about: 'On-Chain Disc Golf Player',
+                picture: '',
+                lud16: magicLUD16,
+                nip05: ''
+            }, sk).catch(err => console.error("Failed to sync guest profile:", err));
+
+            // 5. Show QR Code
             setShowPlayerQr(true);
         } catch (e) {
             console.error("Failed to generate invite:", e);

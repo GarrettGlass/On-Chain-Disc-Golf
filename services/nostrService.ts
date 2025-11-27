@@ -615,6 +615,28 @@ export const publishProfile = async (profile: UserProfile) => {
     return event;
 };
 
+export const publishProfileWithKey = async (profile: UserProfile, secretKey: Uint8Array) => {
+    const metadata = {
+        name: profile.name,
+        display_name: profile.name,
+        displayName: profile.name,
+        about: profile.about,
+        picture: profile.picture,
+        nip05: profile.nip05,
+        lud16: profile.lud16,
+    };
+
+    const event = finalizeEvent({
+        kind: NOSTR_KIND_PROFILE,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+        content: JSON.stringify(metadata),
+    }, secretKey);
+
+    await promiseAny(pool.publish(getRelays(), event));
+    return event;
+};
+
 export const publishRound = async (round: RoundSettings) => {
     const content = JSON.stringify({
         name: round.name,

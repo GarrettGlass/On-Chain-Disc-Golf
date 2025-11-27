@@ -62,6 +62,12 @@ export const InviteHandler: React.FC = () => {
                         </div>
                         <h2 className="text-xl font-bold text-white">You're In!</h2>
                         <p className="text-slate-400">Redirecting to the game...</p>
+                        <button
+                            onClick={() => navigate('/')}
+                            className="mt-4 px-6 py-2 bg-brand-primary text-black font-bold rounded-full hover:bg-brand-accent transition-colors"
+                        >
+                            Continue
+                        </button>
                     </div>
                 )}
 
