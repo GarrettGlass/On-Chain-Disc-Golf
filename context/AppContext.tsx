@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { AppState, Player, RoundSettings, WalletTransaction, UserProfile, UserStats, NOSTR_KIND_SCORE, Mint, DisplayProfile, Proof } from '../types';
 import { DEFAULT_HOLE_COUNT } from '../constants';
 import { publishProfile, publishRound, publishScore, subscribeToRound, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, loginWithAmber, generateNewProfile, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps, fetchHistoricalGiftWraps, getMagicLightningAddress } from '../services/nostrService';
-import { checkPendingPayments, NpubCashQuote, subscribeToQuoteUpdates } from '../services/npubCashService';
+import { checkPendingPayments, NpubCashQuote, subscribeToQuoteUpdates, unsubscribeFromQuoteUpdates, getQuoteById } from '../services/npubCashService';
 import { WalletService } from '../services/walletService';
 import { NWCService } from '../services/nwcService';
 import { bytesToHex } from '@noble/hashes/utils';
@@ -353,7 +353,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           }
 
-
           if (claimedCount > 0) {
             console.log(`✅ Recovered ${claimedCount} missed payments!`);
             // Optionally show a notification to user
@@ -361,82 +360,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }).catch(e => console.warn("Historical Gift Wrap fetch failed:", e));
 
-      // 6. Subscribe to npub.cash payment updates (Background Subscription)
-      const npubCashSubscription = subscribeToQuoteUpdates(async (quotes) => {
-        console.log(`✅ [AppContext] Received ${quotes.length} PAID quotes from subscription`);
-
-        for (const quote of quotes) {
-          try {
-            const quoteId = quote.quoteId;
-            const processedKey = `processed_quote_${quoteId}`;
-            if (localStorage.getItem(processedKey)) {
-              console.log(`⏭️  [AppContext] Quote ${quoteId} already processed, skipping...`);
-              continue;
-            }
-
-            console.log(`🔄 [AppContext] Auto-minting ${quote.amount} sats from ${quote.mintUrl} for quote ${quoteId}...`);
-
-            const mint = new CashuMint(quote.mintUrl);
-            const wallet = new CashuWallet(mint);
-            await wallet.loadMint();
-
-            // Mint the tokens
-            const newProofs = await wallet.mintProofs(quote.amount, quote.quoteId);
-
-            if (newProofs && newProofs.length > 0) {
-              console.log(`✨ [AppContext] Minted ${newProofs.length} proofs for ${quote.amount} sats`);
-
-              // Add proofs to state with mintUrl attached
-              const proofsWithMint = newProofs.map(p => ({ ...p, mintUrl: quote.mintUrl }));
-
-              // CRITICAL: Set localStorage flag ONLY after state updates complete
-              // This prevents the race condition where flag is set but proofs aren't persisted
-              setProofs(prev => {
-                const updated = [...prev, ...proofsWithMint];
-                // Use setTimeout to ensure state update is processed before setting flag
-                setTimeout(() => {
-                  localStorage.setItem(processedKey, Date.now().toString());
-                  console.log(`💾 [AppContext] Marked quote ${quoteId} as processed (after state persist)`);
-                }, 100);
-                return updated;
-              });
-
-              // Add mint to state if not exists
-              setMints(prev => {
-                if (prev.find(m => m.url === quote.mintUrl)) return prev;
-                return [...prev, { url: quote.mintUrl, nickname: 'npub.cash', isActive: true }];
-              });
-
-              // Add transaction record
-              const tx: WalletTransaction = {
-                id: Date.now().toString(),
-                type: 'receive',
-                amountSats: quote.amount,
-                description: 'Received via npub.cash',
-                timestamp: Date.now(),
-                walletType: 'cashu'
-              };
-              setTransactions(prev => [tx, ...prev]);
-              console.log(`📝 [AppContext] Added transaction record for ${quote.amount} sats`);
-
-              // Notify UI components (e.g., Wallet Receive view) that payment was received
-              console.log(`📢 [AppContext] Dispatching 'npubcash-payment-received' event`);
-              window.dispatchEvent(new CustomEvent('npubcash-payment-received', {
-                detail: { amount: quote.amount }
-              }));
-            } else {
-              console.warn(`⚠️  [AppContext] No proofs returned from mintProofs for quote ${quoteId}`);
-            }
-          } catch (e) {
-            console.error(`❌ [AppContext] Failed to mint npub.cash quote:`, e);
-          }
-        }
-      });
-
-      // Return cleanup function
-      return () => {
-        npubCashSubscription.close();
-      };
+      // NOTE: npub.cash payments now handled by WebSocket subscription (see useEffect below)
     }
   }, [currentUserPubkey, isGuest]);
 
@@ -563,6 +487,93 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return () => sub.close();
     }
   }, [isAuthenticated, isGuest]);
+
+  // Real-time npub.cash payment detection via WebSocket
+  useEffect(() => {
+    if (isAuthenticated && !isGuest && currentUserPubkey) {
+      console.log("🔌 [npub.cash] Setting up WebSocket subscription for payment detection...");
+
+      const handleQuoteUpdate = async (quoteId: string) => {
+        console.log(`📥 [npub.cash] Received quote update: ${quoteId}`);
+
+        try {
+          // Fetch the updated quote
+          const quote = await getQuoteById(quoteId);
+
+          if (!quote) {
+            console.warn(`Quote ${quoteId} not found`);
+            return;
+          }
+
+          console.log(`Quote ${quoteId} state: ${quote.state}, amount: ${quote.amount}`);
+
+          // Only process PAID quotes
+          if (quote.state !== 'PAID') {
+            console.log(`Quote ${quoteId} is not PAID yet, skipping...`);
+            return;
+          }
+
+          // Check if we've already processed this quote
+          const processedKey = `processed_quote_${quoteId}`;
+          if (localStorage.getItem(processedKey)) {
+            console.log(`Quote ${quoteId} already processed, skipping...`);
+            return;
+          }
+
+          console.log(`🪙 [npub.cash] Minting ${quote.amount} sats from ${quote.mintUrl} for quote ${quoteId}...`);
+
+          // Mint the tokens
+          const mint = new CashuMint(quote.mintUrl);
+          const wallet = new CashuWallet(mint);
+          await wallet.loadMint();
+
+          const newProofs = await wallet.mintProofs(quote.amount, quoteId);
+
+          if (newProofs && newProofs.length > 0) {
+            // Add proofs to state with mintUrl attached
+            const proofsWithMint = newProofs.map(p => ({ ...p, mintUrl: quote.mintUrl }));
+            setProofs(prev => [...prev, ...proofsWithMint]);
+
+            // Add mint to state if not exists
+            setMints(prev => {
+              if (prev.find(m => m.url === quote.mintUrl)) return prev;
+              return [...prev, { url: quote.mintUrl, nickname: 'npub.cash', isActive: true }];
+            });
+
+            // Mark as processed
+            localStorage.setItem(processedKey, Date.now().toString());
+
+            // Add transaction record
+            addTransaction('receive', quote.amount, 'Received via npub.cash', 'cashu');
+
+            console.log(`✅ [npub.cash] Successfully received ${quote.amount} sats!`);
+
+            // Dispatch event for UI (Wallet.tsx will show success overlay if on receive view)
+            window.dispatchEvent(new CustomEvent('npubcash-payment-received', {
+              detail: { quoteId, amount: quote.amount }
+            }));
+          }
+        } catch (e) {
+          console.error(`Failed to process quote ${quoteId}:`, e);
+        }
+      };
+
+      const handleError = (error: any) => {
+        console.error("❌ [npub.cash] WebSocket subscription error:", error);
+        // Fall back to manual polling if WebSocket fails
+        // This ensures payments are still detected even if WebSocket has issues
+      };
+
+      // Subscribe to real-time updates
+      const disposer = subscribeToQuoteUpdates(handleQuoteUpdate, handleError);
+
+      // Cleanup on unmount
+      return () => {
+        console.log("🔌 [npub.cash] Cleaning up WebSocket subscription...");
+        disposer();
+      };
+    }
+  }, [isAuthenticated, isGuest, currentUserPubkey]);
 
 
   // --- Actions ---
@@ -1043,8 +1054,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }).catch(e => console.warn("Refresh Gift Wrap check failed:", e));
 
-        // Check for pending npub.cash payments
-        checkForPayments();
+        // NOTE: npub.cash payments now handled by WebSocket subscription
       }
       return;
     }
@@ -1131,8 +1141,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }).catch(e => console.warn("Refresh Gift Wrap check failed:", e));
 
-        // Check for pending npub.cash payments
-        checkForPayments();
+        // NOTE: npub.cash payments now handled by WebSocket subscription
       }
     } catch (e) {
       console.error("Wallet refresh failed:", e);

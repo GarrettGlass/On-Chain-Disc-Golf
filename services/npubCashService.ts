@@ -4,6 +4,8 @@ import { Event } from 'nostr-tools';
 
 // Singleton client instance
 let clientInstance: NPCClient | null = null;
+// Subscription disposer
+let subscriptionDisposer: (() => void) | null = null;
 
 const getClient = () => {
     if (clientInstance) return clientInstance;
@@ -35,6 +37,70 @@ export interface NpubCashQuote {
     request: string;
 }
 
+/**
+ * Subscribe to real-time quote updates via WebSocket
+ * @param onUpdate Callback when a quote is updated (receives quoteId)
+ * @param onError Optional error handler
+ * @returns Disposer function to unsubscribe
+ */
+export const subscribeToQuoteUpdates = (
+    onUpdate: (quoteId: string) => void,
+    onError?: (error: any) => void
+): (() => void) => {
+    const session = getSession();
+    if (!session) {
+        console.warn("Cannot subscribe to npub.cash: no session");
+        return () => { }; // Return no-op disposer
+    }
+
+    try {
+        const client = getClient();
+        console.log("📡 [npub.cash] Subscribing to real-time quote updates via WebSocket...");
+
+        // Unsubscribe from any existing subscription first
+        if (subscriptionDisposer) {
+            console.log("📡 [npub.cash] Cleaning up existing subscription...");
+            subscriptionDisposer();
+            subscriptionDisposer = null;
+        }
+
+        // Subscribe to real-time updates
+        const disposer = client.subscribe(
+            (quoteId: string) => {
+                console.log(`📥 [npub.cash] Quote updated: ${quoteId}`);
+                onUpdate(quoteId);
+            },
+            (error: any) => {
+                console.error("❌ [npub.cash] WebSocket error:", error);
+                if (onError) onError(error);
+            }
+        );
+
+        subscriptionDisposer = disposer;
+        console.log("✅ [npub.cash] WebSocket subscription active");
+
+        return disposer;
+    } catch (e) {
+        console.error("Failed to subscribe to npub.cash WebSocket", e);
+        if (onError) onError(e);
+        return () => { }; // Return no-op disposer on error
+    }
+};
+
+/**
+ * Unsubscribe from quote updates
+ */
+export const unsubscribeFromQuoteUpdates = () => {
+    if (subscriptionDisposer) {
+        console.log("🔌 [npub.cash] Unsubscribing from WebSocket...");
+        subscriptionDisposer();
+        subscriptionDisposer = null;
+    }
+};
+
+/**
+ * Fetch all pending payments (HTTP fallback, used for manual refresh)
+ */
 export const checkPendingPayments = async (): Promise<NpubCashQuote[]> => {
     const session = getSession();
     if (!session) return [];
@@ -67,60 +133,16 @@ export const checkPendingPayments = async (): Promise<NpubCashQuote[]> => {
 };
 
 /**
- * Subscribe to npub.cash quote updates with a lightweight background polling mechanism.
- * This drastically reduces API calls compared to aggressive polling (30s vs 2-5s intervals).
- * 
- * @param onQuoteUpdate Callback fired when new PAID quotes are detected
- * @returns Subscription object with .close() method for cleanup
+ * Fetch a specific quote by ID
  */
-export const subscribeToQuoteUpdates = (
-    onQuoteUpdate: (quotes: NpubCashQuote[]) => void
-): { close: () => void } => {
-    let intervalId: NodeJS.Timeout | null = null;
-    let isActive = true;
-    let isFirstPoll = true;
-
-    const poll = async () => {
-        if (!isActive) return;
-
-        try {
-            const paidQuotes = await checkPendingPayments();
-
-            // On first poll, process ALL existing PAID quotes (not just new ones)
-            // This ensures payments received while app was closed get processed
-            // The callback will handle deduplication via localStorage
-            if (isFirstPoll) {
-                isFirstPoll = false;
-                if (paidQuotes.length > 0) {
-                    console.log(`[npub.cash subscription] Initial poll found ${paidQuotes.length} PAID quotes, processing all...`);
-                    onQuoteUpdate(paidQuotes);
-                }
-            } else {
-                // On subsequent polls, only process if we found any PAID quotes
-                // The callback handles deduplication, so we don't filter here
-                if (paidQuotes.length > 0) {
-                    console.log(`[npub.cash subscription] Found ${paidQuotes.length} PAID quotes`);
-                    onQuoteUpdate(paidQuotes);
-                }
-            }
-        } catch (e) {
-            console.error("[npub.cash subscription] Poll failed:", e);
-        }
-    };
-
-    // Start polling every 30 seconds (balanced for responsiveness vs API load)
-    console.log("[npub.cash subscription] Starting subscription with 30s interval");
-    poll(); // Initial check
-    intervalId = setInterval(poll, 30 * 1000);
-
-    return {
-        close: () => {
-            console.log("[npub.cash subscription] Closing subscription");
-            isActive = false;
-            if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
-            }
-        }
-    };
+export const getQuoteById = async (quoteId: string): Promise<NpubCashQuote | null> => {
+    try {
+        const client = getClient();
+        const quotes = await client.getAllQuotes();
+        const quote = quotes.find((q: any) => q.quoteId === quoteId);
+        return quote as unknown as NpubCashQuote || null;
+    } catch (e) {
+        console.error("Failed to fetch quote by ID", e);
+        return null;
+    }
 };
