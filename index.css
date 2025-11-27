@@ -169,3 +169,21 @@ body {
   animation-delay: 0.5s;
   pointer-events: none;
 }
+
+/* Pulsing Orange Glow for Wallet Icons */
+@keyframes wallet-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(251, 146, 60, 0.4));
+    opacity: 0.8;
+  }
+  
+  50% {
+    filter: drop-shadow(0 0 12px rgba(251, 146, 60, 0.9));
+    opacity: 1;
+  }
+}
+
+.wallet-pulse {
+  animation: wallet-pulse 2s ease-in-out infinite;
+  color: rgb(251, 146, 60); /* orange-400 */
+}

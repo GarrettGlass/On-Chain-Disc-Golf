@@ -51,7 +51,7 @@ const clearRoundCreationState = () => {
 
 
 export const Home: React.FC = () => {
-    const { activeRound, players, createRound, joinRoundAndPay, recentPlayers, contacts, userProfile, resetRound, isAuthenticated, isGuest, currentUserPubkey, addRecentPlayer, depositFunds, checkDepositStatus, confirmDeposit, sendFunds, walletBalance } = useApp();
+    const { activeRound, players, createRound, joinRoundAndPay, recentPlayers, contacts, userProfile, resetRound, isAuthenticated, isGuest, currentUserPubkey, addRecentPlayer, depositFunds, checkDepositStatus, confirmDeposit, sendFunds, walletBalance, setWalletPulsing } = useApp();
     const navigate = useNavigate();
 
     // Local UI state for the creation wizard
@@ -381,6 +381,7 @@ export const Home: React.FC = () => {
     const openPaymentModal = async (player: DisplayProfile) => {
         setPaymentTarget(player);
         setShowPaymentModal(true);
+        setWalletPulsing(true);
         setPaymentInvoice('');
         setPaymentQuote('');
         setPaymentSuccess(false);
@@ -396,6 +397,7 @@ export const Home: React.FC = () => {
         } catch (e) {
             console.error("Failed to generate invoice for player", e);
             setPaymentError("Could not contact mint to generate invoice.");
+            setWalletPulsing(false);
             setShowPaymentModal(false);
         } finally {
             setIsGeneratingInvoice(false);
@@ -415,6 +417,7 @@ export const Home: React.FC = () => {
 
                 // Close modal after success animation
                 setTimeout(() => {
+                    setWalletPulsing(false);
                     setShowPaymentModal(false);
                     setPaymentTarget(null);
                 }, 2000);
@@ -431,6 +434,8 @@ export const Home: React.FC = () => {
 
         if (walletBalance < totalAmount) {
             setPaymentError(`Insufficient balance. Need ${totalAmount} sats.`);
+            // Auto-dismiss error after 5 seconds
+            setTimeout(() => setPaymentError(null), 5000);
             return;
         }
 
@@ -465,6 +470,8 @@ export const Home: React.FC = () => {
         // Double-check balance
         if (walletBalance < totalAmount) {
             setPaymentError(`Insufficient balance. Need ${totalAmount} sats.`);
+            // Auto-dismiss error after 5 seconds
+            setTimeout(() => setPaymentError(null), 5000);
             return;
         }
 
@@ -775,7 +782,10 @@ export const Home: React.FC = () => {
                             )}
 
                             <button
-                                onClick={() => setShowPaymentModal(false)}
+                                onClick={() => {
+                                    setWalletPulsing(false);
+                                    setShowPaymentModal(false);
+                                }}
                                 className="absolute top-4 right-4 text-slate-400 hover:text-white z-10"
                             >
                                 <Icons.Close size={24} />
@@ -839,7 +849,10 @@ export const Home: React.FC = () => {
                                         className="text-xs py-2"
                                         disabled={isPayingWallet}
                                     >
-                                        {isPayingWallet ? 'Processing...' : 'Pay with App Wallet'}
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <Icons.Wallet className="wallet-pulse" size={16} />
+                                            <span>{isPayingWallet ? 'Processing...' : 'Pay with App Wallet'}</span>
+                                        </div>
                                     </Button>
 
                                     {/* 3. Open Lightning Wallet */}

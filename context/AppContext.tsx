@@ -52,6 +52,10 @@ interface AppContextType extends AppState {
   setWalletMode: (mode: 'cashu' | 'nwc') => void;
   setNwcConnection: (uri: string) => void;
   checkForPayments: () => Promise<number>;
+
+  // UI State
+  isWalletPulsing: boolean;
+  setWalletPulsing: (pulsing: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -64,6 +68,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authMethod, setAuthMethod] = useState<'local' | 'nip46' | 'amber' | null>(null);
   const [currentUserPubkey, setCurrentUserPubkey] = useState('');
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [isWalletPulsing, setWalletPulsing] = useState(false);
 
   // Wallet & Local State
   const [proofs, setProofs] = useState<Proof[]>(() => {
@@ -1350,7 +1355,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createToken,
       setWalletMode: setWalletModeAction,
       setNwcConnection,
-      checkForPayments
+      checkForPayments,
+      isWalletPulsing,
+      setWalletPulsing
     }}>
       {children}
     </AppContext.Provider>
