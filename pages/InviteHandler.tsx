@@ -25,8 +25,8 @@ export const InviteHandler: React.FC = () => {
                 setStatus('success');
                 // Short delay to show success state before redirecting
                 setTimeout(() => {
-                    navigate('/');
-                }, 1500);
+                    window.location.href = '/';
+                }, 2500); // Increased delay to give time to read instructions
             } catch (e) {
                 console.error("Invite login failed:", e);
                 setStatus('error');
@@ -60,13 +60,15 @@ export const InviteHandler: React.FC = () => {
                         <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center border-2 border-green-500">
                             <Icons.CheckMark className="text-green-500" size={32} strokeWidth={3} />
                         </div>
-                        <h2 className="text-xl font-bold text-white">You're In!</h2>
-                        <p className="text-slate-400">Redirecting to the game...</p>
+                        <h2 className="text-xl font-bold text-white">Welcome!</h2>
+                        <p className="text-slate-400 text-sm px-4">
+                            To save your account, tap your browser menu and select <strong>"Add to Home Screen"</strong> or Bookmark this page.
+                        </p>
                         <button
-                            onClick={() => navigate('/')}
-                            className="mt-4 px-6 py-2 bg-brand-primary text-black font-bold rounded-full hover:bg-brand-accent transition-colors"
+                            onClick={() => window.location.href = '/'}
+                            className="mt-6 px-8 py-3 bg-brand-primary text-black font-bold rounded-full hover:bg-brand-accent transition-colors shadow-lg shadow-brand-primary/20"
                         >
-                            Continue
+                            Start Playing
                         </button>
                     </div>
                 )}
