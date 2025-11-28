@@ -109,17 +109,21 @@ export const Scorecard: React.FC = () => {
     };
 
     // Helper to calculate "Total" text like "E (0)" or "+2 (20)"
-    const getPlayerTotalText = (playerScores: Record<number, number>, rangeMax?: number) => {
+    const getPlayerTotalText = (playerScores: Record<number, number>, handicap: number = 0, rangeMax?: number) => {
         const scoresToCount = rangeMax
             ? Object.entries(playerScores).filter(([h]) => parseInt(h) <= rangeMax).map(([, s]) => s)
             : Object.values(playerScores);
 
         const holesPlayed = scoresToCount.length;
-        if (holesPlayed === 0) return "E (0)";
+        // If no holes played, show just the handicap
+        if (holesPlayed === 0) {
+            if (handicap === 0) return "E (0)";
+            return `${handicap > 0 ? '+' + handicap : handicap} (0)`;
+        }
 
         const totalStrokes = scoresToCount.reduce((a, b) => a + b, 0);
         const parSoFar = holesPlayed * DEFAULT_PAR;
-        const diff = totalStrokes - parSoFar;
+        const diff = (totalStrokes - parSoFar) + handicap;
 
         let diffText = "E";
         if (diff > 0) diffText = `+${diff}`;
@@ -182,7 +186,7 @@ export const Scorecard: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="text-xl font-bold text-slate-200">
-                                    {getPlayerTotalText(p.scores, rangeEnd)}
+                                    {getPlayerTotalText(p.scores, p.handicap, rangeEnd)}
                                 </div>
                             </div>
 
@@ -350,7 +354,7 @@ export const Scorecard: React.FC = () => {
             <div className="flex-1 overflow-y-auto pb-32">
                 {players.map((p, idx) => {
                     const currentHoleScore = p.scores[viewHole];
-                    const totalText = getPlayerTotalText(p.scores);
+                    const totalText = getPlayerTotalText(p.scores, p.handicap);
 
                     return (
                         <div key={p.id} className="flex items-center justify-between p-4 border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
