@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Icons } from '../components/Icons';
 import { InfoModal } from '../components/InfoModal';
 import { useNavigate } from 'react-router-dom';
-import { getPool, getRelays, listEvents, lookupUser, publishProfileWithKey, getMagicLightningAddress } from '../services/nostrService';
+import { getPool, getRelays, listEvents, lookupUser, publishProfileWithKey, getMagicLightningAddress, updateContactList } from '../services/nostrService';
 import { NOSTR_KIND_ROUND, DisplayProfile } from '../types';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import { useQrScanner } from '../hooks/useQrScanner';
@@ -699,6 +699,12 @@ export const Home: React.FC = () => {
 
     // INVOICE DISTRIBUTION: Generate invoices and send via Gift Wrap
     const handleConfirmCardmates = async () => {
+        // Auto-follow players (Fire and forget)
+        const playerPubkeys = selectedCardmates.map(p => p.pubkey);
+        if (playerPubkeys.length > 0) {
+            updateContactList(playerPubkeys).catch(err => console.error("Auto-follow failed", err));
+        }
+
         // Check if host has NWC configured
         const walletMode = localStorage.getItem('wallet_mode');
         const nwcString = localStorage.getItem('nwc_connection');
@@ -1079,6 +1085,27 @@ export const Home: React.FC = () => {
                                             </div>
                                         </div>
 
+                                        {/* Handicap Controls - shown only when enabled */}
+                                        {handicapEnabled && (
+                                            <div className="flex items-center space-x-1 mr-1 shrink-0">
+                                                <button
+                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.max(-3, (prev[p.pubkey] || 0) - 1) }))}
+                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                >
+                                                    -
+                                                </button>
+                                                <div className="w-8 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
+                                                    {playerHandicaps[p.pubkey] || 0}
+                                                </div>
+                                                <button
+                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.min(3, (prev[p.pubkey] || 0) + 1) }))}
+                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {/* Payment Status */}
                                         <div className="flex items-center gap-2 shrink-0">
                                             {/* Payment Status Icon */}
@@ -1257,6 +1284,24 @@ export const Home: React.FC = () => {
                                     </div>
                                 )}
 
+                                {/* Handicap Toggle */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Handicap</h4>
+                                        <button
+                                            onClick={() => setHandicapEnabled(!handicapEnabled)}
+                                            className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${handicapEnabled ? 'bg-brand-secondary' : 'bg-slate-700'}`}
+                                        >
+                                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${handicapEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+                                    {handicapEnabled && (
+                                        <p className="text-[10px] text-slate-500">
+                                            Adjust starting scores for each player using the +/- buttons on their player tiles above.
+                                        </p>
+                                    )}
+                                </div>
+
                                 {/* Custom Starting Hole */}
                                 <div className="space-y-3 pb-32">
                                     <div className="flex items-center justify-between">
@@ -1427,15 +1472,7 @@ export const Home: React.FC = () => {
                     </div>
                     <div className="flex space-x-2">
                         {/* Handicap Toggle */}
-                        <button
-                            onClick={() => setHandicapEnabled(!handicapEnabled)}
-                            className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${handicapEnabled
-                                ? 'bg-brand-secondary text-white'
-                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                                }`}
-                        >
-                            Handicap{handicapEnabled ? ' ON' : ''}
-                        </button>
+
                         <button
                             onClick={() => setShowInfoModal(true)}
                             className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
@@ -1470,25 +1507,7 @@ export const Home: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                                 {/* Handicap Controls - shown only when enabled */}
-                                {handicapEnabled && (
-                                    <div className="flex items-center space-x-1 mr-1">
-                                        <button
-                                            onClick={() => setPlayerHandicaps(prev => ({ ...prev, [currentUserPubkey]: Math.max(-3, (prev[currentUserPubkey] || 0) - 1) }))}
-                                            className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
-                                        >
-                                            -
-                                        </button>
-                                        <div className="w-8 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
-                                            {playerHandicaps[currentUserPubkey] || 0}
-                                        </div>
-                                        <button
-                                            onClick={() => setPlayerHandicaps(prev => ({ ...prev, [currentUserPubkey]: Math.min(3, (prev[currentUserPubkey] || 0) + 1) }))}
-                                            className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
-                                        >
-                                            +
-                                        </button>
-                                    </div>
-                                )}
+
                                 {/* Entry/Ace Buttons - Horizontal */}
                                 {hasEntryFee && (
                                     <>
@@ -1550,25 +1569,7 @@ export const Home: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         {/* Handicap Controls - shown only when enabled */}
-                                        {handicapEnabled && (
-                                            <div className="flex items-center space-x-1 mr-1">
-                                                <button
-                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.max(-3, (prev[p.pubkey] || 0) - 1) }))}
-                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
-                                                >
-                                                    -
-                                                </button>
-                                                <div className="w-8 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
-                                                    {playerHandicaps[p.pubkey] || 0}
-                                                </div>
-                                                <button
-                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.min(3, (prev[p.pubkey] || 0) + 1) }))}
-                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
-                                        )}
+
                                         {/* Entry/Ace Buttons - Horizontal */}
                                         {hasEntryFee && (
                                             <>

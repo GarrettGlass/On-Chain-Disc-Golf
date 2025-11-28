@@ -746,6 +746,58 @@ export const fetchContactList = async (pubkey: string): Promise<string[]> => {
     }
 };
 
+export const updateContactList = async (newPubkeys: string[]) => {
+    const session = getSession();
+    if (!session) return;
+
+    try {
+        // 1. Fetch current Kind 3 event to preserve existing tags (petnames, relays)
+        const events = await listEvents(getRelays(), [{
+            kinds: [NOSTR_KIND_CONTACTS],
+            authors: [session.pk]
+        }]);
+
+        let tags: string[][] = [];
+        let content = "";
+
+        if (events.length > 0) {
+            const latest = events.sort((a, b) => b.created_at - a.created_at)[0];
+            tags = [...latest.tags];
+            content = latest.content;
+        }
+
+        // 2. Merge new pubkeys
+        let updated = false;
+        const existingPubkeys = new Set(tags.filter(t => t[0] === 'p').map(t => t[1]));
+
+        for (const pk of newPubkeys) {
+            if (!existingPubkeys.has(pk) && pk !== session.pk) {
+                tags.push(['p', pk, '', '']); // Add new contact
+                updated = true;
+            }
+        }
+
+        if (!updated) {
+            console.log("Contact list already up to date.");
+            return;
+        }
+
+        // 3. Publish updated Kind 3
+        const event = await signEventWrapper({
+            kind: NOSTR_KIND_CONTACTS,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: tags,
+            content: content,
+        });
+
+        await promiseAny(pool.publish(getRelays(), event));
+        console.log("Contact list updated with new players.");
+
+    } catch (e) {
+        console.error("Failed to update contact list:", e);
+    }
+};
+
 export const fetchProfilesBatch = async (pubkeys: string[]): Promise<DisplayProfile[]> => {
     if (pubkeys.length === 0) return [];
 
