@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, getTopHeavyDistribution, getLinearDistribution } from '../context/AppContext';
 import { Button } from '../components/Button';
 import { Icons } from '../components/Icons';
 import { InfoModal } from '../components/InfoModal';
@@ -48,9 +48,12 @@ interface RoundCreationState {
     startHole: number;
     payoutMode: 'winner-take-all' | 'percentage-based';
     payoutPercentage: number;
+    customPayoutPercentage: number;
     payoutGradient: 'top-heavy' | 'linear';
     acePotRedistribution: 'forfeit' | 'add-to-entry-pot' | 'redistribute-to-participants';
     playerHandicaps: Record<string, number>;
+    handicapEnabled: boolean;
+    startHoleEnabled: boolean;
 }
 
 // Helper to clear persisted round creation state
@@ -118,9 +121,12 @@ export const Home: React.FC = () => {
     // Payout Configuration State
     const [payoutMode, setPayoutMode] = useState<'winner-take-all' | 'percentage-based'>('winner-take-all');
     const [payoutPercentage, setPayoutPercentage] = useState(30); // Top 30% default
+    const [customPayoutPercentage, setCustomPayoutPercentage] = useState(30); // Store custom value separately
     const [payoutGradient, setPayoutGradient] = useState<'top-heavy' | 'linear'>('top-heavy');
     const [acePotRedistribution, setAcePotRedistribution] = useState<'forfeit' | 'add-to-entry-pot' | 'redistribute-to-participants'>('add-to-entry-pot');
     const [playerHandicaps, setPlayerHandicaps] = useState<Record<string, number>>({});
+    const [handicapEnabled, setHandicapEnabled] = useState(false); // Toggle for handicap feature
+    const [startHoleEnabled, setStartHoleEnabled] = useState(false); // Toggle for custom starting hole
 
 
     const [joinError, setJoinError] = useState('');
@@ -325,9 +331,12 @@ export const Home: React.FC = () => {
                 startHole,
                 payoutMode,
                 payoutPercentage,
+                customPayoutPercentage,
                 payoutGradient,
                 acePotRedistribution,
                 playerHandicaps,
+                handicapEnabled,
+                startHoleEnabled,
             };
             localStorage.setItem('cdg_round_creation', JSON.stringify(state));
         } else if (view === 'menu') {
@@ -336,7 +345,7 @@ export const Home: React.FC = () => {
         }
     }, [view, courseName, layout, customHoles, hasEntryFee, entryFee, acePot,
         selectedCardmates, excludedPlayers, paidStatus, paymentSelections, startDate, startTime, trackPenalties,
-        startHole, payoutMode, payoutPercentage, payoutGradient, acePotRedistribution, playerHandicaps]);
+        startHole, payoutMode, payoutPercentage, customPayoutPercentage, payoutGradient, acePotRedistribution, playerHandicaps, handicapEnabled, startHoleEnabled]);
 
     // Restore round creation state on mount
     useEffect(() => {
@@ -361,9 +370,12 @@ export const Home: React.FC = () => {
                 setStartHole(state.startHole || 1);
                 setPayoutMode(state.payoutMode || 'winner-take-all');
                 setPayoutPercentage(state.payoutPercentage || 30);
+                setCustomPayoutPercentage(state.customPayoutPercentage || 30);
                 setPayoutGradient(state.payoutGradient || 'top-heavy');
                 setAcePotRedistribution(state.acePotRedistribution || 'add-to-entry-pot');
                 setPlayerHandicaps(state.playerHandicaps || {});
+                setHandicapEnabled(state.handicapEnabled || false);
+                setStartHoleEnabled(state.startHoleEnabled || false);
             } catch (e) {
                 console.error('Failed to restore round creation state:', e);
                 clearRoundCreationState();
@@ -991,6 +1003,7 @@ export const Home: React.FC = () => {
                         <h2 className="text-xl font-bold">Payment & Buy-ins</h2>
                     </div>
                     <div className="flex space-x-2">
+
                         <button
                             onClick={() => setShowInfoModal(true)}
                             className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
@@ -1038,6 +1051,217 @@ export const Home: React.FC = () => {
                 )}
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
+                    {/* Customize Round Section - Moved to top */}
+                    <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+                        <button
+                            onClick={() => setIsCustomExpanded(!isCustomExpanded)}
+                            className="w-full flex items-center justify-between p-4 bg-slate-800 hover:bg-slate-700/50 transition-colors"
+                        >
+                            <h3 className="font-bold text-white">Customize your round</h3>
+                            <Icons.Next size={20} className={`transition-transform duration-300 ${isCustomExpanded ? '-rotate-90' : 'rotate-90'}`} />
+                        </button>
+
+                        {isCustomExpanded && (
+                            <div className="p-4 space-y-4 border-t border-slate-700 bg-slate-900/30">
+                                {/* Player Handicaps Toggle */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Player Handicaps</h4>
+                                        <button
+                                            onClick={() => setHandicapEnabled(!handicapEnabled)}
+                                            className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${handicapEnabled ? 'bg-brand-secondary' : 'bg-slate-700'}`}
+                                        >
+                                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${handicapEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+                                    {handicapEnabled && (
+                                        <p className="text-[10px] text-slate-500">
+                                            Adjust starting scores for each player below.
+                                        </p>
+                                    )}
+                                </div>
+                                {/* Payout Distribution Mode */}
+                                {hasEntryFee && entryFee > 0 && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payout Distribution</h4>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => setPayoutMode('winner-take-all')}
+                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payoutMode === 'winner-take-all'
+                                                    ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                    }`}
+                                            >
+                                                Winner Take All
+                                            </button>
+                                            <button
+                                                onClick={() => setPayoutMode('percentage-based')}
+                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payoutMode === 'percentage-based'
+                                                    ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                    }`}
+                                            >
+                                                Top % of Players
+                                            </button>
+                                        </div>
+
+                                        {/* Percentage Threshold Input */}
+                                        {payoutMode === 'percentage-based' && (
+                                            <div className="space-y-2">
+                                                <span className="text-sm font-bold text-slate-300">% of players paid</span>
+                                                <div className="flex space-x-2">
+                                                    {[20, 30, 40].map(pct => (
+                                                        <button
+                                                            key={pct}
+                                                            onClick={() => setPayoutPercentage(pct)}
+                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${payoutPercentage === pct
+                                                                ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                                }`}
+                                                        >
+                                                            {pct}%
+                                                        </button>
+                                                    ))}
+                                                    <button
+                                                        onClick={() => setPayoutPercentage(customPayoutPercentage)}
+                                                        className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${![20, 30, 40].includes(payoutPercentage)
+                                                            ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                            }`}
+                                                    >
+                                                        Custom
+                                                    </button>
+                                                </div>
+                                                {![20, 30, 40].includes(payoutPercentage) && (
+                                                    <div className="flex items-center justify-between bg-slate-800 rounded-lg p-3 border border-slate-700 animate-in slide-in-from-top-2">
+                                                        <span className="text-sm text-slate-400">Custom Percentage</span>
+                                                        <div className="flex items-center space-x-2">
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                max="100"
+                                                                value={customPayoutPercentage}
+                                                                onChange={(e) => {
+                                                                    const val = Math.min(100, Math.max(1, parseInt(e.target.value) || 0));
+                                                                    setCustomPayoutPercentage(val);
+                                                                    setPayoutPercentage(val);
+                                                                }}
+                                                                className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white w-16 text-center outline-none"
+                                                            />
+                                                            <span className="text-sm text-slate-400">%</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Payout Gradient */}
+                                        {payoutMode === 'percentage-based' && (
+                                            <>
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payout Gradient</h4>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <button
+                                                        onClick={() => setPayoutGradient('top-heavy')}
+                                                        className={`px-3 py-3 rounded-lg text-xs font-bold border transition-all ${payoutGradient === 'top-heavy'
+                                                            ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                            }`}
+                                                    >
+                                                        <div>Top-Heavy</div>
+                                                        <div className="text-[9px] text-slate-500 mt-1">
+                                                            {(() => {
+                                                                const numPlayers = selectedCardmates.length + 1;
+                                                                const numWinners = Math.max(1, Math.ceil(numPlayers * (payoutPercentage / 100)));
+                                                                const dist = getTopHeavyDistribution(numWinners);
+                                                                return dist.map(p => `${Math.round(p * 100)}%`).join(' / ');
+                                                            })()}
+                                                        </div>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setPayoutGradient('linear')}
+                                                        className={`px-3 py-3 rounded-lg text-xs font-bold border transition-all ${payoutGradient === 'linear'
+                                                            ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                            }`}
+                                                    >
+                                                        <div>Linear</div>
+                                                        <div className="text-[9px] text-slate-500 mt-1">
+                                                            {(() => {
+                                                                const numPlayers = selectedCardmates.length + 1;
+                                                                const numWinners = Math.max(1, Math.ceil(numPlayers * (payoutPercentage / 100)));
+                                                                const dist = getLinearDistribution(numWinners);
+                                                                return dist.map(p => `${Math.round(p * 100)}%`).join(' / ');
+                                                            })()}
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Ace Pot Redistribution */}
+                                {hasEntryFee && acePot > 0 && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">If No Ace is Hit</h4>
+                                        <div className="space-y-2">
+                                            {[
+                                                { value: 'add-to-entry-pot' as const, label: 'Add to Entry Pot', desc: 'Distribute ace pot to winners' },
+                                                { value: 'redistribute-to-participants' as const, label: 'Redistribute to Participants', desc: 'Split evenly among ace pot players' },
+                                                { value: 'forfeit' as const, label: 'Forfeit', desc: 'No redistribution' },
+                                            ].map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    onClick={() => setAcePotRedistribution(option.value)}
+                                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold border transition-all ${acePotRedistribution === option.value
+                                                        ? 'bg-brand-secondary/20 text-brand-secondary border-brand-secondary/40'
+                                                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                        }`}
+                                                >
+                                                    <div>{option.label}</div>
+                                                    <div className="text-[9px] text-slate-500 font-normal mt-0.5">{option.desc}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Custom Starting Hole */}
+                                <div className="space-y-3 pb-32">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custom Starting Hole</h4>
+                                        <button
+                                            onClick={() => {
+                                                setStartHoleEnabled(!startHoleEnabled);
+                                                if (startHoleEnabled) setStartHole(1); // Reset to hole 1 when disabled
+                                            }}
+                                            className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${startHoleEnabled ? 'bg-brand-secondary' : 'bg-slate-700'}`}
+                                        >
+                                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${startHoleEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+
+                                    {startHoleEnabled && (
+                                        <div className="grid grid-cols-6 gap-2 animate-in slide-in-from-top-2 duration-300">
+                                            {Array.from({ length: layout === '9' ? 9 : layout === '18' ? 18 : customHoles }, (_, i) => i + 1).map((holeNum) => (
+                                                <button
+                                                    key={holeNum}
+                                                    onClick={() => setStartHole(holeNum)}
+                                                    className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${startHole === holeNum
+                                                        ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                        }`}
+                                                >
+                                                    {holeNum}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="space-y-3">
                         {allPlayers.map((p, idx) => {
                             const isPaid = paidStatus[p.pubkey] || false;
@@ -1069,6 +1293,26 @@ export const Home: React.FC = () => {
 
                                         {/* Payment Status */}
                                         <div className="flex items-center gap-2 shrink-0">
+                                            {/* Handicap Controls - shown only when enabled */}
+                                            {handicapEnabled && (
+                                                <div className="flex items-center space-x-1 mr-1">
+                                                    <button
+                                                        onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.max(-3, (prev[p.pubkey] || 0) - 1) }))}
+                                                        className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <div className="w-8 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
+                                                        {playerHandicaps[p.pubkey] || 0}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.min(3, (prev[p.pubkey] || 0) + 1) }))}
+                                                        className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            )}
                                             {/* Payment Status Icon */}
                                             {hasEntryFee && owesAnything && (
                                                 <button
@@ -1095,242 +1339,7 @@ export const Home: React.FC = () => {
                         })}
                     </div>
 
-                    <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
-                        <button
-                            onClick={() => setIsCustomExpanded(!isCustomExpanded)}
-                            className="w-full flex items-center justify-between p-4 bg-slate-800 hover:bg-slate-700/50 transition-colors"
-                        >
-                            <h3 className="font-bold text-white">Customize your round</h3>
-                            <Icons.Next size={20} className={`transition-transform duration-300 ${isCustomExpanded ? '-rotate-90' : 'rotate-90'}`} />
-                        </button>
 
-                        {isCustomExpanded && (
-                            <div className="p-4 space-y-4 border-t border-slate-700 bg-slate-900/30">
-                                {/* Payout Distribution Mode */}
-                                {hasEntryFee && entryFee > 0 && (
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payout Distribution</h4>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button
-                                                onClick={() => setPayoutMode('winner-take-all')}
-                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payoutMode === 'winner-take-all'
-                                                        ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
-                                                    }`}
-                                            >
-                                                Winner Take All
-                                            </button>
-                                            <button
-                                                onClick={() => setPayoutMode('percentage-based')}
-                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payoutMode === 'percentage-based'
-                                                        ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
-                                                    }`}
-                                            >
-                                                Top % of Players
-                                            </button>
-                                        </div>
-
-                                        {/* Percentage Threshold Input */}
-                                        {payoutMode === 'percentage-based' && (
-                                            <div className="flex items-center justify-between bg-slate-800 rounded-lg p-3 border border-slate-700">
-                                                <span className="text-sm font-bold text-slate-300">Top Percentage</span>
-                                                <div className="flex items-center space-x-2">
-                                                    <input
-                                                        type="number"
-                                                        min="10"
-                                                        max="100"
-                                                        step="5"
-                                                        value={payoutPercentage}
-                                                        onChange={(e) => setPayoutPercentage(Math.min(100, Math.max(10, parseInt(e.target.value) || 30)))}
-                                                        className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white w-16 text-center outline-none"
-                                                    />
-                                                    <span className="text-sm text-slate-400">%</span>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Payout Gradient */}
-                                        {payoutMode === 'percentage-based' && (
-                                            <>
-                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payout Gradient</h4>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <button
-                                                        onClick={() => setPayoutGradient('top-heavy')}
-                                                        className={`px-3 py-3 rounded-lg text-xs font-bold border transition-all ${payoutGradient === 'top-heavy'
-                                                                ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
-                                                            }`}
-                                                    >
-                                                        <div>Top-Heavy</div>
-                                                        <div className="text-[9px] text-slate-500 mt-1">75% / 15% / 10%</div>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setPayoutGradient('linear')}
-                                                        className={`px-3 py-3 rounded-lg text-xs font-bold border transition-all ${payoutGradient === 'linear'
-                                                                ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
-                                                            }`}
-                                                    >
-                                                        <div>Linear</div>
-                                                        <div className="text-[9px] text-slate-500 mt-1">Equal Split</div>
-                                                    </button>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Ace Pot Redistribution */}
-                                {hasEntryFee && acePot > 0 && (
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">If No Ace is Hit</h4>
-                                        <div className="space-y-2">
-                                            {[
-                                                { value: 'add-to-entry-pot' as const, label: 'Add to Entry Pot', desc: 'Distribute ace pot to winners' },
-                                                { value: 'redistribute-to-participants' as const, label: 'Redistribute to Participants', desc: 'Split evenly among ace pot players' },
-                                                { value: 'forfeit' as const, label: 'Forfeit', desc: 'No redistribution' },
-                                            ].map((option) => (
-                                                <button
-                                                    key={option.value}
-                                                    onClick={() => setAcePotRedistribution(option.value)}
-                                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold border transition-all ${acePotRedistribution === option.value
-                                                            ? 'bg-brand-secondary/20 text-brand-secondary border-brand-secondary/40'
-                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
-                                                        }`}
-                                                >
-                                                    <div>{option.label}</div>
-                                                    <div className="text-[9px] text-slate-500 font-normal mt-0.5">{option.desc}</div>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Player Handicaps */}
-                                <div className="space-y-3">
-                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Player Handicaps</h4>
-                                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                                        {/* Host */}
-                                        <div className="flex items-center justify-between bg-slate-800 rounded-lg p-2 border border-slate-700">
-                                            <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                                <div className="w-7 h-7 rounded-full bg-slate-700 overflow-hidden shrink-0">
-                                                    {userProfile.picture ? <img src={userProfile.picture} className="w-full h-full object-cover" /> : <Icons.Users className="p-1 text-slate-500" />}
-                                                </div>
-                                                <span className="font-bold text-xs truncate text-white">{userProfile.name} (You)</span>
-                                            </div>
-                                            <div className="flex items-center space-x-1">
-                                                <button
-                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [currentUserPubkey]: Math.max(-5, (prev[currentUserPubkey] || 0) - 1) }))}
-                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
-                                                >
-                                                    -
-                                                </button>
-                                                <div className="w-10 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
-                                                    {playerHandicaps[currentUserPubkey] || 0}
-                                                </div>
-                                                <button
-                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [currentUserPubkey]: Math.min(5, (prev[currentUserPubkey] || 0) + 1) }))}
-                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Cardmates */}
-                                        {selectedCardmates.map(p => (
-                                            <div key={p.pubkey} className="flex items-center justify-between bg-slate-800 rounded-lg p-2 border border-slate-700">
-                                                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                                                    <div className="w-7 h-7 rounded-full bg-slate-700 overflow-hidden shrink-0">
-                                                        {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : <Icons.Users className="p-1 text-slate-500" />}
-                                                    </div>
-                                                    <span className="font-bold text-xs truncate text-white">{p.name}</span>
-                                                </div>
-                                                <div className="flex items-center space-x-1">
-                                                    <button
-                                                        onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.max(-5, (prev[p.pubkey] || 0) - 1) }))}
-                                                        className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
-                                                    >
-                                                        -
-                                                    </button>
-                                                    <div className="w-10 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
-                                                        {playerHandicaps[p.pubkey] || 0}
-                                                    </div>
-                                                    <button
-                                                        onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.min(5, (prev[p.pubkey] || 0) + 1) }))}
-                                                        className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
-                                                    >
-                                                        +
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <p className="text-[9px] text-slate-500 italic">Handicaps are relative to par. Negative = strokes under, Positive = strokes over.</p>
-                                </div>
-
-                                <div className="border-t border-slate-700 pt-4 space-y-4">
-                                    {/* Starting Hole */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3 text-slate-300">
-                                            <span className="text-sm font-bold">Starting Hole</span>
-                                        </div>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max={layout === '9' ? 9 : layout === '18' ? 18 : customHoles}
-                                            value={startHole}
-                                            onChange={(e) => setStartHole(Math.min(layout === '9' ? 9 : layout === '18' ? 18 : customHoles, Math.max(1, parseInt(e.target.value) || 1)))}
-                                            className="bg-slate-800 border border-slate-600 rounded px-3 py-1 text-sm text-white w-16 text-center outline-none"
-                                        />
-                                    </div>
-
-                                    {/* Track Penalties Toggle */}
-                                    {([
-                                        { label: "Track penalties", val: trackPenalties, set: setTrackPenalties },
-                                    ] as const).map((item, i) => (
-                                        <div key={i} className="flex items-center justify-between py-1">
-                                            <div className="flex items-center space-x-3">
-                                                <Icons.Close size={20} className="text-slate-400" />
-                                                <span className="text-sm font-bold text-slate-300">{item.label}</span>
-                                            </div>
-                                            <button
-                                                onClick={() => item.set(!item.val)}
-                                                className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${item.val ? 'bg-brand-secondary' : 'bg-slate-700'}`}
-                                            >
-                                                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${item.val ? 'translate-x-6' : 'translate-x-0'}`} />
-                                            </button>
-                                        </div>
-                                    ))}
-
-                                    {/* Start Date & Time */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3 text-slate-300">
-                                            <span className="text-sm font-bold">Start Date</span>
-                                        </div>
-                                        <input
-                                            type="date"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
-                                            className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-white outline-none"
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3 text-slate-300">
-                                            <span className="text-sm font-bold">Start Time</span>
-                                        </div>
-                                        <input
-                                            type="time"
-                                            value={startTime}
-                                            onChange={(e) => setStartTime(e.target.value)}
-                                            className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-white outline-none"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
                 </div>
 
                 <div className="fixed bottom-20 left-0 right-0 bg-brand-dark border-t border-slate-800 p-4 max-w-md mx-auto z-20">
@@ -1465,6 +1474,16 @@ export const Home: React.FC = () => {
                         <h1 className="text-xl font-bold">Who's playing?</h1>
                     </div>
                     <div className="flex space-x-2">
+                        {/* Handicap Toggle */}
+                        <button
+                            onClick={() => setHandicapEnabled(!handicapEnabled)}
+                            className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${handicapEnabled
+                                ? 'bg-brand-secondary text-white'
+                                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                }`}
+                        >
+                            Handicap{handicapEnabled ? ' ON' : ''}
+                        </button>
                         <button
                             onClick={() => setShowInfoModal(true)}
                             className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
@@ -1498,6 +1517,26 @@ export const Home: React.FC = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
+                                {/* Handicap Controls - shown only when enabled */}
+                                {handicapEnabled && (
+                                    <div className="flex items-center space-x-1 mr-1">
+                                        <button
+                                            onClick={() => setPlayerHandicaps(prev => ({ ...prev, [currentUserPubkey]: Math.max(-3, (prev[currentUserPubkey] || 0) - 1) }))}
+                                            className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                        >
+                                            -
+                                        </button>
+                                        <div className="w-8 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
+                                            {playerHandicaps[currentUserPubkey] || 0}
+                                        </div>
+                                        <button
+                                            onClick={() => setPlayerHandicaps(prev => ({ ...prev, [currentUserPubkey]: Math.min(3, (prev[currentUserPubkey] || 0) + 1) }))}
+                                            className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                )}
                                 {/* Entry/Ace Buttons - Horizontal */}
                                 {hasEntryFee && (
                                     <>
@@ -1558,6 +1597,26 @@ export const Home: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
+                                        {/* Handicap Controls - shown only when enabled */}
+                                        {handicapEnabled && (
+                                            <div className="flex items-center space-x-1 mr-1">
+                                                <button
+                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.max(-3, (prev[p.pubkey] || 0) - 1) }))}
+                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                >
+                                                    -
+                                                </button>
+                                                <div className="w-8 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
+                                                    {playerHandicaps[p.pubkey] || 0}
+                                                </div>
+                                                <button
+                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.min(3, (prev[p.pubkey] || 0) + 1) }))}
+                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                        )}
                                         {/* Entry/Ace Buttons - Horizontal */}
                                         {hasEntryFee && (
                                             <>

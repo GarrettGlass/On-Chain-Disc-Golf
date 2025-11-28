@@ -1491,6 +1491,57 @@ export const useApp = () => {
   return context;
 };
 
+// Helper to generate top-heavy distribution percentages
+export function getTopHeavyDistribution(numWinners: number): number[] {
+  if (numWinners <= 1) return [1.0];
+
+  // Standard top-heavy distributions for common small player counts
+  // Adjusted to be more "loaded at the top"
+  const distributions: Record<number, number[]> = {
+    2: [0.75, 0.25],                  // Winner takes 3x second place
+    3: [0.60, 0.25, 0.15],            // Winner takes >2x second place
+    4: [0.50, 0.25, 0.15, 0.10],      // Winner takes half the pot
+    5: [0.45, 0.25, 0.15, 0.10, 0.05] // Winner takes nearly half
+  };
+
+  if (distributions[numWinners]) {
+    return distributions[numWinners];
+  }
+
+  // For larger groups, use a steeper decay formula: weight = 1 / (rank + 1)
+  // This is steeper than the previous (rank + 1.5)
+  let weights = [];
+  let totalWeight = 0;
+  for (let i = 0; i < numWinners; i++) {
+    const weight = 1 / (i + 1.0);
+    weights.push(weight);
+    totalWeight += weight;
+  }
+
+  return weights.map(w => w / totalWeight);
+}
+
+// Helper to generate linear distribution percentages (Moderate gradient)
+// Target ratio: First place gets ~2x the last paid place
+export function getLinearDistribution(numWinners: number): number[] {
+  if (numWinners <= 1) return [1.0];
+
+  // Using arithmetic progression sum formula: N/2 * (first + last) = 1
+  // And ratio constraint: first = 2 * last
+  // N/2 * (3 * last) = 1  =>  last = 2 / (3N)
+
+  const last = 2 / (3 * numWinners);
+  const first = 2 * last;
+  const step = (first - last) / (numWinners - 1);
+
+  const weights = [];
+  for (let i = 0; i < numWinners; i++) {
+    weights.push(first - (i * step));
+  }
+
+  return weights;
+}
+
 // Helper function to calculate payout distribution based on configuration
 export function calculatePayouts(
   players: Player[],
@@ -1516,20 +1567,26 @@ export function calculatePayouts(
 
   const payouts = new Map<string, number>();
 
+  let percentages: number[];
   if (config.gradient === 'top-heavy') {
-    // Top-Heavy: 75/15/10 distribution
-    const percentages = [0.75, 0.15, 0.10];
-    winners.forEach((player, idx) => {
-      const pct = percentages[Math.min(idx, percentages.length - 1)] || 0;
-      payouts.set(player.id, Math.floor(totalPot * pct));
-    });
+    percentages = getTopHeavyDistribution(winners.length);
   } else {
-    // Linear: Equal distribution
-    const amountPerWinner = Math.floor(totalPot / winners.length);
-    winners.forEach(player => {
-      payouts.set(player.id, amountPerWinner);
-    });
+    // Linear (Moderate)
+    percentages = getLinearDistribution(winners.length);
   }
+
+  // Distribute based on percentages, tracking remainder to avoid rounding loss
+  let distributed = 0;
+  winners.forEach((player, idx) => {
+    if (idx === winners.length - 1) {
+      // Last winner gets the remainder
+      payouts.set(player.id, totalPot - distributed);
+    } else {
+      const amount = Math.floor(totalPot * percentages[idx]);
+      payouts.set(player.id, amount);
+      distributed += amount;
+    }
+  });
 
   return payouts;
 }
