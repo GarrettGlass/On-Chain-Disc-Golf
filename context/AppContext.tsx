@@ -1521,27 +1521,6 @@ export function getTopHeavyDistribution(numWinners: number): number[] {
   return weights.map(w => w / totalWeight);
 }
 
-// Helper to generate linear distribution percentages (Moderate gradient)
-// Target ratio: First place gets ~2x the last paid place
-export function getLinearDistribution(numWinners: number): number[] {
-  if (numWinners <= 1) return [1.0];
-
-  // Using arithmetic progression sum formula: N/2 * (first + last) = 1
-  // And ratio constraint: first = 2 * last
-  // N/2 * (3 * last) = 1  =>  last = 2 / (3N)
-
-  const last = 2 / (3 * numWinners);
-  const first = 2 * last;
-  const step = (first - last) / (numWinners - 1);
-
-  const weights = [];
-  for (let i = 0; i < numWinners; i++) {
-    weights.push(first - (i * step));
-  }
-
-  return weights;
-}
-
 // Helper function to calculate payout distribution based on configuration
 export function calculatePayouts(
   players: Player[],
@@ -1567,26 +1546,34 @@ export function calculatePayouts(
 
   const payouts = new Map<string, number>();
 
-  let percentages: number[];
   if (config.gradient === 'top-heavy') {
-    percentages = getTopHeavyDistribution(winners.length);
-  } else {
-    // Linear (Moderate)
-    percentages = getLinearDistribution(winners.length);
-  }
+    const percentages = getTopHeavyDistribution(winners.length);
 
-  // Distribute based on percentages, tracking remainder to avoid rounding loss
-  let distributed = 0;
-  winners.forEach((player, idx) => {
-    if (idx === winners.length - 1) {
-      // Last winner gets the remainder
-      payouts.set(player.id, totalPot - distributed);
-    } else {
-      const amount = Math.floor(totalPot * percentages[idx]);
-      payouts.set(player.id, amount);
-      distributed += amount;
-    }
-  });
+    // Distribute based on percentages, tracking remainder to avoid rounding loss
+    let distributed = 0;
+    winners.forEach((player, idx) => {
+      if (idx === winners.length - 1) {
+        // Last winner gets the remainder
+        payouts.set(player.id, totalPot - distributed);
+      } else {
+        const amount = Math.floor(totalPot * percentages[idx]);
+        payouts.set(player.id, amount);
+        distributed += amount;
+      }
+    });
+  } else {
+    // Linear: Equal distribution
+    const amountPerWinner = Math.floor(totalPot / winners.length);
+    let distributed = 0;
+    winners.forEach((player, idx) => {
+      if (idx === winners.length - 1) {
+        payouts.set(player.id, totalPot - distributed);
+      } else {
+        payouts.set(player.id, amountPerWinner);
+        distributed += amountPerWinner;
+      }
+    });
+  }
 
   return payouts;
 }
