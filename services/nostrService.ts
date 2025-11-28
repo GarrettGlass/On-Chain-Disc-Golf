@@ -4,13 +4,15 @@ import { NOSTR_KIND_PROFILE, NOSTR_KIND_CONTACTS, NOSTR_KIND_ROUND, NOSTR_KIND_S
 import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
 import { generateNostrConnectURI, signEventWithAmber, nip04EncryptWithAmber, nip04DecryptWithAmber } from './amberSigner';
 
-// Default relays - Optimized order for profile discovery
+// Default relays - Optimized for profile discovery and payment applications
 const DEFAULT_RELAYS = [
     'wss://relay.damus.io',
-    'wss://nos.lol',
     'wss://relay.snort.social',
     'wss://relay.nostr.net',
-    'wss://relay.primal.net'
+    'wss://relay.primal.net',
+    'wss://relay.mutinywallet.com',  // Bitcoin/Lightning optimized
+    'wss://relay.current.fyi',        // Payment infrastructure focused
+    'wss://relay.npub.bar'            // Quality relay for payment services
 ];
 
 // Load relays from storage or use defaults
