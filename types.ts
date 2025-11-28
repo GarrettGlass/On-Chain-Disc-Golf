@@ -24,6 +24,23 @@ export interface DisplayProfile {
   paysAce?: boolean;
 }
 
+// Payout distribution modes
+export type PayoutMode = 'winner-take-all' | 'percentage-based';
+
+// Payout gradient types
+export type PayoutGradient = 'top-heavy' | 'linear';
+
+// Ace pot redistribution options
+export type AcePotRedistribution = 'forfeit' | 'add-to-entry-pot' | 'redistribute-to-participants';
+
+// Payout configuration interface
+export interface PayoutConfig {
+  mode: PayoutMode;
+  percentageThreshold?: number; // e.g., 30 for top 30%
+  gradient: PayoutGradient;
+  acePotRedistribution: AcePotRedistribution;
+}
+
 export interface RoundSettings {
   id: string; // This is the 'd' tag of the Nostr event
   eventId?: string; // The actual Nostr Event ID
@@ -41,6 +58,8 @@ export interface RoundSettings {
   startingHole: number;
   trackPenalties: boolean;
   hideOverallScore: boolean;
+  payoutConfig?: PayoutConfig;
+  playerHandicaps?: Record<string, number>;
 }
 
 export interface WalletTransaction {

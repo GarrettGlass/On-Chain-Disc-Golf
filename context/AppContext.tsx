@@ -1,7 +1,7 @@
 
 import { CashuMint, CashuWallet, getDecodedToken } from '@cashu/cashu-ts';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { AppState, Player, RoundSettings, WalletTransaction, UserProfile, UserStats, NOSTR_KIND_SCORE, Mint, DisplayProfile, Proof } from '../types';
+import { AppState, Player, RoundSettings, WalletTransaction, UserProfile, UserStats, NOSTR_KIND_SCORE, Mint, DisplayProfile, Proof, PayoutConfig } from '../types';
 import { DEFAULT_HOLE_COUNT } from '../constants';
 import { publishProfile, publishRound, publishScore, subscribeToRound, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, loginWithAmber, generateNewProfile, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps, fetchHistoricalGiftWraps, getMagicLightningAddress } from '../services/nostrService';
 import { checkPendingPayments, NpubCashQuote, subscribeToQuoteUpdates, unsubscribeFromQuoteUpdates, getQuoteById } from '../services/npubCashService';
@@ -807,20 +807,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addRecentPlayer(p);
       const payment = paymentSelections[p.pubkey] ?? { entry: true, ace: true };
       const owesPayment = (settings.entryFeeSats > 0 && payment.entry) || (settings.acePotFeeSats > 0 && payment.ace);
+      const handicap = settings.playerHandicaps?.[p.pubkey] || 0;
       initialPlayers.push({
         id: p.pubkey,
         name: p.name,
-        handicap: 0,
+        handicap,
         paid: owesPayment ? (!!p.paid) : true, // If owes payment, use passed status; else marked paid
         paysEntry: payment.entry,
         paysAce: payment.ace,
         scores: {},
-        totalScore: 0,
+        totalScore: handicap, // Start with handicap as initial score
         isCurrentUser: false,
         lightningAddress: p.nip05,
         photoUrl: p.image
       });
     });
+
+    // Update host handicap
+    initialPlayers[0].handicap = settings.playerHandicaps?.[currentUserPubkey] || 0;
+    initialPlayers[0].totalScore = settings.playerHandicaps?.[currentUserPubkey] || 0;
+
 
     setPlayers(initialPlayers);
 
@@ -1484,3 +1490,46 @@ export const useApp = () => {
   }
   return context;
 };
+
+// Helper function to calculate payout distribution based on configuration
+export function calculatePayouts(
+  players: Player[],
+  totalPot: number,
+  config?: PayoutConfig
+): Map<string, number> {
+  if (!config || totalPot === 0) {
+    // Default: winner takes all
+    const sortedPlayers = [...players].sort((a, b) => a.totalScore - b.totalScore);
+    return new Map([[sortedPlayers[0].id, totalPot]]);
+  }
+
+  // Sort players by score (ascending - lower is better)
+  const sortedPlayers = [...players].sort((a, b) => a.totalScore - b.totalScore);
+
+  if (config.mode === 'winner-take-all') {
+    return new Map([[sortedPlayers[0].id, totalPot]]);
+  }
+
+  // Calculate number of winners based on percentage
+  const numWinners = Math.max(1, Math.ceil(players.length * ((config.percentageThreshold || 30) / 100)));
+  const winners = sortedPlayers.slice(0, numWinners);
+
+  const payouts = new Map<string, number>();
+
+  if (config.gradient === 'top-heavy') {
+    // Top-Heavy: 75/15/10 distribution
+    const percentages = [0.75, 0.15, 0.10];
+    winners.forEach((player, idx) => {
+      const pct = percentages[Math.min(idx, percentages.length - 1)] || 0;
+      payouts.set(player.id, Math.floor(totalPot * pct));
+    });
+  } else {
+    // Linear: Equal distribution
+    const amountPerWinner = Math.floor(totalPot / winners.length);
+    winners.forEach(player => {
+      payouts.set(player.id, amountPerWinner);
+    });
+  }
+
+  return payouts;
+}

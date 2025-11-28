@@ -45,6 +45,12 @@ interface RoundCreationState {
     startDate: string;
     startTime: string;
     trackPenalties: boolean;
+    startHole: number;
+    payoutMode: 'winner-take-all' | 'percentage-based';
+    payoutPercentage: number;
+    payoutGradient: 'top-heavy' | 'linear';
+    acePotRedistribution: 'forfeit' | 'add-to-entry-pot' | 'redistribute-to-participants';
+    playerHandicaps: Record<string, number>;
 }
 
 // Helper to clear persisted round creation state
@@ -108,6 +114,14 @@ export const Home: React.FC = () => {
     const [orderPlayersByTee, setOrderPlayersByTee] = useState(true);
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [startTime, setStartTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
+
+    // Payout Configuration State
+    const [payoutMode, setPayoutMode] = useState<'winner-take-all' | 'percentage-based'>('winner-take-all');
+    const [payoutPercentage, setPayoutPercentage] = useState(30); // Top 30% default
+    const [payoutGradient, setPayoutGradient] = useState<'top-heavy' | 'linear'>('top-heavy');
+    const [acePotRedistribution, setAcePotRedistribution] = useState<'forfeit' | 'add-to-entry-pot' | 'redistribute-to-participants'>('add-to-entry-pot');
+    const [playerHandicaps, setPlayerHandicaps] = useState<Record<string, number>>({});
+
 
     const [joinError, setJoinError] = useState('');
     const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -308,6 +322,12 @@ export const Home: React.FC = () => {
                 startDate,
                 startTime,
                 trackPenalties,
+                startHole,
+                payoutMode,
+                payoutPercentage,
+                payoutGradient,
+                acePotRedistribution,
+                playerHandicaps,
             };
             localStorage.setItem('cdg_round_creation', JSON.stringify(state));
         } else if (view === 'menu') {
@@ -315,7 +335,8 @@ export const Home: React.FC = () => {
             clearRoundCreationState();
         }
     }, [view, courseName, layout, customHoles, hasEntryFee, entryFee, acePot,
-        selectedCardmates, excludedPlayers, paidStatus, paymentSelections, startDate, startTime, trackPenalties]);
+        selectedCardmates, excludedPlayers, paidStatus, paymentSelections, startDate, startTime, trackPenalties,
+        startHole, payoutMode, payoutPercentage, payoutGradient, acePotRedistribution, playerHandicaps]);
 
     // Restore round creation state on mount
     useEffect(() => {
@@ -337,6 +358,12 @@ export const Home: React.FC = () => {
                 setStartDate(state.startDate);
                 setStartTime(state.startTime);
                 setTrackPenalties(state.trackPenalties);
+                setStartHole(state.startHole || 1);
+                setPayoutMode(state.payoutMode || 'winner-take-all');
+                setPayoutPercentage(state.payoutPercentage || 30);
+                setPayoutGradient(state.payoutGradient || 'top-heavy');
+                setAcePotRedistribution(state.acePotRedistribution || 'add-to-entry-pot');
+                setPlayerHandicaps(state.playerHandicaps || {});
             } catch (e) {
                 console.error('Failed to restore round creation state:', e);
                 clearRoundCreationState();
@@ -455,7 +482,14 @@ export const Home: React.FC = () => {
             holeCount: holes,
             startingHole: startHole,
             trackPenalties,
-            hideOverallScore
+            hideOverallScore,
+            payoutConfig: {
+                mode: payoutMode,
+                percentageThreshold: payoutMode === 'percentage-based' ? payoutPercentage : undefined,
+                gradient: payoutGradient,
+                acePotRedistribution
+            },
+            playerHandicaps
         }, finalPlayers, paymentSelections);
 
         clearRoundCreationState(); // Clear persisted state
@@ -1072,44 +1106,227 @@ export const Home: React.FC = () => {
 
                         {isCustomExpanded && (
                             <div className="p-4 space-y-4 border-t border-slate-700 bg-slate-900/30">
-                                {([
-                                    { label: "Track penalties", val: trackPenalties, set: setTrackPenalties },
-                                ] as const).map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between py-1">
-                                        <div className="flex items-center space-x-3">
-                                            <Icons.Close size={20} className="text-slate-400" />
-                                            <span className="text-sm font-bold text-slate-300">{item.label}</span>
+                                {/* Payout Distribution Mode */}
+                                {hasEntryFee && entryFee > 0 && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payout Distribution</h4>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => setPayoutMode('winner-take-all')}
+                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payoutMode === 'winner-take-all'
+                                                        ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                    }`}
+                                            >
+                                                Winner Take All
+                                            </button>
+                                            <button
+                                                onClick={() => setPayoutMode('percentage-based')}
+                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payoutMode === 'percentage-based'
+                                                        ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                    }`}
+                                            >
+                                                Top % of Players
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => item.set(!item.val)}
-                                            className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${item.val ? 'bg-brand-secondary' : 'bg-slate-700'}`}
-                                        >
-                                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${item.val ? 'translate-x-6' : 'translate-x-0'}`} />
-                                        </button>
-                                    </div>
-                                ))}
 
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3 text-slate-300">
-                                        <span className="text-sm font-bold">Start Date</span>
+                                        {/* Percentage Threshold Input */}
+                                        {payoutMode === 'percentage-based' && (
+                                            <div className="flex items-center justify-between bg-slate-800 rounded-lg p-3 border border-slate-700">
+                                                <span className="text-sm font-bold text-slate-300">Top Percentage</span>
+                                                <div className="flex items-center space-x-2">
+                                                    <input
+                                                        type="number"
+                                                        min="10"
+                                                        max="100"
+                                                        step="5"
+                                                        value={payoutPercentage}
+                                                        onChange={(e) => setPayoutPercentage(Math.min(100, Math.max(10, parseInt(e.target.value) || 30)))}
+                                                        className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white w-16 text-center outline-none"
+                                                    />
+                                                    <span className="text-sm text-slate-400">%</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Payout Gradient */}
+                                        {payoutMode === 'percentage-based' && (
+                                            <>
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payout Gradient</h4>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <button
+                                                        onClick={() => setPayoutGradient('top-heavy')}
+                                                        className={`px-3 py-3 rounded-lg text-xs font-bold border transition-all ${payoutGradient === 'top-heavy'
+                                                                ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                            }`}
+                                                    >
+                                                        <div>Top-Heavy</div>
+                                                        <div className="text-[9px] text-slate-500 mt-1">75% / 15% / 10%</div>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setPayoutGradient('linear')}
+                                                        className={`px-3 py-3 rounded-lg text-xs font-bold border transition-all ${payoutGradient === 'linear'
+                                                                ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                            }`}
+                                                    >
+                                                        <div>Linear</div>
+                                                        <div className="text-[9px] text-slate-500 mt-1">Equal Split</div>
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-white outline-none"
-                                    />
+                                )}
+
+                                {/* Ace Pot Redistribution */}
+                                {hasEntryFee && acePot > 0 && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">If No Ace is Hit</h4>
+                                        <div className="space-y-2">
+                                            {[
+                                                { value: 'add-to-entry-pot' as const, label: 'Add to Entry Pot', desc: 'Distribute ace pot to winners' },
+                                                { value: 'redistribute-to-participants' as const, label: 'Redistribute to Participants', desc: 'Split evenly among ace pot players' },
+                                                { value: 'forfeit' as const, label: 'Forfeit', desc: 'No redistribution' },
+                                            ].map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    onClick={() => setAcePotRedistribution(option.value)}
+                                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold border transition-all ${acePotRedistribution === option.value
+                                                            ? 'bg-brand-secondary/20 text-brand-secondary border-brand-secondary/40'
+                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                        }`}
+                                                >
+                                                    <div>{option.label}</div>
+                                                    <div className="text-[9px] text-slate-500 font-normal mt-0.5">{option.desc}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Player Handicaps */}
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Player Handicaps</h4>
+                                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                                        {/* Host */}
+                                        <div className="flex items-center justify-between bg-slate-800 rounded-lg p-2 border border-slate-700">
+                                            <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                                <div className="w-7 h-7 rounded-full bg-slate-700 overflow-hidden shrink-0">
+                                                    {userProfile.picture ? <img src={userProfile.picture} className="w-full h-full object-cover" /> : <Icons.Users className="p-1 text-slate-500" />}
+                                                </div>
+                                                <span className="font-bold text-xs truncate text-white">{userProfile.name} (You)</span>
+                                            </div>
+                                            <div className="flex items-center space-x-1">
+                                                <button
+                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [currentUserPubkey]: Math.max(-5, (prev[currentUserPubkey] || 0) - 1) }))}
+                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                >
+                                                    -
+                                                </button>
+                                                <div className="w-10 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
+                                                    {playerHandicaps[currentUserPubkey] || 0}
+                                                </div>
+                                                <button
+                                                    onClick={() => setPlayerHandicaps(prev => ({ ...prev, [currentUserPubkey]: Math.min(5, (prev[currentUserPubkey] || 0) + 1) }))}
+                                                    className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Cardmates */}
+                                        {selectedCardmates.map(p => (
+                                            <div key={p.pubkey} className="flex items-center justify-between bg-slate-800 rounded-lg p-2 border border-slate-700">
+                                                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                                    <div className="w-7 h-7 rounded-full bg-slate-700 overflow-hidden shrink-0">
+                                                        {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : <Icons.Users className="p-1 text-slate-500" />}
+                                                    </div>
+                                                    <span className="font-bold text-xs truncate text-white">{p.name}</span>
+                                                </div>
+                                                <div className="flex items-center space-x-1">
+                                                    <button
+                                                        onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.max(-5, (prev[p.pubkey] || 0) - 1) }))}
+                                                        className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <div className="w-10 h-6 flex items-center justify-center bg-slate-900 border border-slate-600 rounded text-xs font-bold text-white">
+                                                        {playerHandicaps[p.pubkey] || 0}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setPlayerHandicaps(prev => ({ ...prev, [p.pubkey]: Math.min(5, (prev[p.pubkey] || 0) + 1) }))}
+                                                        className="w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded text-white text-xs font-bold"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-[9px] text-slate-500 italic">Handicaps are relative to par. Negative = strokes under, Positive = strokes over.</p>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3 text-slate-300">
-                                        <span className="text-sm font-bold">Start Time</span>
+
+                                <div className="border-t border-slate-700 pt-4 space-y-4">
+                                    {/* Starting Hole */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-3 text-slate-300">
+                                            <span className="text-sm font-bold">Starting Hole</span>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max={layout === '9' ? 9 : layout === '18' ? 18 : customHoles}
+                                            value={startHole}
+                                            onChange={(e) => setStartHole(Math.min(layout === '9' ? 9 : layout === '18' ? 18 : customHoles, Math.max(1, parseInt(e.target.value) || 1)))}
+                                            className="bg-slate-800 border border-slate-600 rounded px-3 py-1 text-sm text-white w-16 text-center outline-none"
+                                        />
                                     </div>
-                                    <input
-                                        type="time"
-                                        value={startTime}
-                                        onChange={(e) => setStartTime(e.target.value)}
-                                        className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-white outline-none"
-                                    />
+
+                                    {/* Track Penalties Toggle */}
+                                    {([
+                                        { label: "Track penalties", val: trackPenalties, set: setTrackPenalties },
+                                    ] as const).map((item, i) => (
+                                        <div key={i} className="flex items-center justify-between py-1">
+                                            <div className="flex items-center space-x-3">
+                                                <Icons.Close size={20} className="text-slate-400" />
+                                                <span className="text-sm font-bold text-slate-300">{item.label}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => item.set(!item.val)}
+                                                className={`w-12 h-6 rounded-full p-1 transition-colors duration-300 ${item.val ? 'bg-brand-secondary' : 'bg-slate-700'}`}
+                                            >
+                                                <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${item.val ? 'translate-x-6' : 'translate-x-0'}`} />
+                                            </button>
+                                        </div>
+                                    ))}
+
+                                    {/* Start Date & Time */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-3 text-slate-300">
+                                            <span className="text-sm font-bold">Start Date</span>
+                                        </div>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-white outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-3 text-slate-300">
+                                            <span className="text-sm font-bold">Start Time</span>
+                                        </div>
+                                        <input
+                                            type="time"
+                                            value={startTime}
+                                            onChange={(e) => setStartTime(e.target.value)}
+                                            className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-white outline-none"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}
