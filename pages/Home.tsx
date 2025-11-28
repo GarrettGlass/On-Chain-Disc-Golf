@@ -642,37 +642,32 @@ export const Home: React.FC = () => {
             return;
         }
 
-        if (confirm(`Pay ${totalAmount} sats from your wallet to cover ${paymentTarget?.name}?`)) {
-            setIsPayingWallet(true);
-            try {
-                // For the host paying themselves: directly deduct from Cashu wallet
-                // We don't need to pay a Lightning invoice - just mark as paid
+        setIsPayingWallet(true);
+        try {
+            // For the host paying themselves: directly deduct from Cashu wallet
+            // We don't need to pay a Lightning invoice - just mark as paid
 
-                // Note: Since this is the host paying for themselves from their own Cashu wallet,
-                // we need to deduct the funds. However, the actual funds will be held in the round
-                // and distributed at the end. For now, we just mark as paid.
-                // The wallet balance adjustment happens when the round is created and funds are locked.
+            // Note: Since this is the host paying for themselves from their own Cashu wallet,
+            // we need to deduct the funds. However, the actual funds will be held in the round
+            // and distributed at the end. For now, we just mark as paid.
+            // The wallet balance adjustment happens when the round is created and funds are locked.
 
-                setPaymentSuccess(true);
+            setPaymentSuccess(true);
 
-                if (paymentTarget) {
-                    setPaidStatus(prev => ({ ...prev, [paymentTarget.pubkey]: true }));
-                }
-
-                // Close modal after success animation
-                setTimeout(() => {
-                    setShowPaymentModal(false);
-                    setPaymentTarget(null);
-                    setIsPayingWallet(false);
-                }, 2000);
-
-            } catch (e) {
-                console.error("Wallet pay failed", e);
-                setPaymentError("Payment failed: " + (e instanceof Error ? e.message : "Unknown error"));
-                setIsPayingWallet(false);
+            if (paymentTarget) {
+                setPaidStatus(prev => ({ ...prev, [paymentTarget.pubkey]: true }));
             }
-        } else {
-            // User cancelled the confirmation
+
+            // Close modal after success animation
+            setTimeout(() => {
+                setShowPaymentModal(false);
+                setPaymentTarget(null);
+                setIsPayingWallet(false);
+            }, 2000);
+
+        } catch (e) {
+            console.error("Wallet pay failed", e);
+            setPaymentError("Payment failed: " + (e instanceof Error ? e.message : "Unknown error"));
             setIsPayingWallet(false);
         }
     };
