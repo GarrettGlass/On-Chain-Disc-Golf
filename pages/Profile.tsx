@@ -476,7 +476,7 @@ export const Profile: React.FC = () => {
                                             <strong className="text-white text-base">Your identity, your control.</strong>
                                         </p>
                                         <p>
-                                            Nostr is a protocol that lets YOU own your online identity. Unlike traditional apps where the company controls your account, with Nostr you have a <strong className="text-purple-400">private key (nsec)</strong> that proves you're you.
+                                            Nostr is a protocol that lets YOU own your online identity. Unlike traditional apps where <strong className="text-red-400">companies own and control your account</strong>, with Nostr you have a <strong className="text-purple-400">private key (nsec)</strong> that proves you're you.
                                         </p>
 
                                         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
@@ -499,26 +499,21 @@ export const Profile: React.FC = () => {
 
                                         <div className="space-y-2">
                                             <p className="text-white font-bold text-sm">Try Popular Nostr Apps:</p>
-                                            <div className="grid grid-cols-1 gap-2">
-                                                <a href="https://primal.net" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
-                                                    <span className="font-bold text-white">Primal</span>
-                                                    <span className="text-slate-400 text-xs">Social network</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                <a href="https://primal.net" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                                    Primal
                                                 </a>
-                                                <a href="https://damus.io" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
-                                                    <span className="font-bold text-white">Damus</span>
-                                                    <span className="text-slate-400 text-xs">iOS client</span>
+                                                <a href="https://damus.io" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                                    Damus
                                                 </a>
-                                                <a href="https://iris.to" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
-                                                    <span className="font-bold text-white">Iris</span>
-                                                    <span className="text-slate-400 text-xs">Web messenger</span>
+                                                <a href="https://iris.to" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                                    Iris
                                                 </a>
-                                                <a href="https://zap.stream" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
-                                                    <span className="font-bold text-white">Zap.Stream</span>
-                                                    <span className="text-slate-400 text-xs">Live streaming</span>
+                                                <a href="https://zap.stream" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                                    Zap.Stream
                                                 </a>
-                                                <a href="https://zapstore.dev" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
-                                                    <span className="font-bold text-white">Zapstore</span>
-                                                    <span className="text-slate-400 text-xs">App store</span>
+                                                <a href="https://zapstore.dev" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                                    Zapstore
                                                 </a>
                                             </div>
                                         </div>
@@ -539,11 +534,6 @@ export const Profile: React.FC = () => {
                                 </div>
                             )}
 
-                            <div className="p-4 border-t border-slate-800">
-                                <Button variant="secondary" fullWidth onClick={() => setHelpModal(null)}>
-                                    Got it
-                                </Button>
-                            </div>
                         </div>
                     </div>
                 )}
