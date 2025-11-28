@@ -265,6 +265,10 @@ export const Profile: React.FC = () => {
         }
     };
 
+    const openHelp = (title: string, text: string) => {
+        setHelpModal({ isOpen: true, title, text });
+    };
+
     const handleLogout = () => {
         setShowSecrets(false); // Ensure secrets are hidden by default when opening modal
         setShowLogoutConfirm(true);
@@ -273,10 +277,6 @@ export const Profile: React.FC = () => {
     const confirmLogout = () => {
         performLogout();
         setShowLogoutConfirm(false);
-    };
-
-    const openHelp = (title: string, text: string) => {
-        setHelpModal({ isOpen: true, title, text });
     };
 
     // Relay Handlers
@@ -309,9 +309,21 @@ export const Profile: React.FC = () => {
                     <div className="w-20 h-20 bg-brand-primary/10 rounded-full flex items-center justify-center mb-4 text-brand-primary animate-pulse-fast">
                         <Icons.Shield size={40} />
                     </div>
-                    <h1 className="text-2xl font-bold">Guest Account</h1>
+                    <h1 className="text-2xl font-bold">Welcome!</h1>
                     <p className="text-slate-400 text-center mt-2 text-sm max-w-xs">
-                        You are using a temporary identity. Login or create a profile to save your stats permanently.
+                        Create your profile to save scores and compete with friends, or log in if you already have one.
+                    </p>
+                    <p className="text-slate-500 text-center mt-1 text-xs">
+                        Powered by{' '}
+                        <button
+                            onClick={() => openHelp(
+                                'What is Nostr?',
+                                'nostr-intro'
+                            )}
+                            className="text-purple-400 hover:text-purple-300 underline transition-colors"
+                        >
+                            Nostr
+                        </button>
                     </p>
                 </div>
 
@@ -340,18 +352,13 @@ export const Profile: React.FC = () => {
                     {authView === 'create' ? (
                         <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
                             <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 text-center">
-                                <h3 className="font-bold text-lg text-white mb-2">New to Nostr?</h3>
+                                <h3 className="font-bold text-lg text-white mb-2">First Time Here?</h3>
                                 <p className="text-slate-400 text-sm mb-6">
-                                    Generate a secure cryptographic key pair. No email required.
+                                    Create your profile in seconds. No email or signup required.
                                 </p>
                                 <Button fullWidth onClick={handleCreate} disabled={isLoading}>
-                                    {isLoading ? 'Generating...' : 'Create Profile'}
+                                    {isLoading ? 'Creating...' : 'Create Profile'}
                                 </Button>
-                                <div className="mt-4 p-3 bg-brand-primary/10 border border-brand-primary/30 rounded-lg">
-                                    <p className="text-xs text-brand-primary font-bold">
-                                        💡 After creating, add your name so cardmates can find you!
-                                    </p>
-                                </div>
                             </div>
                         </div>
                     ) : (
@@ -441,6 +448,105 @@ export const Profile: React.FC = () => {
                         </div>
                     )}
                 </div>
+
+                {/* Help Modal */}
+                {helpModal && helpModal.isOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
+                            <button
+                                onClick={() => setHelpModal(null)}
+                                className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white"
+                            >
+                                <Icons.Close size={20} />
+                            </button>
+
+                            <div className="p-6 border-b border-slate-800">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+                                        <Icons.Help size={20} />
+                                    </div>
+                                    <h2 className="text-xl font-bold text-white">{helpModal.title}</h2>
+                                </div>
+                            </div>
+
+                            {helpModal.text === 'nostr-intro' ? (
+                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                    <div className="space-y-3 text-sm text-slate-300 leading-relaxed">
+                                        <p>
+                                            <strong className="text-white text-base">Your identity, your control.</strong>
+                                        </p>
+                                        <p>
+                                            Nostr is a protocol that lets YOU own your online identity. Unlike traditional apps where the company controls your account, with Nostr you have a <strong className="text-purple-400">private key (nsec)</strong> that proves you're you.
+                                        </p>
+
+                                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                                            <p className="text-red-200 font-bold text-xs mb-2">IMPORTANT: Keep Your nsec Safe!</p>
+                                            <p className="text-red-100 text-xs">
+                                                Your nsec is like a master password. Anyone with it can access your profile AND your funds in this app. Save it somewhere secure - if you lose it, you lose everything.
+                                            </p>
+                                        </div>
+
+                                        <p className="text-brand-primary font-bold">
+                                            In this app, your Bitcoin wallet is tied to your nsec. Guard it carefully!
+                                        </p>
+
+                                        <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                                            <p className="text-purple-200 font-bold text-xs mb-2">One Key, Infinite Apps</p>
+                                            <p className="text-purple-100 text-xs">
+                                                You can use your nsec to log into other Nostr apps and services. Your profile, friends, and content follow you everywhere.
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <p className="text-white font-bold text-sm">Try Popular Nostr Apps:</p>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <a href="https://primal.net" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                    <span className="font-bold text-white">Primal</span>
+                                                    <span className="text-slate-400 text-xs">Social network</span>
+                                                </a>
+                                                <a href="https://damus.io" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                    <span className="font-bold text-white">Damus</span>
+                                                    <span className="text-slate-400 text-xs">iOS client</span>
+                                                </a>
+                                                <a href="https://iris.to" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                    <span className="font-bold text-white">Iris</span>
+                                                    <span className="text-slate-400 text-xs">Web messenger</span>
+                                                </a>
+                                                <a href="https://zap.stream" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                    <span className="font-bold text-white">Zap.Stream</span>
+                                                    <span className="text-slate-400 text-xs">Live streaming</span>
+                                                </a>
+                                                <a href="https://zapstore.dev" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                    <span className="font-bold text-white">Zapstore</span>
+                                                    <span className="text-slate-400 text-xs">App store</span>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    <div className="flex flex-col items-center text-center space-y-2">
+                                        <div className="w-12 h-12 rounded-full bg-brand-secondary/10 flex items-center justify-center text-brand-secondary mb-2">
+                                            <Icons.Help size={24} />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-white">{helpModal.title}</h3>
+                                        <div
+                                            className="text-slate-300 text-sm leading-relaxed text-left whitespace-pre-line"
+                                            dangerouslySetInnerHTML={{ __html: helpModal.text }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="p-4 border-t border-slate-800">
+                                <Button variant="secondary" fullWidth onClick={() => setHelpModal(null)}>
+                                    Got it
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -820,6 +926,61 @@ export const Profile: React.FC = () => {
                                             </p>
                                         </div>
                                     )}
+                                </div>
+                            </div>
+                        ) : helpModal.text === 'nostr-intro' ? (
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                <div className="space-y-3 text-sm text-slate-300 leading-relaxed">
+                                    <p>
+                                        <strong className="text-white text-base">Your identity, your control.</strong>
+                                    </p>
+                                    <p>
+                                        Nostr is a protocol that lets YOU own your online identity. Unlike traditional apps where the company controls your account, with Nostr you have a <strong className="text-purple-400">private key (nsec)</strong> that proves you're you.
+                                    </p>
+
+                                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                                        <p className="text-red-200 font-bold text-xs mb-2">IMPORTANT: Keep Your nsec Safe!</p>
+                                        <p className="text-red-100 text-xs">
+                                            Your nsec is like a master password. Anyone with it can access your profile AND your funds in this app. Save it somewhere secure - if you lose it, you lose everything.
+                                        </p>
+                                    </div>
+
+                                    <p className="text-brand-primary font-bold">
+                                        In this app, your Bitcoin wallet is tied to your nsec. Guard it carefully!
+                                    </p>
+
+                                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                                        <p className="text-purple-200 font-bold text-xs mb-2">One Key, Infinite Apps</p>
+                                        <p className="text-purple-100 text-xs">
+                                            You can use your nsec to log into other Nostr apps and services. Your profile, friends, and content follow you everywhere.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <p className="text-white font-bold text-sm">Try Popular Nostr Apps:</p>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            <a href="https://primal.net" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                <span className="font-bold text-white">Primal</span>
+                                                <span className="text-slate-400 text-xs">Social network</span>
+                                            </a>
+                                            <a href="https://damus.io" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                <span className="font-bold text-white">Damus</span>
+                                                <span className="text-slate-400 text-xs">iOS client</span>
+                                            </a>
+                                            <a href="https://iris.to" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                <span className="font-bold text-white">Iris</span>
+                                                <span className="text-slate-400 text-xs">Web messenger</span>
+                                            </a>
+                                            <a href="https://zap.stream" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                <span className="font-bold text-white">Zap.Stream</span>
+                                                <span className="text-slate-400 text-xs">Live streaming</span>
+                                            </a>
+                                            <a href="https://zapstore.dev" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600">
+                                                <span className="font-bold text-white">Zapstore</span>
+                                                <span className="text-slate-400 text-xs">App store</span>
+                                            </a>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
