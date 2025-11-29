@@ -7,6 +7,7 @@ import {
   Users,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   TrendingUp,
   Zap,
   History,
@@ -32,7 +33,8 @@ import {
   MapPin,
   DollarSign,
   UserPlus,
-  Search
+  Search,
+  User
 } from 'lucide-react';
 
 // Custom Disc Golf Basket Icon matching Lucide style
@@ -170,8 +172,10 @@ export const Icons = {
   Refresh: RefreshCw,
   Android,
   Location: MapPin,
-  DollarSign,
-  UserPlus,
+  Dollar: DollarSign,
+  UserAdd: UserPlus,
   Search,
+  User,
+  ChevronDown,
   Bitcoin
 };

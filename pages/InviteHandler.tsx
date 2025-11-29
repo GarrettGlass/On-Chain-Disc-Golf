@@ -205,12 +205,12 @@ export const InviteHandler: React.FC = () => {
 
                             <button
                                 onClick={() => {
-                                    console.log('[InviteHandler] Navigate to /play');
-                                    navigate('/play');
+                                    console.log('[InviteHandler] Navigate to /profile-setup');
+                                    navigate('/profile-setup');
                                 }}
                                 className="w-full py-3 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
                             >
-                                <span>Go to Scorecard</span>
+                                <span>Go to Profile</span>
                                 <Icons.Next size={18} />
                             </button>
 
@@ -352,11 +352,8 @@ export const InviteHandler: React.FC = () => {
                                         <a href="https://primal.net" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
                                             Primal
                                         </a>
-                                        <a href="https://snort.social" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
-                                            Snort
-                                        </a>
-                                        <a href="https://nostrudel.ninja" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
-                                            Nostrudel
+                                        <a href="https://fountain.fm" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                            Fountain
                                         </a>
                                     </div>
                                 </div>
