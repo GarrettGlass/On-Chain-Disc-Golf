@@ -109,6 +109,31 @@ const Android = ({ size = 24, className = "", strokeWidth = 2 }: { size?: number
   </svg>
 );
 
+// Custom Bitcoin Icon
+const Bitcoin = ({ size = 24, className = "", strokeWidth = 2 }: { size?: number, className?: string, strokeWidth?: number }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={`lucide lucide-bitcoin ${className}`}
+  >
+    <path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-5.71m-1.354-6.39c4.266.753 5.319-5.22 1.053-4.948" />
+    <path d="M6 20h4" />
+    <path d="M6 4h4" />
+    <path d="M10 2v20" />
+    <path d="M14 2v2" />
+    <path d="M14 20v2" />
+    <path d="M10 4h4a4 4 0 0 1 0 8h-1" />
+    <path d="M10 12h5a5 5 0 0 1 0 10h-2" />
+  </svg>
+);
+
 export const Icons = {
   Trophy: Basket, // Replaced Trophy with Basket
   Wallet,
@@ -144,5 +169,6 @@ export const Icons = {
   Location: MapPin,
   DollarSign,
   UserPlus,
-  Search
+  Search,
+  Bitcoin
 };
