@@ -94,6 +94,15 @@ export const Scorecard: React.FC = () => {
 
                     {/* Footer Status */}
                     <div className="text-center space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                        {activeRound && !activeRound.isFinalized && (
+                            <button
+                                onClick={() => navigate('/round-details')}
+                                className="w-full max-w-xs mx-auto py-3 px-6 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
+                            >
+                                <Icons.Play size={18} />
+                                <span>View Current Round</span>
+                            </button>
+                        )}
                         <div className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
                             <Icons.Zap className="text-brand-primary animate-pulse" size={14} />
                             <span className="text-xs font-bold text-slate-300">Waiting for host to tee off...</span>
