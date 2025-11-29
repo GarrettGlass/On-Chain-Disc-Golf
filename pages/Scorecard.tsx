@@ -7,7 +7,7 @@ import { DEFAULT_PAR, DEFAULT_HOLE_COUNT } from '../constants';
 import { useNavigate } from 'react-router-dom';
 
 export const Scorecard: React.FC = () => {
-    const { activeRound, players, updateScore, finalizeRound, isAuthenticated } = useApp();
+    const { activeRound, players, updateScore, finalizeRound, isAuthenticated, userProfile } = useApp();
     const navigate = useNavigate();
 
     // Initialize view hole to startingHole if available, else 1
@@ -23,7 +23,85 @@ export const Scorecard: React.FC = () => {
     const acePot = activeRound ? acePayers.length * activeRound.acePotFeeSats : 0;
     const totalPot = entryPot + acePot;
 
-    if (!activeRound) return <div className="p-6 text-center text-white">No active round.</div>;
+    if (!activeRound) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-brand-dark text-white p-6 relative overflow-hidden">
+                {/* Background Ambient Effects */}
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-brand-primary/10 to-transparent pointer-events-none"></div>
+                <div className="absolute bottom-0 right-0 w-64 h-64 bg-brand-accent/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div className="w-full max-w-sm mx-auto relative z-10 space-y-8">
+
+                    {/* Hero Status */}
+                    <div className="text-center space-y-2 animate-in slide-in-from-top-8 duration-700 fade-in">
+                        <div className="inline-flex items-center justify-center p-3 bg-green-500/20 rounded-full mb-4 ring-1 ring-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                            <Icons.CheckMark className="text-green-500 w-8 h-8" strokeWidth={3} />
+                        </div>
+                        <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase drop-shadow-lg">
+                            You're In
+                        </h1>
+                        <p className="text-slate-400 font-medium">Ready to dominate the course.</p>
+                    </div>
+
+                    {/* Player Card */}
+                    <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-500 delay-150 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                        <div className="flex flex-col items-center space-y-4 relative z-10">
+                            {/* Avatar */}
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-brand-primary/20 rounded-full blur-md animate-pulse"></div>
+                                <div className="w-24 h-24 rounded-full bg-slate-800 border-4 border-brand-primary shadow-xl overflow-hidden relative">
+                                    {userProfile.picture ? (
+                                        <img src={userProfile.picture} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Icons.Users className="w-full h-full p-5 text-slate-400" />
+                                    )}
+                                </div>
+                                <div className="absolute -bottom-2 -right-2 bg-brand-accent text-black text-[10px] font-bold px-2 py-1 rounded-full border-2 border-slate-900 shadow-lg">
+                                    PRO
+                                </div>
+                            </div>
+
+                            {/* Identity */}
+                            <div className="text-center w-full">
+                                <h2 className="text-2xl font-bold text-white truncate">{userProfile.name}</h2>
+                                <div className="flex items-center justify-center space-x-1 mt-1 opacity-70">
+                                    <Icons.Zap size={12} className="text-brand-accent" />
+                                    <p className="text-xs font-mono text-brand-accent truncate max-w-[200px]">
+                                        {userProfile.lud16 || userProfile.nip05 || 'No Lightning Address'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Wallet Status Badge */}
+                            <div className="w-full bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-700/50">
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-8 h-8 rounded-lg bg-brand-accent/20 flex items-center justify-center">
+                                        <Icons.Wallet size={16} className="text-brand-accent" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] text-slate-400 uppercase font-bold">Wallet Active</span>
+                                        <span className="text-xs font-bold text-white">0 sats</span>
+                                    </div>
+                                </div>
+                                <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Status */}
+                    <div className="text-center space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                        <div className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
+                            <Icons.Zap className="text-brand-primary animate-pulse" size={14} />
+                            <span className="text-xs font-bold text-slate-300">Waiting for host to tee off...</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        );
+    }
 
     const handleScoreChange = (playerId: string, delta: number, currentVal?: number) => {
         let newScore;
