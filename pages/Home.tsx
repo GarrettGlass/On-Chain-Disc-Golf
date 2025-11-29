@@ -2558,12 +2558,21 @@ export const Home: React.FC = () => {
 
                 <div className="w-full max-w-sm space-y-4">
                     {activeRound && (
-                        <Button fullWidth onClick={() => navigate('/play')} className="bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-transform button-gleam">
-                            <div className="flex items-center justify-center space-x-2">
-                                <Icons.Play fill="currentColor" />
-                                <span>{activeRound.isFinalized ? 'View Final Score' : 'Continue Round'}</span>
-                            </div>
-                        </Button>
+                        activeRound.pubkey === currentUserPubkey ? (
+                            <Button fullWidth onClick={() => navigate('/play')} className="bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-transform button-gleam">
+                                <div className="flex items-center justify-center space-x-2">
+                                    <Icons.Play fill="currentColor" />
+                                    <span>{activeRound.isFinalized ? 'View Final Score' : 'Continue Round'}</span>
+                                </div>
+                            </Button>
+                        ) : (
+                            <Button fullWidth onClick={() => navigate('/play')} className="bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-transform button-gleam">
+                                <div className="flex items-center justify-center space-x-2">
+                                    <Icons.Play fill="currentColor" />
+                                    <span>View Current Round</span>
+                                </div>
+                            </Button>
+                        )
                     )}
 
                     {!activeRound && (() => {
