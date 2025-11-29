@@ -23,10 +23,10 @@ export const InviteHandler: React.FC = () => {
             try {
                 await loginNsec(nsec);
                 setStatus('success');
-                // Short delay to show success state before redirecting
+                // Short delay to show success state before redirecting to Play screen
                 setTimeout(() => {
-                    window.location.href = '/';
-                }, 2500); // Increased delay to give time to read instructions
+                    window.location.href = '/play';
+                }, 2500);
             } catch (e) {
                 console.error("Invite login failed:", e);
                 setStatus('error');
@@ -65,7 +65,7 @@ export const InviteHandler: React.FC = () => {
                             To save your account, tap your browser menu and select <strong>"Add to Home Screen"</strong> or Bookmark this page.
                         </p>
                         <button
-                            onClick={() => window.location.href = '/'}
+                            onClick={() => window.location.href = '/play'}
                             className="mt-6 px-8 py-3 bg-brand-primary text-black font-bold rounded-full hover:bg-brand-accent transition-colors shadow-lg shadow-brand-primary/20"
                         >
                             Start Playing
