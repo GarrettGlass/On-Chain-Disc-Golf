@@ -260,3 +260,28 @@ body {
     transform: scale(0.3) translateY(-80px) rotate(-5deg);
   }
 }
+
+/* Golden Shimmer Animation */
+@keyframes golden-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.golden-shimmer {
+  background: linear-gradient(90deg,
+      rgba(148, 163, 184, 1) 0%,
+      rgba(148, 163, 184, 1) 30%,
+      rgba(251, 191, 36, 1) 50%,
+      rgba(148, 163, 184, 1) 70%,
+      rgba(148, 163, 184, 1) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: golden-shimmer 3s linear infinite;
+}

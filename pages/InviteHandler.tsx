@@ -65,21 +65,21 @@ export const InviteHandler: React.FC = () => {
     return (
         <div className="min-h-screen bg-brand-dark flex flex-col">
             {/* Header - matching Play tab exactly */}
-            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-6 sticky top-0 z-10">
+            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4 sticky top-0 z-10">
                 <div className="max-w-md mx-auto text-center">
-                    <p className="text-slate-400 text-xs mb-3 font-medium">You've been added to the card on..</p>
+                    <p className="golden-shimmer text-base mb-2 font-semibold">You've been added to the card on..</p>
                     <h1 className="font-extrabold tracking-tight leading-tight">
-                        <div className="text-5xl mb-1">
+                        <div className="text-7xl mb-1">
                             <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
                         </div>
-                        <div className="text-4xl">
+                        <div className="text-6xl">
                             <span className="text-white">Disc Golf</span>
                         </div>
                     </h1>
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
                 <div className="max-w-md w-full">
                     {status === 'processing' && (
                         <div className="flex flex-col items-center space-y-4">
@@ -90,34 +90,34 @@ export const InviteHandler: React.FC = () => {
                     )}
 
                     {status === 'success' && (
-                        <div className="flex flex-col items-center space-y-8 animate-in zoom-in duration-300">
+                        <div className="flex flex-col items-center space-y-6 animate-in zoom-in duration-300">
 
                             {/* Animated Icon Container */}
-                            <div className="relative w-24 h-24 flex items-center justify-center">
+                            <div className="relative w-28 h-28 flex items-center justify-center">
                                 {/* 1. Teal Disc Golf Basket */}
                                 <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 0 ? 'opacity-100' : 'opacity-0'}`}>
-                                    <div className="w-20 h-20 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)]">
-                                        <Icons.Trophy className="text-brand-primary" size={40} strokeWidth={2} />
+                                    <div className="w-24 h-24 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)]">
+                                        <Icons.Trophy className="text-brand-primary" size={48} strokeWidth={2} />
                                     </div>
                                 </div>
 
                                 {/* 2. Orange Bitcoin */}
                                 <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 1 ? 'opacity-100' : 'opacity-0'}`}>
-                                    <div className="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center border-2 border-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
-                                        <Icons.Bitcoin className="text-orange-500" size={40} strokeWidth={2} />
+                                    <div className="w-24 h-24 bg-orange-500/20 rounded-full flex items-center justify-center border-2 border-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
+                                        <Icons.Bitcoin className="text-orange-500" size={56} strokeWidth={2} />
                                     </div>
                                 </div>
 
                                 {/* 3. Purple Keypair */}
                                 <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 2 ? 'opacity-100' : 'opacity-0'}`}>
-                                    <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
-                                        <Icons.Key className="text-purple-500" size={40} strokeWidth={2} />
+                                    <div className="w-24 h-24 bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                                        <Icons.Key className="text-purple-500" size={48} strokeWidth={2} />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <p className="text-slate-300 text-base font-medium">This app uses</p>
+                            <div className="space-y-2">
+                                <p className="text-slate-300 text-sm font-medium">This app uses</p>
                                 <p className="text-lg font-bold">
                                     <span
                                         className={`text-brand-primary transition-all duration-500 ${activeIcon === 0 ? 'drop-shadow-[0_0_12px_rgba(45,212,191,0.8)] scale-110 inline-block' : ''
@@ -142,14 +142,14 @@ export const InviteHandler: React.FC = () => {
                                 </p>
                                 <button
                                     onClick={() => setShowNewWorldModal(true)}
-                                    className="text-slate-400 text-sm hover:text-white transition-colors border-b border-dashed border-slate-600 hover:border-white pb-0.5"
+                                    className="text-slate-400 text-xs hover:text-white transition-colors border-b border-dashed border-slate-600 hover:border-white pb-0.5"
                                 >
                                     Welcome to the New World
                                 </button>
                             </div>
 
-                            <div className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 text-left shadow-xl">
-                                <div className="flex items-center justify-between mb-3">
+                            <div className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-left shadow-xl">
+                                <div className="flex items-center justify-between mb-2">
                                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
                                         Save your secret Key
                                     </p>
@@ -162,7 +162,7 @@ export const InviteHandler: React.FC = () => {
                                     </button>
                                 </div>
 
-                                <div className="flex items-center space-x-2 bg-black/50 rounded-lg p-3 border border-slate-800 mb-1">
+                                <div className="flex items-center space-x-2 bg-black/50 rounded-lg p-2 border border-slate-800">
                                     <code className="flex-1 text-xs text-slate-300 font-mono truncate select-all">
                                         {inviteNsec}
                                     </code>
@@ -171,17 +171,17 @@ export const InviteHandler: React.FC = () => {
                                         className="p-2 hover:bg-slate-800 rounded-md transition-colors text-brand-primary"
                                         title="Copy Key"
                                     >
-                                        {copied ? <Icons.Check size={16} /> : <Icons.Copy size={16} />}
+                                        {copied ? <Icons.Check size={14} /> : <Icons.Copy size={14} />}
                                     </button>
                                 </div>
                             </div>
 
                             <button
                                 onClick={() => navigate('/play')}
-                                className="w-full py-4 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
+                                className="w-full py-3 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
                             >
                                 <span>Go to Scorecard</span>
-                                <Icons.Next size={20} />
+                                <Icons.Next size={18} />
                             </button>
 
                             <p className="text-xs text-slate-500 font-medium">
