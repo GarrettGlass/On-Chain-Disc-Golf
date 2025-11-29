@@ -275,13 +275,13 @@ body {
 .golden-shimmer {
   background: linear-gradient(90deg,
       rgba(148, 163, 184, 1) 0%,
-      rgba(148, 163, 184, 1) 30%,
+      rgba(148, 163, 184, 1) 40%,
       rgba(251, 191, 36, 1) 50%,
-      rgba(148, 163, 184, 1) 70%,
+      rgba(148, 163, 184, 1) 60%,
       rgba(148, 163, 184, 1) 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: golden-shimmer 3s linear infinite;
+  animation: golden-shimmer 5s linear infinite;
 }

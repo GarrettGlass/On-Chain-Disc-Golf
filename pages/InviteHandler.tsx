@@ -90,10 +90,10 @@ export const InviteHandler: React.FC = () => {
                     )}
 
                     {status === 'success' && (
-                        <div className="flex flex-col items-center space-y-6 animate-in zoom-in duration-300">
+                        <div className="flex flex-col items-center space-y-5 animate-in zoom-in duration-300">
 
-                            {/* Animated Icon Container */}
-                            <div className="relative w-28 h-28 flex items-center justify-center">
+                            {/* Animated Icon Container - closer to header */}
+                            <div className="relative w-28 h-28 flex items-center justify-center -mt-2">
                                 {/* 1. Teal Disc Golf Basket */}
                                 <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 0 ? 'opacity-100' : 'opacity-0'}`}>
                                     <div className="w-24 h-24 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)]">
@@ -144,7 +144,7 @@ export const InviteHandler: React.FC = () => {
                                     onClick={() => setShowNewWorldModal(true)}
                                     className="text-slate-400 text-xs hover:text-white transition-colors border-b border-dashed border-slate-600 hover:border-white pb-0.5"
                                 >
-                                    Welcome to the New World
+                                    Learn why
                                 </button>
                             </div>
 
@@ -208,35 +208,47 @@ export const InviteHandler: React.FC = () => {
                 </div>
             </div>
 
-            {/* New World Modal */}
+            {/* Learn Why Modal */}
             {showNewWorldModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="p-6 space-y-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-bold text-white">The New World</h3>
+                                <h3 className="text-xl font-bold text-white">Why This Combo?</h3>
                                 <button onClick={() => setShowNewWorldModal(false)} className="text-slate-400 hover:text-white">
                                     <Icons.Close size={24} />
                                 </button>
                             </div>
                             <div className="space-y-4 text-slate-300 leading-relaxed text-sm">
-                                <p>
-                                    Banks and corporations own your money. They track every transaction, sell your data, and can turn off your account if you rebel or simply disagree with them.
+                                <p className="text-brand-primary font-semibold italic">
+                                    "We'll settle up after the round!"
                                 </p>
                                 <p>
-                                    Media companies own your identity. They keep you in walled gardens that get worse every year, algorithmically manipulating what you see and who sees you.
+                                    Famous last words. Every disc golfer knows the awkward shuffle at the parking lot, someone doesn't have cash, Venmo is "acting weird," and somehow those $5 ace pot donations just... evaporate into the ether.
+                                </p>
+                                <p>
+                                    This app fixes that. Pay when you start. Automatic payouts when you finish. No excuses, no IOUs, no "I swear I'll get you next time."
                                 </p>
                                 <p className="font-semibold text-white">
-                                    In come Bitcoin and Nostr.
+                                    But why <span className="text-orange-500">Bitcoin</span>?
                                 </p>
                                 <p>
-                                    <strong className="text-orange-500">Bitcoin</strong> is unstoppable, uninflatable money that you truly own. No one can freeze it, seize it, or print more of it to devalue your savings.
+                                    Because traditional money is broken. Banks print it endlessly, devaluing your savings. They freeze accounts, charge fees, and track every transaction. Your $100 today buys less than it did last year, and even less next year.
                                 </p>
                                 <p>
-                                    <strong className="text-purple-500">Nostr</strong> is an identity no one but yourself controls. It's a protocol, not a platform. You can take your followers, your content, and your reputation to any app you choose.
+                                    <strong className="text-orange-500">Bitcoin</strong> is different. It's un-inflatable, unstoppable money that <em className="text-slate-200">you</em> truly own. No bank can freeze it. No government can print more of it. It's financial freedom.
                                 </p>
-                                <p className="italic text-brand-primary">
-                                    Thank god we have disc golf.
+                                <p className="font-semibold text-white">
+                                    And <span className="text-purple-500">Nostr</span>?
+                                </p>
+                                <p>
+                                    Big Tech owns your identity. Facebook, Twitter, Google—they decide what you see, who sees you, and whether you even get to speak. Shadow bans. Account suspensions. Censorship committees.
+                                </p>
+                                <p>
+                                    <strong className="text-purple-500">Nostr</strong> gives that power back to you. It's a protocol, not a platform. Your identity, your content, your network—nobody can take it away. Move between apps freely. Speak freely.
+                                </p>
+                                <p className="italic text-brand-primary text-center pt-2">
+                                    Disc golf, financial sovereignty, and digital freedom. Now let's play.
                                 </p>
                             </div>
                             <button
@@ -250,37 +262,79 @@ export const InviteHandler: React.FC = () => {
                 </div>
             )}
 
-            {/* Why Key Modal */}
+            {/* Why Save Key Modal */}
             {showWhyKeyModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full max-h-[85vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="p-6 space-y-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-bold text-white">Why Save This Key?</h3>
+                                <h3 className="text-xl font-bold text-white">Your Money, Your Responsibility</h3>
                                 <button onClick={() => setShowWhyKeyModal(false)} className="text-slate-400 hover:text-white">
                                     <Icons.Close size={24} />
                                 </button>
                             </div>
-                            <div className="space-y-4 text-slate-300 text-sm">
-                                <p>
-                                    This app is built on <strong className="text-purple-500">Nostr</strong>, a decentralized network.
+                            <div className="space-y-3 text-slate-300 text-sm leading-relaxed">
+                                <p className="font-medium text-slate-200">
+                                    This key is literally your money.
                                 </p>
                                 <p>
-                                    Unlike traditional apps where you have a username and password stored on a company's server, here you have a <strong>Key Pair</strong>.
+                                    Lose it, and your funds are gone forever. There's no "Forgot Password" button. No customer support agent to call. No reset email.
                                 </p>
-                                <ul className="list-disc pl-5 space-y-2">
-                                    <li>Your <strong>Secret Key (nsec)</strong> is your master password. It controls your account and your money.</li>
-                                    <li>If you lose this key, you lose access to your funds and history forever. There is no "Forgot Password" button.</li>
+                                <p>
+                                    <strong className="text-orange-400">You are the bank now.</strong> That's scary and liberating at the same time.
+                                </p>
+                                <p className="text-xs text-slate-400 italic">
+                                    (Seriously though, text it to yourself if you have to. Screenshot it. Tattoo it on your forearm. We don't recommend any of those, but they're better than nothing.)
+                                </p>
+                                <p className="font-medium text-slate-200">
+                                    Save it somewhere safe:
+                                </p>
+                                <ul className="list-disc pl-5 space-y-1 text-xs">
+                                    <li>Password manager (best option)</li>
+                                    <li>Encrypted note on your phone</li>
+                                    <li>Good old pen and paper</li>
                                 </ul>
-                                <p className="text-brand-primary font-medium">
-                                    Save it in a password manager or a safe place!
-                                </p>
+
+                                {/* Copyable nsec */}
+                                <div className="pt-2">
+                                    <p className="text-xs text-slate-400 mb-2 uppercase tracking-wide font-bold">Your Key:</p>
+                                    <div className="flex items-center space-x-2 bg-black/50 rounded-lg p-2 border border-slate-800">
+                                        <code className="flex-1 text-xs text-slate-300 font-mono truncate select-all">
+                                            {inviteNsec}
+                                        </code>
+                                        <button
+                                            onClick={copyToClipboard}
+                                            className="p-1.5 hover:bg-slate-800 rounded transition-colors text-brand-primary"
+                                        >
+                                            {copied ? <Icons.Check size={14} /> : <Icons.Copy size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Nostr Clients */}
+                                <div className="pt-2">
+                                    <p className="text-xs text-slate-400 mb-2">Use your key in other apps:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <a href="https://damus.io" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                            Damus
+                                        </a>
+                                        <a href="https://primal.net" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                            Primal
+                                        </a>
+                                        <a href="https://snort.social" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                            Snort
+                                        </a>
+                                        <a href="https://nostrudel.ninja" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
+                                            Nostrudel
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                             <button
                                 onClick={() => setShowWhyKeyModal(false)}
                                 className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors mt-4"
                             >
-                                I Understand
+                                I'll Guard It With My Life
                             </button>
                         </div>
                     </div>
