@@ -64,15 +64,18 @@ export const InviteHandler: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-brand-dark flex flex-col">
-            {/* Header */}
-            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4 sticky top-0 z-10">
-                <div className="max-w-md mx-auto flex items-center justify-center">
-                    <div className="flex items-center space-x-2">
-                        <Icons.Trophy className="text-brand-primary" size={24} />
-                        <h1 className="text-lg font-bold text-white tracking-tight">
-                            On-Chain <span className="text-brand-primary">Disc Golf</span>
-                        </h1>
-                    </div>
+            {/* Header - matching Play tab exactly */}
+            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-6 sticky top-0 z-10">
+                <div className="max-w-md mx-auto text-center">
+                    <p className="text-slate-400 text-sm mb-2 font-medium">Welcome to..</p>
+                    <h1 className="font-extrabold tracking-tight leading-tight">
+                        <div className="text-4xl mb-0.5">
+                            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
+                        </div>
+                        <div className="text-3xl">
+                            <span className="text-white">Disc Golf</span>
+                        </div>
+                    </h1>
                 </div>
             </div>
 
@@ -116,7 +119,26 @@ export const InviteHandler: React.FC = () => {
                             <div className="space-y-3">
                                 <h2 className="text-4xl font-black text-white tracking-tight">Hello!</h2>
                                 <p className="text-lg font-bold">
-                                    <span className="text-brand-primary">Disc Golf</span> + <span className="text-orange-500">Bitcoin</span> + <span className="text-purple-500">Nostr</span>
+                                    <span
+                                        className={`text-brand-primary transition-all duration-500 ${activeIcon === 0 ? 'drop-shadow-[0_0_12px_rgba(45,212,191,0.8)] scale-110 inline-block' : ''
+                                            }`}
+                                    >
+                                        Disc Golf
+                                    </span>
+                                    {' + '}
+                                    <span
+                                        className={`text-orange-500 transition-all duration-500 ${activeIcon === 1 ? 'drop-shadow-[0_0_12px_rgba(249,115,22,0.8)] scale-110 inline-block' : ''
+                                            }`}
+                                    >
+                                        Bitcoin
+                                    </span>
+                                    {' + '}
+                                    <span
+                                        className={`text-purple-500 transition-all duration-500 ${activeIcon === 2 ? 'drop-shadow-[0_0_12px_rgba(168,85,247,0.8)] scale-110 inline-block' : ''
+                                            }`}
+                                    >
+                                        Nostr
+                                    </span>
                                 </p>
                                 <button
                                     onClick={() => setShowNewWorldModal(true)}
