@@ -6,7 +6,7 @@ import { nip19 } from 'nostr-tools';
 import { getSession, uploadProfileImage } from '../services/nostrService';
 
 export const ProfileSetup: React.FC = () => {
-    const { userProfile, updateUserProfile, currentUserPubkey, activeRound } = useApp();
+    const { userProfile, updateUserProfile, currentUserPubkey, activeRound, createAccount, isGuest } = useApp();
     const [name, setName] = useState(userProfile.name || 'Disc Golfer');
     const [picture, setPicture] = useState(userProfile.picture || '');
     const [showKeyInfo, setShowKeyInfo] = useState(false);
@@ -55,14 +55,16 @@ export const ProfileSetup: React.FC = () => {
     };
 
     const handleContinue = async () => {
+        // If user is still a guest, convert them to a full user first
+        if (isGuest) {
+            await createAccount();
+        }
+
+        // Update profile with name and picture
         await updateUserProfile({ ...userProfile, name, picture });
 
-        // Smart routing: if there's an active round, go to round details, else Play tab
-        if (activeRound && !activeRound.isFinalized) {
-            navigate('/round-details');
-        } else {
-            navigate('/play');
-        }
+        // Navigate to root - HomeOrOnboarding will show Home (Play tab) for authenticated users
+        navigate('/');
     };
 
     return (

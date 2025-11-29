@@ -26,7 +26,7 @@ export const BottomNav: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-brand-surface/90 backdrop-blur-md border-t border-slate-700 pb-safe pt-2 px-6 z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-brand-surface/90 backdrop-blur-md border-t border-slate-700 pb-safe pt-2 px-6 z-50 animate-in slide-in-from-bottom duration-300">
       <div className="flex justify-between items-center max-w-md mx-auto h-16">
         {navItems.map((item) => (
           <button

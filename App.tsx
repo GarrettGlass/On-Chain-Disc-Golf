@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { BottomNav } from './components/BottomNav';
 import { SplashScreen } from './components/SplashScreen';
@@ -17,7 +17,11 @@ import { useSwipeBack } from './hooks/useSwipeBack';
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   useSwipeBack(); // Enable global swipe-to-back
   const navigate = useNavigate();
-  const { paymentNotification, setPaymentNotification } = useApp();
+  const location = useLocation();
+  const { paymentNotification, setPaymentNotification, isGuest } = useApp();
+
+  // Hide nav on onboarding/profile-setup for guests
+  const hideNav = isGuest && (location.pathname === '/' || location.pathname === '/profile-setup');
 
   // Listen for payment events
   useEffect(() => {
@@ -38,7 +42,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="flex-1 flex flex-col relative">
           {children}
         </div>
-        <BottomNav />
+        {!hideNav && <BottomNav />}
 
         {/* Global Lightning Strike Notification */}
         {paymentNotification && (

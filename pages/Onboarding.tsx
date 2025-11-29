@@ -100,9 +100,9 @@ export const Onboarding: React.FC = () => {
     };
 
     return (
-        <div className="flex-1 bg-brand-dark flex flex-col overflow-y-auto">
+        <div className="min-h-screen bg-brand-dark flex flex-col">
             {/* Header - matching Play tab exactly */}
-            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4 sticky top-0 z-10">
+            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4">
                 <div className="max-w-md mx-auto text-center">
                     <h1 className="font-extrabold tracking-tight leading-tight">
                         <div className="text-7xl mb-1">
@@ -115,7 +115,7 @@ export const Onboarding: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+            <div className="flex-1 flex flex-col items-center justify-between p-4 text-center">
                 <div className="max-w-md w-full">
                     {status === 'loading' && (
                         <div className="flex flex-col items-center space-y-4">
