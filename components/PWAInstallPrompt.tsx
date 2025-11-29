@@ -47,28 +47,29 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onDismiss })
                             Install <strong className="text-white">On-Chain Disc Golf</strong> as a Progressive Web App for:
                         </p>
                         <ul className="list-disc pl-5 space-y-2">
-                            <li>⚡ <strong>Faster loading</strong> and offline access</li>
+                            <li>⚡ <strong>Faster loading</strong> times</li>
                             <li>📱 <strong>Full-screen</strong> mobile experience</li>
                             <li>🏠 <strong>Home screen icon</strong> like a native app</li>
-                            <li>🔔 <strong>Push notifications</strong> for round updates</li>
+                            <li>🔔 <strong>In-app notifications</strong> for round updates</li>
                         </ul>
 
-                        {/* Installation Instructions */}
-                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 space-y-2">
-                            <p className="text-purple-300 text-xs font-bold uppercase tracking-wide">
+                        {/* Installation Instructions - More Prominent */}
+                        <div className="bg-gradient-to-br from-brand-primary/20 to-brand-accent/20 border-2 border-brand-primary/40 rounded-xl p-4 space-y-3 shadow-lg">
+                            <p className="text-brand-primary text-sm font-bold uppercase tracking-wide flex items-center">
+                                <Icons.Zap size={16} className="mr-2" />
                                 How to Install:
                             </p>
-                            <div className="space-y-2 text-xs">
-                                <div>
-                                    <p className="font-semibold text-purple-200">iOS (Safari):</p>
-                                    <p className="text-slate-400">
-                                        Tap the <strong>Share</strong> icon → <strong>"Add to Home Screen"</strong>
+                            <div className="space-y-3 text-sm">
+                                <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+                                    <p className="font-bold text-white mb-1">iOS (Safari):</p>
+                                    <p className="text-slate-300">
+                                        Tap the <strong className="text-blue-400">Share</strong> icon → <strong className="text-brand-primary">"Add to Home Screen"</strong>
                                     </p>
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-purple-200">Android (Chrome):</p>
-                                    <p className="text-slate-400">
-                                        Tap the <strong>menu</strong> (⋮) → <strong>"Add to Home screen"</strong>
+                                <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+                                    <p className="font-bold text-white mb-1">Android (Chrome):</p>
+                                    <p className="text-slate-300">
+                                        Tap the <strong className="text-blue-400">menu</strong> (⋮) → <strong className="text-brand-primary">"Add to Home screen"</strong>
                                     </p>
                                 </div>
                             </div>
@@ -76,7 +77,7 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ onDismiss })
 
                         {dismissCount === 1 && (
                             <p className="text-center text-brand-primary text-xs font-medium animate-in fade-in slide-in-from-top-2 duration-300">
-                                We really recommend installing! Click X again to continue anyway.
+                                We really recommend installing! Click X again to continue.
                             </p>
                         )}
                     </div>
