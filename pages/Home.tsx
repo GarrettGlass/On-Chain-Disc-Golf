@@ -567,7 +567,8 @@ export const Home: React.FC = () => {
         }
         try {
             const npub = nip19.npubEncode(p.pubkey);
-            return `${npub.substring(0, 10)}...`;
+            // Ensure we always return a string, not an object
+            return String(npub).substring(0, 10) + '...';
         } catch (e) {
             return 'Nostr User';
         }
@@ -853,7 +854,7 @@ export const Home: React.FC = () => {
         if (inviteQrData) return inviteQrData;
         if (userProfile.nip05) return userProfile.nip05;
         try {
-            return nip19.npubEncode(currentUserPubkey);
+            return String(nip19.npubEncode(currentUserPubkey));
         } catch (e) {
             return currentUserPubkey;
         }

@@ -173,7 +173,7 @@ export const Icons = {
   Android,
   Location: MapPin,
   Dollar: DollarSign,
-  UserAdd: UserPlus,
+  UserPlus,
   Search,
   User,
   ChevronDown,
