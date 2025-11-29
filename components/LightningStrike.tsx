@@ -71,13 +71,14 @@ export const LightningStrikeNotification: React.FC<LightningStrikeProps> = ({
 
     // Animation sequence
     useEffect(() => {
-        // Faster, more violent timing
+        // Total animation: exactly 3 seconds
         const timings = {
-            initialBolt: 100, // Faster initial strike
-            amountAppear: 400, // Faster amount reveal
-            multiBolt: 800, // Faster multi-bolt phase
-            electrocute: 300, // Faster electrocute fade
+            initialBolt: 200,
+            amountAppear: 600,
+            multiBolt: 1600,
+            electrocute: 600,
         };
+        // Total: 200 + 600 + 1600 + 600 = 3000ms = 3 seconds
 
         // Phase 1: Initial bolt
         const phase1Timer = setTimeout(() => {
@@ -102,7 +103,7 @@ export const LightningStrikeNotification: React.FC<LightningStrikeProps> = ({
                 bolts.push({
                     path: generateLightningPath(startX, startY, centerX, centerY),
                     color: BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)],
-                    delay: Math.random() * 100 // Even faster bolt strikes
+                    delay: Math.random() * 300 // Spread bolts over 300ms
                 });
             }
 
@@ -132,9 +133,9 @@ export const LightningStrikeNotification: React.FC<LightningStrikeProps> = ({
 
     return (
         <div className="fixed inset-0 z-[200] pointer-events-none">
-            {/* Initial Bolt */}
+            {/* Initial Bolt - Behind text */}
             {phase === 'initial-bolt' && (
-                <svg className="absolute inset-0 w-full h-full">
+                <svg className="absolute inset-0 w-full h-full z-10">
                     <path
                         d={initialBolt.path}
                         stroke={initialBolt.color}
@@ -145,40 +146,45 @@ export const LightningStrikeNotification: React.FC<LightningStrikeProps> = ({
                             filter: `drop-shadow(0 0 15px ${initialBolt.color})`, // Stronger glow
                             strokeDasharray: 1000,
                             strokeDashoffset: 1000,
-                            animation: 'lightning-draw 0.1s ease-out forwards' // Faster draw
+                            animation: 'lightning-draw 0.15s ease-out forwards' // Faster draw
                         }}
                     />
                 </svg>
             )}
 
-            {/* Amount Display */}
+            {/* Amount Display with Brand Scrim */}
             {(phase === 'amount-appear' || phase === 'multi-bolt' || phase === 'electrocute') && (
                 <div
-                    className={`absolute inset-0 flex items-center justify-center ${phase === 'electrocute' ? 'electrocute-animation' : ''
+                    className={`absolute inset-0 flex items-center justify-center z-20 ${phase === 'electrocute' ? 'electrocute-animation' : ''
                         }`}
                 >
+                    {/* Brand-colored scrim background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-800/90 to-brand-dark/95 backdrop-blur-sm" />
+
                     <div
-                        className={`text-center ${phase === 'amount-appear' ? 'animate-in fade-in zoom-in-95 duration-500' : ''
+                        className={`relative z-30 text-center ${phase === 'amount-appear' ? 'animate-in fade-in zoom-in-95 duration-500' : ''
                             }`}
                         style={{
                             animation: phase === 'electrocute' ? 'electrocute-out 0.6s ease-out forwards' : undefined
                         }}
                     >
                         <div
-                            className="text-6xl font-bold text-white mb-2"
+                            className="text-7xl font-bold text-white mb-2"
                             style={{
-                                textShadow: '0 0 30px rgba(0,0,0,1), 0 0 50px rgba(0,0,0,0.8), 0 0 70px rgba(16,185,129,0.9), 0 0 100px rgba(16,185,129,0.6), 0 4px 8px rgba(0,0,0,0.9)',
-                                WebkitTextStroke: '1px rgba(0,0,0,0.5)',
-                                animation: phase === 'multi-bolt' ? 'electric-glow 0.2s ease-in-out infinite' : undefined
+                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+                                textShadow: '0 0 40px rgba(16,185,129,0.9), 0 0 80px rgba(16,185,129,0.6), 0 0 120px rgba(16,185,129,0.4), 0 4px 12px rgba(0,0,0,1)',
+                                WebkitTextStroke: '2px rgba(16,185,129,0.3)',
+                                // NO INFINITE - just a static glow during multi-bolt phase
                             }}
                         >
                             {amount.toLocaleString()}
                         </div>
                         <div
-                            className="text-2xl font-bold text-white"
+                            className="text-3xl font-bold text-brand-primary"
                             style={{
-                                textShadow: '0 0 20px rgba(0,0,0,1), 0 0 30px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9)',
-                                WebkitTextStroke: '0.5px rgba(0,0,0,0.3)',
+                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+                                textShadow: '0 0 30px rgba(16,185,129,0.8), 0 0 50px rgba(16,185,129,0.5), 0 2px 6px rgba(0,0,0,0.9)',
+                                WebkitTextStroke: '0.5px rgba(16,185,129,0.5)',
                             }}
                         >
                             SATS
@@ -187,9 +193,9 @@ export const LightningStrikeNotification: React.FC<LightningStrikeProps> = ({
                 </div>
             )}
 
-            {/* Multi-Bolt Convergence */}
+            {/* Multi-Bolt Convergence - Behind text */}
             {phase === 'multi-bolt' && (
-                <svg className="absolute inset-0 w-full h-full">
+                <svg className="absolute inset-0 w-full h-full z-10">
                     {multibolts.map((bolt, idx) => (
                         <path
                             key={idx}
@@ -201,7 +207,7 @@ export const LightningStrikeNotification: React.FC<LightningStrikeProps> = ({
                                 filter: `drop-shadow(0 0 12px ${bolt.color}) drop-shadow(0 0 6px ${bolt.color})`,
                                 strokeDasharray: 1000,
                                 strokeDashoffset: 1000,
-                                animation: `lightning-draw 0.1s ease-out ${bolt.delay}ms forwards`,
+                                animation: `lightning-draw 0.15s ease-out ${bolt.delay}ms forwards`,
                                 opacity: 0.95
                             }}
                         />
