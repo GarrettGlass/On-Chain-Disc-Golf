@@ -142,78 +142,45 @@ export const Home: React.FC = () => {
     const [inviteQrData, setInviteQrData] = useState('');
     const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
 
-    // Instant Invite State
-    const [showNameInputModal, setShowNameInputModal] = useState(false);
-    const [guestPlayerName, setGuestPlayerName] = useState('');
-    const [guestKeypair, setGuestKeypair] = useState<{ sk: Uint8Array; pk: string; nsec: string } | null>(null);
-
-    const handleInstantInvite = () => {
-        // 1. Generate Ephemeral Keypair IMMEDIATELY
-        const sk = generateSecretKey();
-        const pk = getPublicKey(sk);
-        const nsec = nip19.nsecEncode(sk);
-
-        console.log('[Instant Invite] Generated keypair for new user:', { pk, nsec });
-
-        // 2. Store keypair in state
-        setGuestKeypair({ sk, pk, nsec });
-
-        // 3. Show name input modal
-        setShowNameInputModal(true);
-        setGuestPlayerName('');
-    };
-
-    const handleGenerateInvite = async () => {
-        if (!guestPlayerName.trim()) {
-            alert('Please enter a player name');
-            return;
-        }
-
-        if (!guestKeypair) {
-            alert('Error: No keypair found. Please try again.');
-            setShowNameInputModal(false);
-            return;
-        }
-
-        setShowNameInputModal(false);
+    const handleInstantInvite = async () => {
         setIsGeneratingInvite(true);
-
         try {
-            const { sk, pk, nsec } = guestKeypair;
-            const guestName = guestPlayerName.trim();
+            // 1. Generate Ephemeral Keypair
+            const sk = generateSecretKey();
+            const pk = getPublicKey(sk);
+            const nsec = nip19.nsecEncode(sk);
+
+            // 2. Create Invite Link
+            const inviteLink = `${window.location.origin}/invite?nsec=${nsec}`;
+            setInviteQrData(inviteLink);
+
+            // 3. Add Player to Card immediately
+            const guestName = searchQuery.trim() || 'Guest Golfer';
             const magicLUD16 = getMagicLightningAddress(pk);
 
-            console.log('[Instant Invite] Publishing Kind 0 profile for guest:', { name: guestName, lud16: magicLUD16 });
+            const newPlayer: DisplayProfile = {
+                pubkey: pk,
+                name: guestName,
+                image: '',
+                nip05: magicLUD16 // Display LUD16 as NIP05 for UI consistency if needed, or just rely on internal logic
+            };
+            addCardmate(newPlayer);
 
-            // 1. Publish Kind 0 Profile to Nostr Relays (NIP-01)
-            // This updates the metadata for the keypair we already generated
-            await publishProfileWithKey({
+            // 4. Publish Profile to Relays (Async)
+            // We do this so when they scan, their profile is already waiting for them
+            publishProfileWithKey({
                 name: guestName,
                 about: 'On-Chain Disc Golf Player',
                 picture: '',
                 lud16: magicLUD16,
                 nip05: ''
-            }, sk);
+            }, sk).catch(err => console.error("Failed to sync guest profile:", err));
 
-            // 2. Create Invite Link with nsec
-            const inviteLink = `${window.location.origin}/invite?nsec=${nsec}`;
-            setInviteQrData(inviteLink);
-
-            // 3. Add Player to Current Card
-            const newPlayer: DisplayProfile = {
-                pubkey: pk,
-                name: guestName,
-                image: '',
-                nip05: magicLUD16
-            };
-            console.log('[Instant Invite] Adding player to card:', newPlayer);
-            addCardmate(newPlayer);
-
-            // 4. Show QR Code for guest to scan
+            // 5. Show QR Code
             setShowPlayerQr(true);
         } catch (e) {
-            console.error('[Instant Invite] Failed to generate invite:', e);
-            alert('Failed to generate invite. Please try again.');
+            console.error("Failed to generate invite:", e);
+            alert("Failed to generate invite. Please try again.");
         } finally {
             setIsGeneratingInvite(false);
         }
@@ -2752,65 +2719,6 @@ export const Home: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Name Input Modal for Instant Invite */}
-            {showNameInputModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative">
-                        <button
-                            onClick={() => setShowNameInputModal(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-white"
-                        >
-                            <Icons.Close size={24} />
-                        </button>
-
-                        <div className="space-y-4 pt-2">
-                            <div className="text-center">
-                                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-blue-500/40">
-                                    <Icons.UserPlus size={32} className="text-blue-400" strokeWidth={2.5} />
-                                </div>
-                                <h3 className="text-xl font-bold text-white mb-2">Instant Invite</h3>
-                                <p className="text-sm text-slate-400">Enter the player's name to generate an invite QR code</p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Player Name</label>
-                                <input
-                                    type="text"
-                                    value={guestPlayerName}
-                                    onChange={(e) => setGuestPlayerName(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleGenerateInvite();
-                                        }
-                                    }}
-                                    placeholder="e.g., John Doe"
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                    autoFocus
-                                />
-                            </div>
-
-                            <div className="flex gap-3">
-                                <Button
-                                    fullWidth
-                                    variant="secondary"
-                                    onClick={() => setShowNameInputModal(false)}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    fullWidth
-                                    variant="primary"
-                                    onClick={handleGenerateInvite}
-                                    disabled={!guestPlayerName.trim()}
-                                >
-                                    Continue
-                                </Button>
                             </div>
                         </div>
                     </div>
