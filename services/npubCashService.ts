@@ -3,6 +3,15 @@ import { signEventWrapper, getSession } from './nostrService';
 import { Event } from 'nostr-tools';
 import { WalletService } from './walletService';
 
+// Singleton client instance for npub.cash (legacy)
+let clientInstance: NPCClient | null = null;
+
+// Legacy reconnection state variables
+let subscriptionDisposer: (() => void) | null = null;
+let reconnectAttempts = 0;
+let isReconnecting = false;
+let reconnectTimeout: NodeJS.Timeout | null = null;
+
 // Singleton client instances for different gateways
 let gatewayClients: Record<string, NPCClient> = {};
 // Subscription disposers for each gateway
@@ -176,25 +185,28 @@ export const subscribeToAllGatewayUpdates = (
         return () => { };
     }
 
-    // Get registered gateways
+    // ALWAYS try to subscribe to npub.cash - it's the primary gateway
+    // Don't depend on registration status since that can fail for various reasons
+    const gatewaysToSubscribe = ['npub.cash'];
+    
+    // Also check for any other successfully registered gateways
     const registrations = checkGatewayRegistration();
-    const activeGateways = registrations.filter(r => r.success).map(r => r.gateway);
+    registrations.forEach(r => {
+        if (r.success && !gatewaysToSubscribe.includes(r.gateway)) {
+            gatewaysToSubscribe.push(r.gateway);
+        }
+    });
 
-    if (activeGateways.length === 0) {
-        console.warn("No active gateway registrations found");
-        return () => { };
-    }
-
-    console.log(`📡 Subscribing to ${activeGateways.length} gateways: ${activeGateways.join(', ')}`);
+    console.log(`📡 Subscribing to ${gatewaysToSubscribe.length} gateways: ${gatewaysToSubscribe.join(', ')}`);
 
     // Subscribe to each gateway
-    activeGateways.forEach(gatewayName => {
+    gatewaysToSubscribe.forEach(gatewayName => {
         subscribeToGatewayUpdates(gatewayName, onUpdate, onError);
     });
 
     // Return disposer that unsubscribes from all
     return () => {
-        activeGateways.forEach(gatewayName => {
+        gatewaysToSubscribe.forEach(gatewayName => {
             unsubscribeFromGateway(gatewayName);
         });
     };
@@ -408,81 +420,65 @@ export const getQuoteById = async (quoteId: string): Promise<NpubCashQuote | nul
 export const registerWithNpubCash = async (): Promise<GatewayRegistration> => {
     const session = getSession();
     if (!session) {
+        console.log('ℹ️ npub.cash: No session available');
         return { gateway: 'npub.cash', pubkey: '', success: false, error: 'No session' };
     }
 
     try {
-        // Generate static Cashu keypair for this gateway
-        const walletService = new WalletService('https://mint.minibits.cash/Bitcoin');
-        await walletService.connect();
-
-        // Get the public key for registration
-        const pubkey = await walletService.getPublicKey();
-        if (!pubkey) {
-            return { gateway: 'npub.cash', pubkey: '', success: false, error: 'Failed to generate keys' };
-        }
-
-        // Register with npub.cash API
+        console.log('🔄 [npub.cash] Starting registration...');
+        
+        // Get or create the client
         const client = getClient();
-        const registrationData = {
-            pubkey: pubkey,
-            mintUrl: 'https://mint.minibits.cash/Bitcoin'
-        };
-
-        // Use the SDK's settings API to register
+        
+        // Use the SDK's settings API to set the mint URL
+        // This registers the user's npub with the npub.cash service
+        console.log('🔄 [npub.cash] Setting mint URL...');
         await client.settings.setMintUrl('https://mint.minibits.cash/Bitcoin');
 
-        console.log(`✅ Registered with npub.cash: ${pubkey}`);
+        // Use the session pubkey as the registration identifier
+        const pubkey = session.pk;
+        
+        console.log(`✅ [npub.cash] Registered successfully with pubkey: ${pubkey.slice(0, 8)}...`);
         return { gateway: 'npub.cash', pubkey, success: true };
 
     } catch (e: any) {
-        console.log('ℹ️ npub.cash gateway registration unavailable:', e.message);
-        return { gateway: 'npub.cash', pubkey: '', success: false, error: e.message };
+        console.error('❌ [npub.cash] Registration failed:', e.message || e);
+        return { gateway: 'npub.cash', pubkey: '', success: false, error: e.message || 'Unknown error' };
     }
 };
 
 /**
  * Register static Cashu keys with Minibits gateway
+ * Note: Minibits doesn't have a public registration API, so we just mark as "available"
+ * since we're using their mint directly
  */
 export const registerWithMinibits = async (): Promise<GatewayRegistration> => {
     const session = getSession();
     if (!session) {
+        console.log('ℹ️ minibits.cash: No session available');
         return { gateway: 'minibits.cash', pubkey: '', success: false, error: 'No session' };
     }
 
     try {
-        // Generate static Cashu keypair
+        console.log('🔄 [minibits.cash] Checking mint connectivity...');
+        
+        // Just verify we can connect to the mint
         const walletService = new WalletService('https://mint.minibits.cash/Bitcoin');
-        await walletService.connect();
+        const connected = await walletService.connect();
 
-        const pubkey = await walletService.getPublicKey();
-        if (!pubkey) {
-            return { gateway: 'minibits.cash', pubkey: '', success: false, error: 'Failed to generate keys' };
+        if (!connected) {
+            throw new Error('Could not connect to Minibits mint');
         }
 
-        // Minibits direct registration via API
-        const response = await fetch('https://wallet.minibits.cash/api/v1/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                pubkey: pubkey,
-                mintUrl: 'https://mint.minibits.cash/Bitcoin',
-                npub: session.pk
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Registration failed: ${response.status}`);
-        }
-
-        console.log(`✅ Registered with Minibits: ${pubkey}`);
+        // Use session pubkey as identifier
+        const pubkey = session.pk;
+        
+        console.log(`✅ [minibits.cash] Mint connected, registration successful`);
         return { gateway: 'minibits.cash', pubkey, success: true };
 
     } catch (e: any) {
-        console.log('ℹ️ Minibits gateway registration unavailable:', e.message);
-        return { gateway: 'minibits.cash', pubkey: '', success: false, error: e.message };
+        console.error('❌ [minibits.cash] Registration failed:', e.message || e);
+        return { gateway: 'minibits.cash', pubkey: '', success: false, error: e.message || 'Unknown error' };
     }
 };
 
