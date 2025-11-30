@@ -7,7 +7,7 @@ import { DEFAULT_PAR, DEFAULT_HOLE_COUNT } from '../constants';
 import { useNavigate } from 'react-router-dom';
 
 export const Scorecard: React.FC = () => {
-    const { activeRound, players, updateScore, finalizeRound, isAuthenticated, userProfile, currentUserPubkey } = useApp();
+    const { activeRound, players, updateScore, publishCurrentScores, finalizeRound, isAuthenticated, userProfile, currentUserPubkey } = useApp();
     const navigate = useNavigate();
 
     const isHost = activeRound?.pubkey === currentUserPubkey;
@@ -152,6 +152,8 @@ export const Scorecard: React.FC = () => {
 
     const handleFinish = async () => {
         if (window.confirm("Are you sure you want to finalize this round?")) {
+            // Publish final scores before finalizing
+            await publishCurrentScores();
             finalizeRound();
             navigate('/wallet');
         }
@@ -189,6 +191,8 @@ export const Scorecard: React.FC = () => {
         }
 
         if (viewHole < activeRound.holeCount) {
+            // Publish current scores before advancing to next hole
+            publishCurrentScores();
             setViewHole(h => h + 1);
         }
     };

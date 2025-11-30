@@ -21,6 +21,7 @@ interface AppContextType extends AppState {
   ) => Promise<void>;
   updateUserProfile: (profile: UserProfile) => Promise<void>;
   updateScore: (hole: number, score: number, playerId?: string) => void;
+  publishCurrentScores: () => Promise<void>;
   setPlayerPaid: (playerId: string) => void;
   finalizeRound: () => void;
   depositFunds: (amount: number) => Promise<{ request: string, quote: string }>; // Returns {request, quote}
@@ -1243,13 +1244,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const newScores = { ...p.scores, [hole]: score };
       const total = (Object.values(newScores) as number[]).reduce((sum, s) => sum + s, 0);
 
-      if (p.isCurrentUser && activeRound) {
-        publishScore(activeRound.id, newScores, total).catch(e => console.warn("Score sync failed", e));
-      }
-
       return { ...p, scores: newScores, totalScore: total };
     }));
-  }, [activeRound, currentUserPubkey]);
+  }, []);
+
+  const publishCurrentScores = useCallback(async () => {
+    if (!activeRound) return;
+
+    const currentPlayer = players.find(p => p.isCurrentUser);
+    if (!currentPlayer) return;
+
+    try {
+      await publishScore(activeRound.id, currentPlayer.scores, currentPlayer.totalScore);
+    } catch (e) {
+      console.warn("Score sync failed", e);
+    }
+  }, [activeRound, players]);
 
   // Set player paid status manually
   const setPlayerPaid = useCallback((playerId: string) => {
@@ -1817,6 +1827,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createRound,
       updateUserProfile,
       updateScore,
+      publishCurrentScores,
       setPlayerPaid,
       finalizeRound,
       depositFunds,
