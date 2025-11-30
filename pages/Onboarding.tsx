@@ -33,8 +33,23 @@ export const Onboarding: React.FC = () => {
         // Prevent re-execution
         if (hasLoadedSession.current) return;
 
-        const loadExistingSession = () => {
+        const loadExistingSession = async () => {
             try {
+                // Check if this is a PWA transfer
+                const { wasTransferred, clearTransferStatus } = await import('../services/storageTransfer');
+                const isTransferred = wasTransferred();
+
+                if (isTransferred) {
+                    console.log('[Onboarding] 🎉 Detected successful PWA transfer!');
+                    // Clear the transfer flag
+                    clearTransferStatus();
+                    // Auto-navigate to profile setup after a brief moment
+                    setTimeout(() => {
+                        navigate('/profile-setup');
+                    }, 1500);
+                    return;
+                }
+
                 // Get the existing guest session's nsec from localStorage
                 const existingSk = localStorage.getItem('nostr_sk');
 
@@ -63,7 +78,7 @@ export const Onboarding: React.FC = () => {
         hasLoadedSession.current = true;
         loadExistingSession();
 
-    }, [loginNsec]);
+    }, [loginNsec, navigate]);
 
     // Icon Crossfade Loop
     useEffect(() => {

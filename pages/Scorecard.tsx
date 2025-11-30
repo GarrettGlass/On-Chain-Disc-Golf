@@ -25,6 +25,24 @@ export const Scorecard: React.FC = () => {
     const acePot = activeRound ? acePayers.length * activeRound.acePotFeeSats : 0;
     const totalPot = entryPot + acePot;
 
+    // Check if current user is in an active round as a non-host player
+    const currentPlayer = players.find(p => p.isCurrentUser);
+    const isNonHostInRound = activeRound && !activeRound.isFinalized && !isHost && currentPlayer;
+
+    // Handle "View Current Round" button click
+    const handleViewCurrentRound = () => {
+        if (!currentPlayer) return;
+
+        // If player hasn't paid, navigate to round details for payment
+        if (!currentPlayer.paid) {
+            navigate('/round-details');
+        } else {
+            // Player has paid, they should see the scorecard (already on /play)
+            // Navigation not needed, but we could scroll to top or refresh
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
     if (!activeRound) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-brand-dark text-white p-6 relative overflow-hidden">
@@ -94,13 +112,13 @@ export const Scorecard: React.FC = () => {
 
                     {/* Footer Status */}
                     <div className="text-center space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-                        {activeRound && !activeRound.isFinalized && (
+                        {isNonHostInRound && (
                             <button
-                                onClick={() => navigate('/round-details')}
+                                onClick={handleViewCurrentRound}
                                 className="w-full max-w-xs mx-auto py-3 px-6 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
                             >
                                 <Icons.Play size={18} />
-                                <span>View Current Round</span>
+                                <span className="golden-shimmer">View Current Round</span>
                             </button>
                         )}
                         <div className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">

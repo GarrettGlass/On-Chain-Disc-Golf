@@ -280,6 +280,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Init Auth
   useEffect(() => {
     const initSession = async () => {
+      // CRITICAL: Check for transfer data BEFORE initializing session
+      // This handles PWA first launch after installation from browser
+      const { checkForTransfer, receiveTransferData, clearTransferData } = await import('../services/storageTransfer');
+      const transferData = checkForTransfer();
+
+      if (transferData) {
+        console.log('[App] Detected transfer data, importing...');
+        const success = receiveTransferData(transferData);
+
+        if (success) {
+          console.log('[App] ✅ Successfully imported transferred data');
+          clearTransferData(); // Remove from URL immediately
+        } else {
+          console.error('[App] ❌ Failed to import transfer data');
+          // Continue with normal flow - user will need to manually import
+        }
+      }
+
       let session = getSession();
       let guestMode = localStorage.getItem('is_guest_mode') === 'true';
 
