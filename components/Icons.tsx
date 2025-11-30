@@ -34,7 +34,8 @@ import {
   DollarSign,
   UserPlus,
   Search,
-  User
+  User,
+  BarChart3
 } from 'lucide-react';
 
 // Custom Disc Golf Basket Icon matching Lucide style
@@ -237,5 +238,6 @@ export const Icons = {
   ChevronDown,
   Bitcoin,
   IOSShare,
-  SmirkFace
+  SmirkFace,
+  BarChart: BarChart3,
 };

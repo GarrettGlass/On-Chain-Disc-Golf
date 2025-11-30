@@ -102,6 +102,13 @@ export interface UserStats {
   averageScore: number;
   bestScore: number;
   totalSatsWon: number;
+  // Extended stats
+  totalAces: number;
+  totalBirdies: number;
+  bogeyFreeRounds: number;
+  biggestWinStreak: number;
+  totalSatsPaid: number;
+  biggestWin: number;
 }
 
 export interface AppState {

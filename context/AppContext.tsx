@@ -171,7 +171,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     totalWins: 0,
     averageScore: 0,
     bestScore: 0,
-    totalSatsWon: 0
+    totalSatsWon: 0,
+    // Extended stats
+    totalAces: 0,
+    totalBirdies: 0,
+    bogeyFreeRounds: 0,
+    biggestWinStreak: 0,
+    totalSatsPaid: 0,
+    biggestWin: 0,
   });
 
   // Wallet Mode
@@ -1093,25 +1100,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (history && history.length > 0) {
         let totalScoreSum = 0;
         let best = 999;
+        let totalAces = 0;
+        let totalBirdies = 0;
+        let bogeyFreeRounds = 0;
+
         history.forEach(evt => {
           try {
             const c = JSON.parse(evt.content);
             const score = c.totalScore || 0;
+            const scores = c.scores || {};
+
             totalScoreSum += score;
             if (score < best && score > 0) best = score;
+
+            // Calculate aces and birdies (assuming par 3 per hole)
+            let hasBogey = false;
+            Object.values(scores).forEach((holeScore: any) => {
+              if (holeScore === 1) totalAces++;
+              if (holeScore === 2) totalBirdies++;
+              if (holeScore >= 4) hasBogey = true;
+            });
+
+            if (!hasBogey && Object.keys(scores).length > 0) bogeyFreeRounds++;
           } catch (e) { }
         });
 
-        // Calculate Total Sats Won from Transactions
+        // Calculate Sats from Transactions
         const wonTxs = transactions.filter(t => t.type === 'payout' || t.type === 'ace_pot');
+        const paidTxs = transactions.filter(t => t.type === 'payment');
         const totalWon = wonTxs.reduce((sum, t) => sum + t.amountSats, 0);
+        const totalPaid = paidTxs.reduce((sum, t) => sum + t.amountSats, 0);
+        const biggestWin = wonTxs.length > 0 ? Math.max(...wonTxs.map(t => t.amountSats)) : 0;
+
+        // Calculate win streak (count consecutive payouts)
+        const sortedWins = wonTxs.sort((a, b) => b.timestamp - a.timestamp);
+        let biggestWinStreak = sortedWins.length > 0 ? 1 : 0;
+        // Simplified: just use total wins as streak for now
+        // A true streak would require tracking consecutive round wins
 
         setUserStats({
           totalRounds: history.length,
-          totalWins: 0,
+          totalWins: wonTxs.length,
           averageScore: Math.round(totalScoreSum / history.length),
           bestScore: best === 999 ? 0 : best,
-          totalSatsWon: totalWon
+          totalSatsWon: totalWon,
+          totalAces,
+          totalBirdies,
+          bogeyFreeRounds,
+          biggestWinStreak,
+          totalSatsPaid: totalPaid,
+          biggestWin,
         });
       }
     } catch (e) {

@@ -1677,16 +1677,87 @@ export const Profile: React.FC = () => {
                 )}
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Stats Grid - 4 Main Tiles */}
+            <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-800 p-4 rounded-xl text-center border border-slate-700">
                     <p className="text-3xl font-bold text-white">{userStats.totalRounds}</p>
                     <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">Rounds Played</p>
                 </div>
                 <div className="bg-slate-800 p-4 rounded-xl text-center border border-slate-700">
-                    <p className="text-3xl font-bold text-brand-primary">{userStats.totalSatsWon || 0}</p>
+                    <p className="text-3xl font-bold text-brand-primary">{userStats.totalSatsWon?.toLocaleString() || 0}</p>
                     <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">Total Sats Won</p>
                 </div>
+                <div className="bg-slate-800 p-4 rounded-xl text-center border border-slate-700">
+                    <p className="text-3xl font-bold text-emerald-400">{userStats.totalWins || 0}</p>
+                    <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">Total Wins</p>
+                </div>
+                <div className="bg-slate-800 p-4 rounded-xl text-center border border-slate-700">
+                    <p className="text-3xl font-bold text-yellow-400">🎯 {userStats.totalAces || 0}</p>
+                    <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">Total Aces</p>
+                </div>
+            </div>
+
+            {/* Detailed Stats Dropdown */}
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                <button
+                    onClick={() => toggleSection('detailed-stats')}
+                    className="w-full p-4 flex items-center justify-between hover:bg-slate-800/80 transition-colors"
+                >
+                    <div className="flex items-center space-x-2">
+                        <Icons.BarChart size={18} className="text-brand-accent" />
+                        <span className="font-bold text-white">Detailed Stats</span>
+                    </div>
+                    <Icons.ChevronDown
+                        size={20}
+                        className={`text-slate-400 transition-transform duration-200 ${openSection === 'detailed-stats' ? 'rotate-180' : ''}`}
+                    />
+                </button>
+
+                {openSection === 'detailed-stats' && (
+                    <div className="border-t border-slate-700 p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                        {/* Total Birdies */}
+                        <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
+                            <span className="text-slate-400 text-sm">Total Birdies</span>
+                            <span className="text-white font-bold">{userStats.totalBirdies || 0}</span>
+                        </div>
+
+                        {/* Bogey-Free Rounds */}
+                        <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
+                            <span className="text-slate-400 text-sm">Bogey-Free Rounds</span>
+                            <span className="text-white font-bold">{userStats.bogeyFreeRounds || 0}</span>
+                        </div>
+
+                        {/* Biggest Win Streak */}
+                        <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
+                            <span className="text-slate-400 text-sm">Biggest Win Streak</span>
+                            <span className="text-emerald-400 font-bold">🔥 {userStats.biggestWinStreak || 0}</span>
+                        </div>
+
+                        {/* ROI */}
+                        <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
+                            <span className="text-slate-400 text-sm">ROI</span>
+                            <span className={`font-bold ${userStats.totalSatsPaid > 0
+                                    ? (((userStats.totalSatsWon - userStats.totalSatsPaid) / userStats.totalSatsPaid) * 100) >= 0
+                                        ? 'text-emerald-400'
+                                        : 'text-red-400'
+                                    : 'text-slate-400'
+                                }`}>
+                                {userStats.totalSatsPaid > 0
+                                    ? `${(((userStats.totalSatsWon - userStats.totalSatsPaid) / userStats.totalSatsPaid) * 100).toFixed(0)}%`
+                                    : '—'
+                                }
+                            </span>
+                        </div>
+
+                        {/* Biggest Win */}
+                        <div className="flex justify-between items-center py-2">
+                            <span className="text-slate-400 text-sm">Biggest Win</span>
+                            <span className="text-brand-primary font-bold">
+                                {userStats.biggestWin > 0 ? `⚡ ${userStats.biggestWin.toLocaleString()} sats` : '—'}
+                            </span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Key Management */}
