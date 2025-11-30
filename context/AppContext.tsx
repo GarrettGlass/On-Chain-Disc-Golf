@@ -358,12 +358,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           if (backup.mints.length > 0) setMints(backup.mints);
         } else {
-          console.log("No wallet backup found. Creating initial backup if funds exist.");
-          // If user has local funds (from guest mode) but no remote backup, back them up now
+          console.log("No wallet backup found. Creating initial backup to enable payment detection.");
+          // Create initial backup immediately (even if empty) to ensure npub.cash payments work
+          // The auto-sync will handle future updates
           setProofs(current => {
+            // Force an immediate backup (don't wait for debounce)
             if (current.length > 0) {
-              console.log("Skipping auto-backup on first load to avoid overwriting history.");
+              console.log("Creating initial backup with existing funds...");
+            } else {
+              console.log("Creating empty initial backup to enable payment tracking...");
             }
+            // Trigger immediate sync after state update
+            setTimeout(() => {
+              syncWallet(current, mints, transactions).catch(e =>
+                console.error("Initial backup failed:", e)
+              );
+            }, 100); // Minimal delay to allow state to settle
             return current;
           });
         }
@@ -745,6 +755,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 3. Publish the new profile (with LUD16) to Nostr
     await updateUserProfile(initialProfile);
+
+    // 4. Create initial wallet backup to enable payment detection
+    // This ensures npub.cash can send payments immediately
+    console.log("📦 Creating initial wallet backup for new account...");
+    try {
+      await syncWallet(proofs, mints, transactions);
+      console.log("✅ Initial wallet backup created successfully!");
+    } catch (e) {
+      console.error("⚠️ Failed to create initial wallet backup:", e);
+    }
 
     // Profile.tsx handles setting isEditing(true) via the profile state/useEffect
     // Profile.tsx also handles setting the default bio
