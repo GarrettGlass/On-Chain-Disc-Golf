@@ -192,6 +192,13 @@ export class WalletService {
         try {
             console.log(`Creating token: amount=${amount}, proofs=${proofs.length}`);
 
+            if (proofs.length === 0) {
+                throw new Error("No proofs available for token creation");
+            }
+
+            // Ensure wallet is connected and keys are loaded
+            await this.connect();
+
             // send returns { returnChange, send, keep } or similar. Casting to any to bypass type mismatch.
             const response = await this.wallet.send(amount, proofs) as any;
             console.log("Wallet.send response:", response);
@@ -200,7 +207,23 @@ export class WalletService {
 
             // Handle potential property name differences
             const returnedChange = returnChange || change || [];
+
+            // Validate that we have send proofs
+            if (!send || !Array.isArray(send) || send.length === 0) {
+                throw new Error("No send proofs returned from wallet.send()");
+            }
+
             console.log(`Token creation: send=${send?.length || 0}, keep=${keep?.length || 0}, change=${returnedChange?.length || 0}`);
+
+            // Validate each proof has required properties
+            for (const proof of send) {
+                if (!proof || typeof proof !== 'object') {
+                    throw new Error("Invalid proof object in send array");
+                }
+                if (!proof.id || !proof.amount || !proof.secret || !proof.C) {
+                    throw new Error(`Proof missing required properties. Proof: ${JSON.stringify(proof)}`);
+                }
+            }
 
             // Encode the token
             const token = getEncodedToken({
@@ -209,7 +232,7 @@ export class WalletService {
 
             return {
                 token,
-                remaining: [...keep, ...returnedChange]
+                remaining: [...(keep || []), ...returnedChange]
             };
         } catch (e) {
             console.error("Create token failed", e);

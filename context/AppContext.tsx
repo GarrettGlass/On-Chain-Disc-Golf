@@ -1690,8 +1690,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!walletServiceRef.current) throw new Error("Wallet not connected");
     if (walletBalance < amount) throw new Error("Insufficient funds");
 
+    // Validate proofs before using them
+    const validProofs = proofs.filter(proof => {
+      return proof &&
+             typeof proof === 'object' &&
+             proof.id &&
+             proof.amount &&
+             proof.secret &&
+             proof.C;
+    });
+
+    if (validProofs.length === 0) {
+      throw new Error("No valid proofs available for token creation");
+    }
+
+    // Calculate total available amount from valid proofs
+    const totalAvailable = validProofs.reduce((sum, proof) => sum + (proof.amount || 0), 0);
+    if (totalAvailable < amount) {
+      throw new Error(`Insufficient proof value: need ${amount} sats, have ${totalAvailable} sats`);
+    }
+
     try {
-      const { token, remaining } = await walletServiceRef.current.createTokenWithProofs(amount, proofs);
+      const { token, remaining } = await walletServiceRef.current.createTokenWithProofs(amount, validProofs);
       setProofs(remaining);
 
       const newTx: WalletTransaction = {
