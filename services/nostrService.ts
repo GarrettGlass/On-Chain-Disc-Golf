@@ -39,12 +39,15 @@ const promiseAny = <T>(promises: Iterable<Promise<T>>): Promise<T> => {
         }
 
         let rejectedCount = 0;
+        const errors: any[] = [];
 
-        promiseList.forEach((p) => {
-            p.then(resolve).catch(() => {
+        promiseList.forEach((p, index) => {
+            p.then(resolve).catch((error) => {
+                errors[index] = error;
                 rejectedCount++;
                 if (rejectedCount === promiseList.length) {
-                    reject(new Error("All promises rejected"));
+                    console.error("All Nostr publish promises rejected. Errors:", errors);
+                    reject(new Error(`All promises rejected. First error: ${errors[0]?.message || 'Unknown error'}`));
                 }
             });
         });
@@ -689,6 +692,15 @@ export const publishScore = async (roundId: string, scores: Record<number, numbe
         content: content,
     });
 
+    // Validate event before publishing
+    if (!event.id || event.id.length !== 64 || !/^[0-9a-f]+$/.test(event.id)) {
+        throw new Error(`Invalid event ID: ${event.id}`);
+    }
+    if (!event.sig || event.sig.length !== 128 || !/^[0-9a-f]+$/.test(event.sig)) {
+        throw new Error(`Invalid signature: ${event.sig}`);
+    }
+
+    console.log(`Publishing score event: ${event.id.substring(0, 8)}...`);
     await promiseAny(pool.publish(getRelays(), event));
     return event;
 };

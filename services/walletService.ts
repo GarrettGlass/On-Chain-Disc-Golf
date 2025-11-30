@@ -190,12 +190,17 @@ export class WalletService {
 
     async createTokenWithProofs(amount: number, proofs: Proof[]): Promise<{ token: string, remaining: Proof[] }> {
         try {
+            console.log(`Creating token: amount=${amount}, proofs=${proofs.length}`);
+
             // send returns { returnChange, send, keep } or similar. Casting to any to bypass type mismatch.
             const response = await this.wallet.send(amount, proofs) as any;
+            console.log("Wallet.send response:", response);
+
             const { returnChange, change, send, keep } = response;
 
             // Handle potential property name differences
             const returnedChange = returnChange || change || [];
+            console.log(`Token creation: send=${send?.length || 0}, keep=${keep?.length || 0}, change=${returnedChange?.length || 0}`);
 
             // Encode the token
             const token = getEncodedToken({
@@ -208,7 +213,14 @@ export class WalletService {
             };
         } catch (e) {
             console.error("Create token failed", e);
-            throw e;
+            console.error("Error type:", typeof e);
+            console.error("Error properties:", Object.keys(e || {}));
+            // Ensure we throw a proper Error object
+            if (e instanceof Error) {
+                throw e;
+            } else {
+                throw new Error(`Token creation failed: ${String(e)}`);
+            }
         }
     }
 

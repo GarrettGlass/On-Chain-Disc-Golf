@@ -1276,7 +1276,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           addTransaction('payout', prize, `Payout to ${winner.name}`);
         } catch (e) {
           console.error("Failed to pay winner", e);
-          alert("Failed to pay winner. Please pay manually.");
+          const errorMessage = e instanceof Error ? e.message : String(e);
+          alert(`Failed to pay winner: ${errorMessage}. Please pay manually.`);
         }
       }
     }
@@ -1699,7 +1700,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return token;
     } catch (e) {
       console.error("Create token failed", e);
-      throw e;
+      // Ensure we throw a proper Error object
+      if (e instanceof Error) {
+        throw e;
+      } else {
+        throw new Error(`Token creation failed: ${String(e)}`);
+      }
     }
   };
 
