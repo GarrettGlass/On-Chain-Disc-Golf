@@ -53,8 +53,8 @@ export const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/85 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-sm w-full max-h-[80vh] overflow-hidden overflow-y-auto animate-in zoom-in-95 duration-300">
                 
                 {/* Header - Celebration */}
                 <div className="relative bg-gradient-to-r from-emerald-600/20 via-emerald-500/30 to-emerald-600/20 p-6 text-center border-b border-emerald-500/20">

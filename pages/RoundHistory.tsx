@@ -100,7 +100,7 @@ export const RoundHistory: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 nav-safe-bottom">
         {rounds.length === 0 ? (
           /* Empty State */
           <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">

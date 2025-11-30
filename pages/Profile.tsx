@@ -451,8 +451,8 @@ export const Profile: React.FC = () => {
 
                 {/* Help Modal */}
                 {helpModal && helpModal.isOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[75vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
                             <button
                                 onClick={() => setHelpModal(null)}
                                 className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white"
@@ -1004,8 +1004,8 @@ export const Profile: React.FC = () => {
 
             {/* Help Modal */}
             {helpModal && helpModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[75vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
                         <button
                             onClick={() => setHelpModal(null)}
                             className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white"
@@ -1241,7 +1241,7 @@ export const Profile: React.FC = () => {
 
             {/* Logout Confirmation Modal */}
             {showLogoutConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
                     <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-4 animate-in zoom-in-95 duration-200">
                         <div className="flex flex-col items-center text-center space-y-2">
                             <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-2">

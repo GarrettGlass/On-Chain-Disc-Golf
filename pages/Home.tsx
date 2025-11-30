@@ -133,6 +133,7 @@ export const Home: React.FC = () => {
     const [joinError, setJoinError] = useState('');
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [showStartConfirm, setShowStartConfirm] = useState(false);
+    const [showDiscardDraftConfirm, setShowDiscardDraftConfirm] = useState(false);
     const [cancelFundOption, setCancelFundOption] = useState<'pay-winner' | 'redistribute' | 'host-keeps'>('pay-winner');
 
     // Info Modal State
@@ -354,10 +355,8 @@ export const Home: React.FC = () => {
                 useHonorSystem,
             };
             localStorage.setItem('cdg_round_creation', JSON.stringify(state));
-        } else if (view === 'menu') {
-            // Clear if user returns to menu without creating
-            clearRoundCreationState();
         }
+        // Note: Don't clear state when returning to menu - let user resume or start fresh
     }, [view, courseName, layout, customHoles, hasEntryFee, entryFee, acePot,
         selectedCardmates, excludedPlayers, paidStatus, paymentSelections, startDate, startTime, trackPenalties,
         startHole, payoutMode, payoutPercentage, customPayoutPercentage, payoutGradient, acePotRedistribution, playerHandicaps, handicapEnabled, startHoleEnabled, useHonorSystem]);
@@ -586,7 +585,47 @@ export const Home: React.FC = () => {
         if (activeRound && !activeRound.isFinalized) {
             setShowResetConfirm(true);
         } else {
-            setView('setup');
+            // Check if there's a saved round creation draft
+            const savedDraft = localStorage.getItem('cdg_round_creation');
+            if (savedDraft) {
+                setShowDiscardDraftConfirm(true);
+            } else {
+                setView('setup');
+            }
+        }
+    };
+
+    const handleDiscardDraft = () => {
+        clearRoundCreationState();
+        setShowDiscardDraftConfirm(false);
+        setView('setup');
+    };
+
+    const handleResumeDraft = () => {
+        setShowDiscardDraftConfirm(false);
+        // Restore the saved state
+        const saved = localStorage.getItem('cdg_round_creation');
+        if (saved) {
+            try {
+                const state: RoundCreationState = JSON.parse(saved);
+                setView(state.view);
+                setCourseName(state.courseName);
+                setLayout(state.layout);
+                setCustomHoles(state.customHoles);
+                setHasEntryFee(state.hasEntryFee);
+                setEntryFee(state.entryFee);
+                setAcePot(state.acePot);
+                setSelectedCardmates(state.selectedCardmates);
+                setExcludedPlayers(new Set(state.excludedPlayers));
+                setPaidStatus(state.paidStatus);
+                setStartDate(state.startDate);
+                setStartTime(state.startTime);
+                setTrackPenalties(state.trackPenalties);
+            } catch (e) {
+                console.error('Failed to restore round creation state:', e);
+                clearRoundCreationState();
+                setView('setup');
+            }
         }
     };
 
@@ -1146,7 +1185,7 @@ export const Home: React.FC = () => {
                     </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-32">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 nav-safe-bottom">
                     {/* Customize your round - moved above player tiles */}
                     <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
                         <button
@@ -1491,7 +1530,7 @@ export const Home: React.FC = () => {
                 {/* PAYMENT MODAL */}
                 {
                     showPaymentModal && paymentTarget && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
                             <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative overflow-hidden">
 
                                 {paymentSuccess && (
@@ -1596,7 +1635,7 @@ export const Home: React.FC = () => {
 
                 {/* START ROUND CONFIRMATION MODAL */}
                 {showStartConfirm && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/90 backdrop-blur-sm">
                         <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200">
                             <div className="text-center space-y-4">
                                 {/* Warning Icon and Title */}
@@ -1881,7 +1920,7 @@ export const Home: React.FC = () => {
                 </div>
 
                 {/* Scrollable Player List - with padding for fixed button */}
-                <div className="flex-1 overflow-y-auto pb-32">
+                <div className="flex-1 overflow-y-auto nav-safe-bottom">
                     <div className="flex border-b border-slate-800 px-4 mb-2">
                         {!searchQuery && (
                             <>
@@ -1971,7 +2010,7 @@ export const Home: React.FC = () => {
 
                 {/* INSTANT INVITE MODAL */}
                 {showPlayerQr && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/90 backdrop-blur-sm">
                         <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative">
                             <button
                                 onClick={() => setShowPlayerQr(false)}
@@ -2012,7 +2051,7 @@ export const Home: React.FC = () => {
 
                 {/* INSTANT INVITE INPUT MODAL */}
                 {showInstantInviteModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
                         <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative">
                             <button
                                 onClick={() => setShowInstantInviteModal(false)}
@@ -2056,8 +2095,8 @@ export const Home: React.FC = () => {
 
                 {/* FREEDOM MANIFESTO MODAL */}
                 {showShieldModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-                        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-brand-primary/50 p-6 rounded-2xl shadow-2xl shadow-brand-primary/20 max-w-lg w-full max-h-[80vh] flex flex-col">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/90 backdrop-blur-sm">
+                        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-brand-primary/50 p-6 rounded-2xl shadow-2xl shadow-brand-primary/20 max-w-lg w-full max-h-[70vh] flex flex-col">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center space-x-2">
                                     <Icons.Shield size={24} className="text-brand-primary" />
@@ -2124,7 +2163,7 @@ export const Home: React.FC = () => {
 
                 {/* SCOLDING MODAL */}
                 {showScoldingModal && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/95 backdrop-blur-md">
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pb-24 bg-black/95 backdrop-blur-md">
                         <div className="bg-gradient-to-br from-red-950 via-slate-900 to-slate-950 border-2 border-red-500/50 p-6 rounded-2xl shadow-2xl shadow-red-500/20 max-w-md w-full animate-in zoom-in-95 duration-200">
                             <div className="flex items-center space-x-3 mb-4">
                                 <Icons.Close size={32} className="text-red-500" />
@@ -2202,7 +2241,7 @@ export const Home: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 py-3 pb-48 space-y-4">
+                <div className="flex-1 overflow-y-auto px-4 py-3 nav-safe-bottom space-y-4">
 
                     <div className="space-y-2">
                         <div className="flex items-center text-slate-400 space-x-2">
@@ -2501,8 +2540,8 @@ export const Home: React.FC = () => {
 
                 {/* Setup Help Modal */}
                 {showSetupHelp && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                        <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full max-h-[80vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full max-h-[70vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
                             <button
                                 onClick={() => setShowSetupHelp(false)}
                                 className="absolute top-4 right-4 text-slate-400 hover:text-white z-10"
@@ -2773,7 +2812,7 @@ export const Home: React.FC = () => {
                 });
                 
                 return (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
                         <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-4 animate-in zoom-in-95 duration-200">
                             {/* Header */}
                             <div className="flex flex-col items-center text-center space-y-3">
@@ -2913,10 +2952,53 @@ export const Home: React.FC = () => {
                 );
             })()}
 
+            {/* Discard Draft Confirmation Modal */}
+            {showDiscardDraftConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-slate-700 p-5 rounded-2xl shadow-2xl max-w-xs w-full animate-in zoom-in-95 duration-200 relative">
+                        <button
+                            onClick={() => setShowDiscardDraftConfirm(false)}
+                            className="absolute top-3 right-3 text-slate-400 hover:text-white"
+                        >
+                            <Icons.Close size={20} />
+                        </button>
+
+                        <div className="flex items-center space-x-3 mb-4 pr-6">
+                            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
+                                <Icons.Help size={20} />
+                            </div>
+                            <h3 className="text-lg font-bold text-white">Resume Draft?</h3>
+                        </div>
+
+                        <p className="text-slate-400 text-sm mb-5">
+                            You have an unfinished round setup. Resume or start fresh?
+                        </p>
+
+                        <div className="flex gap-3">
+                            <Button 
+                                fullWidth
+                                variant="secondary"
+                                onClick={handleDiscardDraft}
+                                className="text-sm"
+                            >
+                                Start New
+                            </Button>
+                            <Button 
+                                fullWidth
+                                onClick={handleResumeDraft}
+                                className="bg-amber-500 text-black hover:bg-amber-400 text-sm"
+                            >
+                                Resume
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* What is On-Chain Info Modal */}
             {showInfoModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full h-[80vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full h-[70vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 relative">
                         <button
                             onClick={() => setShowInfoModal(false)}
                             className="absolute top-4 right-4 text-slate-400 hover:text-white z-10"
@@ -3000,7 +3082,7 @@ export const Home: React.FC = () => {
 
             {/* Scan to Join (Show Player QR) Modal */}
             {showPlayerQr && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
                     <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative">
                         <button
                             onClick={() => {
@@ -3044,7 +3126,7 @@ export const Home: React.FC = () => {
 
             {/* Instant Invite Input Modal */}
             {showInstantInviteModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm">
                     <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 duration-200 relative">
                         <button
                             onClick={() => setShowInstantInviteModal(false)}

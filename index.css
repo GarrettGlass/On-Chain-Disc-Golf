@@ -1,4 +1,8 @@
 /* Global Styles */
+:root {
+  --nav-height: 5rem; /* 80px - matches BottomNav height (h-16 + pt-2 + buffer) */
+}
+
 html,
 body,
 #root {
@@ -327,4 +331,18 @@ body {
       transparent);
   animation: golden-button-shimmer 2s ease-in-out infinite;
   pointer-events: none;
+}
+
+/* ===========================================
+   Bottom Nav Safe Area Utilities
+   =========================================== */
+
+/* Use this class on scrollable containers to ensure content doesn't hide behind nav */
+.nav-safe-bottom {
+  padding-bottom: var(--nav-height);
+}
+
+/* For elements that need to be positioned above the nav (e.g., floating buttons) */
+.nav-safe-inset {
+  bottom: var(--nav-height);
 }

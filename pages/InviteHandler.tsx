@@ -242,8 +242,8 @@ export const InviteHandler: React.FC = () => {
 
             {/* Modals rendered via Portal to document.body */}
             {showNewWorldModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[75vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="p-6 space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xl font-bold text-white">Why This Combo?</h3>
@@ -297,8 +297,8 @@ export const InviteHandler: React.FC = () => {
 
             {/* Why Save Key Modal */}
             {showWhyKeyModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full max-h-[85vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full max-h-[75vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="p-6 space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xl font-bold text-white">Your Money, Your Responsibility</h3>

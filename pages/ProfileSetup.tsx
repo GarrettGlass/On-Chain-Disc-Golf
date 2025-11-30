@@ -78,7 +78,7 @@ export const ProfileSetup: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 max-w-md mx-auto w-full space-y-6">
+            <div className="flex-1 overflow-y-auto p-6 max-w-md mx-auto w-full space-y-6 nav-safe-bottom">
 
                 {/* Profile Picture */}
                 <div className="space-y-3">
