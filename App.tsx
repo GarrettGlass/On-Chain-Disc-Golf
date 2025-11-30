@@ -13,6 +13,7 @@ import { InviteHandler } from './pages/InviteHandler';
 import { ProfileSetup } from './pages/ProfileSetup';
 import { RoundDetails } from './pages/RoundDetails';
 import { Onboarding } from './pages/Onboarding';
+import { RoundHistory } from './pages/RoundHistory';
 import { useSwipeBack } from './hooks/useSwipeBack';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -136,6 +137,7 @@ const App: React.FC = () => {
               <Route path="/invite" element={<InviteHandler />} />
               <Route path="/profile-setup" element={<ProfileSetup />} />
               <Route path="/round-details" element={<RoundDetails />} />
+              <Route path="/history" element={<RoundHistory />} />
             </Routes>
           </Layout>
         </div>

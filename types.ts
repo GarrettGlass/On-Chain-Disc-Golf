@@ -59,6 +59,7 @@ export interface RoundSettings {
   startingHole: number;
   trackPenalties: boolean;
   hideOverallScore: boolean;
+  useHonorSystem?: boolean; // Sort players by previous hole performance
   payoutConfig?: PayoutConfig;
   playerHandicaps?: Record<string, number>;
 }

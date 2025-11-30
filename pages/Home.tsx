@@ -54,6 +54,7 @@ interface RoundCreationState {
     playerHandicaps: Record<string, number>;
     handicapEnabled: boolean;
     startHoleEnabled: boolean;
+    useHonorSystem: boolean;
 }
 
 // Helper to clear persisted round creation state
@@ -127,7 +128,7 @@ export const Home: React.FC = () => {
     const [playerHandicaps, setPlayerHandicaps] = useState<Record<string, number>>({});
     const [handicapEnabled, setHandicapEnabled] = useState(false); // Toggle for handicap feature
     const [startHoleEnabled, setStartHoleEnabled] = useState(false); // Toggle for custom starting hole
-
+    const [useHonorSystem, setUseHonorSystem] = useState(true); // Sort by previous hole performance
 
     const [joinError, setJoinError] = useState('');
     const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -349,6 +350,7 @@ export const Home: React.FC = () => {
                 playerHandicaps,
                 handicapEnabled,
                 startHoleEnabled,
+                useHonorSystem,
             };
             localStorage.setItem('cdg_round_creation', JSON.stringify(state));
         } else if (view === 'menu') {
@@ -357,7 +359,7 @@ export const Home: React.FC = () => {
         }
     }, [view, courseName, layout, customHoles, hasEntryFee, entryFee, acePot,
         selectedCardmates, excludedPlayers, paidStatus, paymentSelections, startDate, startTime, trackPenalties,
-        startHole, payoutMode, payoutPercentage, customPayoutPercentage, payoutGradient, acePotRedistribution, playerHandicaps, handicapEnabled, startHoleEnabled]);
+        startHole, payoutMode, payoutPercentage, customPayoutPercentage, payoutGradient, acePotRedistribution, playerHandicaps, handicapEnabled, startHoleEnabled, useHonorSystem]);
 
     // Restore round creation state on mount
     useEffect(() => {
@@ -388,6 +390,7 @@ export const Home: React.FC = () => {
                 setPlayerHandicaps(state.playerHandicaps || {});
                 setHandicapEnabled(state.handicapEnabled || false);
                 setStartHoleEnabled(state.startHoleEnabled || false);
+                setUseHonorSystem(state.useHonorSystem !== false); // Default true
             } catch (e) {
                 console.error('Failed to restore round creation state:', e);
                 clearRoundCreationState();
@@ -508,6 +511,7 @@ export const Home: React.FC = () => {
             startingHole: startHole,
             trackPenalties,
             hideOverallScore,
+            useHonorSystem,
             payoutConfig: {
                 mode: payoutMode,
                 percentageThreshold: payoutMode === 'percentage-based' ? payoutPercentage : undefined,
@@ -1218,26 +1222,40 @@ export const Home: React.FC = () => {
                                     </div>
                                 )}
 
-                                {/* Ace Pot Redistribution */}
+                                {/* Tee Order Toggle */}
+                                <div className="flex items-center justify-between py-2">
+                                    <div>
+                                        <h4 className="text-xs font-bold text-slate-300">Order by Tee Position</h4>
+                                        <p className="text-[10px] text-slate-500">Best previous hole goes first</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setUseHonorSystem(!useHonorSystem)}
+                                        className={`w-11 h-6 rounded-full p-0.5 transition-colors duration-300 ${useHonorSystem ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                                    >
+                                        <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${useHonorSystem ? 'translate-x-5' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+
+                                {/* Ace Pot Redistribution - Compact */}
                                 {hasEntryFee && acePot > 0 && (
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">If No Ace is Hit</h4>
-                                        <div className="space-y-2">
+                                    <div className="space-y-2">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">If No Ace</h4>
+                                        <div className="grid grid-cols-3 gap-1.5">
                                             {[
-                                                { value: 'add-to-entry-pot' as const, label: 'Add to Entry Pot', desc: 'Distribute ace pot to winners' },
-                                                { value: 'redistribute-to-participants' as const, label: 'Redistribute to Participants', desc: 'Split evenly among ace pot players' },
-                                                { value: 'forfeit' as const, label: 'Forfeit', desc: 'No redistribution' },
+                                                { value: 'add-to-entry-pot' as const, label: '+ Entry', icon: '🏆' },
+                                                { value: 'redistribute-to-participants' as const, label: 'Split', icon: '↩️' },
+                                                { value: 'forfeit' as const, label: 'Forfeit', icon: '❌' },
                                             ].map((option) => (
                                                 <button
                                                     key={option.value}
                                                     onClick={() => setAcePotRedistribution(option.value)}
-                                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold border transition-all ${acePotRedistribution === option.value
-                                                        ? 'bg-brand-secondary/20 text-brand-secondary border-brand-secondary/40'
+                                                    className={`px-2 py-2 rounded-lg text-[10px] font-bold border transition-all text-center ${acePotRedistribution === option.value
+                                                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
                                                         : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
                                                         }`}
                                                 >
+                                                    <div className="text-sm mb-0.5">{option.icon}</div>
                                                     <div>{option.label}</div>
-                                                    <div className="text-[9px] text-slate-500 font-normal mt-0.5">{option.desc}</div>
                                                 </button>
                                             ))}
                                         </div>
@@ -2567,22 +2585,14 @@ export const Home: React.FC = () => {
                 </div>
 
                 <div className="w-full max-w-sm space-y-4">
-                    {activeRound && (
-                        activeRound.pubkey === currentUserPubkey ? (
-                            <Button fullWidth onClick={() => navigate('/play')} className="bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-transform button-gleam">
-                                <div className="flex items-center justify-center space-x-2">
-                                    <Icons.Play fill="currentColor" />
-                                    <span>{activeRound.isFinalized ? 'View Final Score' : 'Continue Round'}</span>
-                                </div>
-                            </Button>
-                        ) : (
-                            <Button fullWidth onClick={() => navigate('/play')} className="bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-transform button-gleam">
-                                <div className="flex items-center justify-center space-x-2">
-                                    <Icons.Play fill="currentColor" />
-                                    <span>View Current Round</span>
-                                </div>
-                            </Button>
-                        )
+                    {/* Only show Continue Round for active, non-finalized rounds */}
+                    {activeRound && !activeRound.isFinalized && (
+                        <Button fullWidth onClick={() => navigate('/play')} className="bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-transform button-gleam">
+                            <div className="flex items-center justify-center space-x-2">
+                                <Icons.Play fill="currentColor" />
+                                <span>{activeRound.pubkey === currentUserPubkey ? 'Continue Round' : 'View Current Round'}</span>
+                            </div>
+                        </Button>
                     )}
 
                     {!activeRound && (() => {
@@ -2661,6 +2671,15 @@ export const Home: React.FC = () => {
                             <Icons.QrCode />
                             <span>Scan to Join</span>
                         </div>
+                    </button>
+
+                    {/* Round History - subtle link */}
+                    <button
+                        onClick={() => navigate('/history')}
+                        className="w-full py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors flex items-center justify-center space-x-2"
+                    >
+                        <Icons.History size={16} />
+                        <span>Round History</span>
                     </button>
 
                     {joinError && (

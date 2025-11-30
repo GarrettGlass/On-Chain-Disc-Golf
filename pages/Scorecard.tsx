@@ -19,6 +19,7 @@ export const Scorecard: React.FC = () => {
     const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
+    const [aceAnimation, setAceAnimation] = useState<string | null>(null); // Track which player just got an ace
 
     // Calculate pots based on granular payment selections
     const entryPayers = players.filter(p => p.paysEntry);
@@ -39,8 +40,6 @@ export const Scorecard: React.FC = () => {
         if (!currentPlayer.paid) {
             navigate('/round-details');
         } else {
-            // Player has paid, they should see the scorecard (already on /play)
-            // Navigation not needed, but we could scroll to top or refresh
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
@@ -49,65 +48,50 @@ export const Scorecard: React.FC = () => {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-brand-dark text-white p-6 relative overflow-hidden">
                 {/* Background Ambient Effects */}
-                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-brand-primary/10 to-transparent pointer-events-none"></div>
-                <div className="absolute bottom-0 right-0 w-64 h-64 bg-brand-accent/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/20 via-transparent to-slate-900 pointer-events-none"></div>
+                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
                 <div className="w-full max-w-sm mx-auto relative z-10 space-y-8">
 
                     {/* Hero Status */}
                     <div className="text-center space-y-2 animate-in slide-in-from-top-8 duration-700 fade-in">
-                        <div className="inline-flex items-center justify-center p-3 bg-green-500/20 rounded-full mb-4 ring-1 ring-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-                            <Icons.CheckMark className="text-green-500 w-8 h-8" strokeWidth={3} />
+                        <div className="inline-flex items-center justify-center p-4 bg-emerald-500/20 rounded-full mb-4 ring-2 ring-emerald-500/50 shadow-[0_0_40px_rgba(16,185,129,0.3)]">
+                            <Icons.CheckMark className="text-emerald-400 w-10 h-10" strokeWidth={3} />
                         </div>
-                        <h1 className="text-4xl font-black italic tracking-tighter text-white uppercase drop-shadow-lg">
+                        <h1 className="text-4xl font-black tracking-tight text-white">
                             You're In
                         </h1>
-                        <p className="text-slate-400 font-medium">Ready to dominate the course.</p>
+                        <p className="text-slate-400 font-medium">Ready to dominate the course</p>
                     </div>
 
                     {/* Player Card */}
-                    <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-500 delay-150 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="bg-gradient-to-b from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-500 delay-150 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none"></div>
 
                         <div className="flex flex-col items-center space-y-4 relative z-10">
                             {/* Avatar */}
                             <div className="relative">
-                                <div className="absolute inset-0 bg-brand-primary/20 rounded-full blur-md animate-pulse"></div>
-                                <div className="w-24 h-24 rounded-full bg-slate-800 border-4 border-brand-primary shadow-xl overflow-hidden relative">
+                                <div className="absolute inset-0 bg-emerald-500/30 rounded-full blur-xl animate-pulse"></div>
+                                <div className="w-24 h-24 rounded-full bg-slate-800 border-4 border-emerald-500/50 shadow-xl overflow-hidden relative">
                                     {userProfile.picture ? (
                                         <img src={userProfile.picture} className="w-full h-full object-cover" />
                                     ) : (
                                         <Icons.Users className="w-full h-full p-5 text-slate-400" />
                                     )}
                                 </div>
-                                <div className="absolute -bottom-2 -right-2 bg-brand-accent text-black text-[10px] font-bold px-2 py-1 rounded-full border-2 border-slate-900 shadow-lg">
-                                    PRO
-                                </div>
                             </div>
 
                             {/* Identity */}
                             <div className="text-center w-full">
                                 <h2 className="text-2xl font-bold text-white truncate">{userProfile.name}</h2>
-                                <div className="flex items-center justify-center space-x-1 mt-1 opacity-70">
-                                    <Icons.Zap size={12} className="text-brand-accent" />
-                                    <p className="text-xs font-mono text-brand-accent truncate max-w-[200px]">
-                                        {userProfile.lud16 || userProfile.nip05 || 'No Lightning Address'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Wallet Status Badge */}
-                            <div className="w-full bg-slate-800/50 rounded-xl p-3 flex items-center justify-between border border-slate-700/50">
-                                <div className="flex items-center space-x-2">
-                                    <div className="w-8 h-8 rounded-lg bg-brand-accent/20 flex items-center justify-center">
-                                        <Icons.Wallet size={16} className="text-brand-accent" />
+                                {userProfile.lud16 && (
+                                    <div className="flex items-center justify-center space-x-1 mt-1">
+                                        <Icons.Zap size={12} className="text-emerald-400" />
+                                        <p className="text-xs font-mono text-emerald-400/80 truncate max-w-[200px]">
+                                            {userProfile.lud16}
+                                        </p>
                                     </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] text-slate-400 uppercase font-bold">Wallet Active</span>
-                                        <span className="text-xs font-bold text-white">0 sats</span>
-                                    </div>
-                                </div>
-                                <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse"></div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -117,15 +101,15 @@ export const Scorecard: React.FC = () => {
                         {isNonHostInRound && (
                             <button
                                 onClick={handleViewCurrentRound}
-                                className="w-full max-w-xs mx-auto py-3 px-6 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
+                                className="w-full py-3 px-6 bg-emerald-500 text-black font-bold rounded-xl hover:bg-emerald-400 transition-all transform hover:scale-[1.02] shadow-lg shadow-emerald-500/20 flex items-center justify-center space-x-2"
                             >
                                 <Icons.Play size={18} />
-                                <span className="golden-shimmer">View Current Round</span>
+                                <span>View Current Round</span>
                             </button>
                         )}
-                        <div className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
-                            <Icons.Zap className="text-brand-primary animate-pulse" size={14} />
-                            <span className="text-xs font-bold text-slate-300">Waiting for host to tee off...</span>
+                        <div className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-800/80 rounded-full border border-slate-700/50">
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                            <span className="text-xs font-medium text-slate-300">Waiting for host to start...</span>
                         </div>
                     </div>
 
@@ -137,16 +121,19 @@ export const Scorecard: React.FC = () => {
     const handleScoreChange = (playerId: string, delta: number, currentVal?: number) => {
         let newScore;
         if (currentVal === undefined || currentVal === 0) {
-            // If unset, logic depends on button pressed
             if (delta > 0) {
-                // Initial Plus: Set to Par (e.g. 3)
                 newScore = DEFAULT_PAR;
             } else {
-                // Initial Minus: Set to Par - 1 (e.g. 2)
                 newScore = DEFAULT_PAR + delta;
             }
         } else {
             newScore = Math.max(1, currentVal + delta);
+        }
+
+        // Trigger ace animation if score is 1
+        if (newScore === 1) {
+            setAceAnimation(playerId);
+            setTimeout(() => setAceAnimation(null), 2000);
         }
 
         updateScore(viewHole, newScore, playerId);
@@ -159,10 +146,8 @@ export const Scorecard: React.FC = () => {
     const confirmFinalize = async () => {
         setIsSubmitting(true);
         try {
-            // Publish final scores before finalizing
             await publishCurrentScores();
             await finalizeRound();
-            // Don't navigate - the round summary modal will show
         } catch (e) {
             console.error("Failed to finalize round:", e);
         } finally {
@@ -177,14 +162,19 @@ export const Scorecard: React.FC = () => {
         return players.every(p => p.scores[h] && p.scores[h] > 0);
     };
 
+    // Navigate to a specific hole from review
+    const navigateToHole = (hole: number) => {
+        setShowHalfwayReview(false);
+        setShowFinalReview(false);
+        setViewHole(hole);
+    };
+
     const handleNext = () => {
-        // Check for incomplete scores on current hole before moving
         if (viewHole <= activeRound.holeCount && !isHoleComplete(viewHole)) {
             setToast(`Hole ${viewHole} incomplete`);
             setTimeout(() => setToast(null), 2500);
         }
 
-        // Intercept for Halfway Review (after hole 9, going to 10)
         if (viewHole === 9 && activeRound.holeCount >= 10 && !showHalfwayReview) {
             setShowHalfwayReview(true);
             return;
@@ -196,27 +186,23 @@ export const Scorecard: React.FC = () => {
             return;
         }
 
-        // Intercept for Final Review (after last hole)
         if (viewHole === activeRound.holeCount && !showFinalReview) {
             setShowFinalReview(true);
             return;
         }
 
         if (viewHole < activeRound.holeCount) {
-            // Publish current scores before advancing to next hole
             publishCurrentScores();
             setViewHole(h => h + 1);
         }
     };
 
     const handlePrev = () => {
-        // Exit Final Review
         if (showFinalReview) {
             setShowFinalReview(false);
             return;
         }
 
-        // Intercept for Halfway Review (coming back from 10)
         if (viewHole === 10 && !showHalfwayReview) {
             setShowHalfwayReview(true);
             return;
@@ -231,17 +217,16 @@ export const Scorecard: React.FC = () => {
         setViewHole(h => Math.max(1, h - 1));
     };
 
-    // Helper to calculate "Total" text like "E (0)" or "+2 (20)"
+    // Helper to calculate score info
     const getPlayerTotalText = (playerScores: Record<number, number>, handicap: number = 0, rangeMax?: number) => {
         const scoresToCount = rangeMax
             ? Object.entries(playerScores).filter(([h]) => parseInt(h) <= rangeMax).map(([, s]) => s)
             : Object.values(playerScores);
 
         const holesPlayed = scoresToCount.length;
-        // If no holes played, show just the handicap
         if (holesPlayed === 0) {
-            if (handicap === 0) return "E (0)";
-            return `${handicap > 0 ? '+' + handicap : handicap} (0)`;
+            if (handicap === 0) return { diff: "E", total: 0 };
+            return { diff: handicap > 0 ? `+${handicap}` : `${handicap}`, total: 0 };
         }
 
         const totalStrokes = scoresToCount.reduce((a, b) => a + b, 0);
@@ -252,7 +237,31 @@ export const Scorecard: React.FC = () => {
         if (diff > 0) diffText = `+${diff}`;
         if (diff < 0) diffText = `${diff}`;
 
-        return `${diffText} (${totalStrokes})`;
+        return { diff: diffText, total: totalStrokes };
+    };
+
+    // Get score color based on relation to par
+    const getScoreColor = (score: number) => {
+        if (score === 1) return 'text-amber-300'; // Ace!
+        const diff = score - DEFAULT_PAR;
+        if (diff < 0) return 'text-emerald-400';
+        if (diff > 0) return 'text-rose-400';
+        return 'text-white';
+    };
+
+    const getScoreBg = (score: number, isAceAnimating: boolean = false) => {
+        if (score === 1) {
+            // ACE! Electrified golden glow
+            return isAceAnimating 
+                ? 'bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 border-amber-300 ring-4 ring-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.8),0_0_60px_rgba(251,191,36,0.4)] animate-pulse'
+                : 'bg-gradient-to-br from-amber-500/30 to-yellow-500/20 border-amber-400/70 ring-2 ring-amber-400/30 shadow-[0_0_20px_rgba(251,191,36,0.5)]';
+        }
+        const diff = score - DEFAULT_PAR;
+        if (diff <= -2) return 'bg-emerald-500/20 border-emerald-500/50 ring-2 ring-emerald-500/30';
+        if (diff === -1) return 'bg-emerald-500/10 border-emerald-500/30';
+        if (diff === 0) return 'bg-slate-700/50 border-slate-600';
+        if (diff === 1) return 'bg-rose-500/10 border-rose-500/30';
+        return 'bg-rose-500/20 border-rose-500/50';
     };
 
     // Check if all players have scores for a range
@@ -265,9 +274,15 @@ export const Scorecard: React.FC = () => {
         return true;
     };
 
+    // Sort players by total score for leaderboard
+    const sortedPlayers = [...players].sort((a, b) => {
+        const aTotal = getPlayerTotalText(a.scores, a.handicap);
+        const bTotal = getPlayerTotalText(b.scores, b.handicap);
+        return aTotal.total - bTotal.total;
+    });
+
     // --- REVIEW UI (Shared for Halfway and Final) ---
     if (showHalfwayReview || showFinalReview) {
-        // Determine range: Always start from 1 for review
         const rangeStart = 1;
         const rangeEnd = showHalfwayReview ? 9 : activeRound.holeCount;
 
@@ -277,166 +292,250 @@ export const Scorecard: React.FC = () => {
         const front9 = allHoles.filter(h => h <= 9);
         const back9 = allHoles.filter(h => h > 9);
 
+        const reviewSortedPlayers = [...players].sort((a, b) => {
+            const aTotal = getPlayerTotalText(a.scores, a.handicap, rangeEnd);
+            const bTotal = getPlayerTotalText(b.scores, b.handicap, rangeEnd);
+            return aTotal.total - bTotal.total;
+        });
+
+        // Check if a specific hole has any missing scores
+        const isHoleMissingScore = (h: number) => {
+            return players.some(p => !p.scores[h] || p.scores[h] === 0);
+        };
+
         return (
-            <div className="flex flex-col h-screen bg-brand-dark text-white">
+            <div className="flex flex-col h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white relative overflow-hidden">
+                {/* Background Effects */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.1),transparent_50%)] pointer-events-none"></div>
+                
                 {/* Header */}
-                <div className="bg-brand-surface px-4 py-3 border-b border-slate-700 shadow-md z-10">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-lg font-bold text-slate-300">Scorecard review <span className="text-white">{rangeStart} - {rangeEnd}</span></h1>
+                <div className="relative z-10 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 px-4 py-4">
+                    <div className="max-w-md mx-auto">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+                                    {showHalfwayReview ? 'Front 9 Review' : 'Final Review'}
+                                </p>
+                                <h1 className="text-xl font-bold text-white">
+                                    {activeRound.courseName}
+                                </h1>
+                            </div>
+                            <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${isComplete ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
+                                {isComplete ? '✓ Complete' : 'Incomplete'}
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Status Banner */}
-                <div className={`${isComplete ? 'bg-brand-secondary' : 'bg-slate-700'} px-4 py-2 text-sm font-bold text-white flex items-center`}>
-                    {isComplete ? 'All scores entered' : 'Scores incomplete'}
+                {/* Clickable Hole Navigator for Review */}
+                <div className="relative z-10 bg-slate-800/50 border-b border-slate-700/50 px-4 py-3">
+                    <div className="max-w-md mx-auto">
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2 text-center">Tap hole to edit</p>
+                        <div className="flex justify-center gap-1 flex-wrap">
+                            {allHoles.map(h => {
+                                const isMissing = isHoleMissingScore(h);
+                                return (
+                                    <button
+                                        key={h}
+                                        onClick={() => navigateToHole(h)}
+                                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                                            isMissing 
+                                                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50 animate-pulse hover:bg-rose-500/30' 
+                                                : 'bg-slate-700/50 text-slate-300 border border-slate-600/50 hover:bg-slate-600/50 hover:text-white'
+                                        }`}
+                                    >
+                                        {h}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Player List */}
-                <div className={`flex-1 overflow-y-auto ${showFinalReview ? 'pb-40' : 'pb-32'}`}>
-                    {players.map((p) => (
-                        <div key={p.id} className="border-b border-slate-800 py-4 px-4">
-                            {/* Player Header */}
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden border border-slate-600">
-                                        {p.photoUrl ? <img src={p.photoUrl} className="w-full h-full object-cover" /> : <Icons.Users className="p-2 text-slate-400" />}
+                <div className={`flex-1 overflow-y-auto px-4 py-4 ${showFinalReview ? 'pb-48' : 'pb-40'}`}>
+                    <div className="max-w-md mx-auto space-y-4">
+                        {reviewSortedPlayers.map((p, idx) => {
+                            const totalInfo = getPlayerTotalText(p.scores, p.handicap, rangeEnd);
+                            const isLeader = idx === 0;
+                            
+                            return (
+                                <div 
+                                    key={p.id} 
+                                    className={`bg-slate-800/60 backdrop-blur border rounded-2xl overflow-hidden transition-all ${isLeader ? 'border-amber-500/50 ring-1 ring-amber-500/20' : 'border-slate-700/50'}`}
+                                >
+                                    {/* Player Header */}
+                                    <div className="p-4 flex items-center justify-between">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="relative">
+                                                {isLeader && (
+                                                    <div className="absolute -top-1 -left-1 text-lg">🏆</div>
+                                                )}
+                                                <div className={`w-12 h-12 rounded-full bg-slate-700 overflow-hidden border-2 ${isLeader ? 'border-amber-500/50' : 'border-slate-600'}`}>
+                                                    {p.photoUrl ? (
+                                                        <img src={p.photoUrl} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Icons.Users className="w-full h-full p-2 text-slate-400" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-white flex items-center">
+                                                    {p.name}
+                                                    {p.isCurrentUser && (
+                                                        <span className="ml-2 text-[10px] text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded">YOU</span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-slate-400">
+                                                    {idx === 0 ? 'Leader' : `${idx + 1}${idx === 1 ? 'nd' : idx === 2 ? 'rd' : 'th'} Place`}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className={`text-2xl font-bold ${parseInt(totalInfo.diff) < 0 ? 'text-emerald-400' : parseInt(totalInfo.diff) > 0 ? 'text-rose-400' : 'text-white'}`}>
+                                                {totalInfo.diff}
+                                            </div>
+                                            <div className="text-xs text-slate-400">{totalInfo.total} strokes</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div className="font-bold">{p.name}</div>
-                                        <div className="text-xs text-slate-500">@{p.name.replace(/\s/g, '').toLowerCase()}</div>
+
+                                    {/* Score Grid - Clickable */}
+                                    <div className="px-4 pb-4 space-y-3">
+                                        {/* Front 9 */}
+                                        {front9.length > 0 && (
+                                            <div className="bg-slate-900/50 rounded-xl p-3">
+                                                <div className="grid gap-1 text-center" style={{ gridTemplateColumns: `repeat(${front9.length}, 1fr)` }}>
+                                                    {front9.map(h => {
+                                                        const isMissing = !p.scores[h] || p.scores[h] === 0;
+                                                        return (
+                                                            <button
+                                                                key={`h-${h}`}
+                                                                onClick={() => navigateToHole(h)}
+                                                                className={`text-[10px] font-bold rounded transition-colors ${isMissing ? 'text-rose-400 hover:bg-rose-500/20' : 'text-slate-500 hover:bg-slate-700/50'}`}
+                                                            >
+                                                                {h}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                    {front9.map(h => {
+                                                        const score = p.scores[h];
+                                                        const isAce = score === 1;
+                                                        return (
+                                                            <button
+                                                                key={`s-${h}`}
+                                                                onClick={() => navigateToHole(h)}
+                                                                className={`text-sm font-bold rounded-md py-1 transition-all hover:scale-110 ${
+                                                                    isAce 
+                                                                        ? 'text-amber-300 bg-amber-500/20 shadow-[0_0_10px_rgba(251,191,36,0.5)]' 
+                                                                        : score ? getScoreColor(score) : 'text-slate-600'
+                                                                }`}
+                                                            >
+                                                                {score || '-'}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Back 9 */}
+                                        {back9.length > 0 && (
+                                            <div className="bg-slate-900/50 rounded-xl p-3">
+                                                <div className="grid gap-1 text-center" style={{ gridTemplateColumns: `repeat(${back9.length}, 1fr)` }}>
+                                                    {back9.map(h => {
+                                                        const isMissing = !p.scores[h] || p.scores[h] === 0;
+                                                        return (
+                                                            <button
+                                                                key={`h-${h}`}
+                                                                onClick={() => navigateToHole(h)}
+                                                                className={`text-[10px] font-bold rounded transition-colors ${isMissing ? 'text-rose-400 hover:bg-rose-500/20' : 'text-slate-500 hover:bg-slate-700/50'}`}
+                                                            >
+                                                                {h}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                    {back9.map(h => {
+                                                        const score = p.scores[h];
+                                                        const isAce = score === 1;
+                                                        return (
+                                                            <button
+                                                                key={`s-${h}`}
+                                                                onClick={() => navigateToHole(h)}
+                                                                className={`text-sm font-bold rounded-md py-1 transition-all hover:scale-110 ${
+                                                                    isAce 
+                                                                        ? 'text-amber-300 bg-amber-500/20 shadow-[0_0_10px_rgba(251,191,36,0.5)]' 
+                                                                        : score ? getScoreColor(score) : 'text-slate-600'
+                                                                }`}
+                                                            >
+                                                                {score || '-'}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="text-xl font-bold text-slate-200">
-                                    {getPlayerTotalText(p.scores, p.handicap, rangeEnd)}
-                                </div>
-                            </div>
-
-                            {/* Score Grids - Stacked Layout (Front 9 / Back 9) to avoid horizontal scroll */}
-                            <div className="space-y-3">
-                                {/* Front 9 */}
-                                {front9.length > 0 && (
-                                    <div className="grid text-center gap-y-2 text-sm" style={{ gridTemplateColumns: `40px repeat(${front9.length}, 1fr)` }}>
-                                        {/* Labels */}
-                                        <div className="text-slate-500 font-bold text-[10px] flex items-center justify-start">HOLE</div>
-                                        {front9.map(h => {
-                                            const hasScore = p.scores[h] && p.scores[h] > 0;
-                                            return (
-                                                <div key={`h-${h}`} className={`font-bold flex items-center justify-center text-xs ${!hasScore ? 'bg-red-500/10 text-red-400 border border-red-500/50 rounded-full w-5 h-5 mx-auto' : 'text-slate-400'}`}>
-                                                    {h}
-                                                </div>
-                                            );
-                                        })}
-
-                                        {/* Scores */}
-                                        <div className="text-slate-500 font-bold text-[10px] flex items-center justify-start">SCORE</div>
-                                        {front9.map(h => {
-                                            const score = p.scores[h];
-                                            const diff = score - DEFAULT_PAR;
-                                            let colorClass = "text-white";
-                                            if (score) {
-                                                if (diff < 0) colorClass = "text-brand-primary bg-brand-primary/10 rounded-full w-6 h-6 flex items-center justify-center mx-auto text-xs";
-                                                else if (diff > 0) colorClass = "text-brand-accent text-xs";
-                                                else colorClass = "text-white text-xs";
-                                            }
-
-                                            return (
-                                                <div key={`s-${h}`} className={`font-bold ${colorClass}`}>
-                                                    {score || '-'}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                {/* Back 9 */}
-                                {back9.length > 0 && (
-                                    <div className="grid text-center gap-y-2 text-sm" style={{ gridTemplateColumns: `40px repeat(${back9.length}, 1fr)` }}>
-                                        {/* Labels */}
-                                        <div className="text-slate-500 font-bold text-[10px] flex items-center justify-start">HOLE</div>
-                                        {back9.map(h => {
-                                            const hasScore = p.scores[h] && p.scores[h] > 0;
-                                            return (
-                                                <div key={`h-${h}`} className={`font-bold flex items-center justify-center text-xs ${!hasScore ? 'bg-red-500/10 text-red-400 border border-red-500/50 rounded-full w-5 h-5 mx-auto' : 'text-slate-400'}`}>
-                                                    {h}
-                                                </div>
-                                            );
-                                        })}
-
-                                        {/* Scores */}
-                                        <div className="text-slate-500 font-bold text-[10px] flex items-center justify-start">SCORE</div>
-                                        {back9.map(h => {
-                                            const score = p.scores[h];
-                                            const diff = score - DEFAULT_PAR;
-                                            let colorClass = "text-white";
-                                            if (score) {
-                                                if (diff < 0) colorClass = "text-brand-primary bg-brand-primary/10 rounded-full w-6 h-6 flex items-center justify-center mx-auto text-xs";
-                                                else if (diff > 0) colorClass = "text-brand-accent text-xs";
-                                                else colorClass = "text-white text-xs";
-                                            }
-
-                                            return (
-                                                <div key={`s-${h}`} className={`font-bold ${colorClass}`}>
-                                                    {score || '-'}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Bottom Actions */}
-                <div className="fixed bottom-16 left-0 right-0 bg-brand-surface/90 backdrop-blur border-t border-slate-700 p-4 z-20">
-                    {showHalfwayReview ? (
-                        /* Halfway Navigation */
-                        <div className="max-w-md mx-auto flex justify-between items-center">
-                            <button
-                                onClick={handlePrev}
-                                className="w-12 h-12 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center active:scale-95 transition-all hover:bg-slate-700"
-                            >
-                                <span className="font-bold text-sm">{rangeEnd}</span>
-                            </button>
-
-                            <div className="bg-brand-secondary/20 px-4 py-2 rounded-full text-brand-secondary font-bold text-sm border border-brand-secondary/30">
-                                Review {rangeStart} - {rangeEnd}
-                            </div>
-
-                            <button
-                                onClick={handleNext}
-                                className="w-12 h-12 rounded-full bg-brand-primary text-black border border-brand-primary flex items-center justify-center active:scale-95 transition-all hover:bg-emerald-400"
-                            >
-                                <span className="font-bold text-sm">{rangeEnd + 1}</span>
-                            </button>
-                        </div>
-                    ) : (
-                        /* Final Review Action */
-                        <div className="max-w-md mx-auto flex flex-col space-y-3">
-                            {isHost ? (
-                                <Button
-                                    fullWidth
-                                    onClick={handleFinish}
-                                    disabled={!isComplete}
-                                    className={`${!isComplete ? 'opacity-50 cursor-not-allowed bg-slate-600 text-slate-300' : 'bg-brand-accent text-black shadow-lg shadow-brand-accent/20'}`}
+                <div className="fixed bottom-16 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-slate-700/50 p-4 z-20">
+                    <div className="max-w-md mx-auto">
+                        {showHalfwayReview ? (
+                            <div className="flex items-center justify-between">
+                                <button
+                                    onClick={handlePrev}
+                                    className="flex items-center space-x-2 px-4 py-2 text-slate-400 hover:text-white transition-colors"
                                 >
-                                    Confirm Score and Send Payout
-                                </Button>
-                            ) : (
-                                <div className="text-center p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-                                    <p className="text-slate-400 text-sm font-medium animate-pulse">Waiting for host to finalize round...</p>
+                                    <Icons.Prev size={18} />
+                                    <span className="text-sm font-medium">Hole 9</span>
+                                </button>
+
+                                <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+                                    <span className="text-emerald-400 font-bold text-sm">Front 9 Complete</span>
                                 </div>
-                            )}
-                            <button
-                                onClick={handlePrev}
-                                className="text-slate-400 text-sm font-bold hover:text-white py-2"
-                            >
-                                Go back to Hole {activeRound.holeCount}
-                            </button>
-                        </div>
-                    )}
+
+                                <button
+                                    onClick={handleNext}
+                                    className="flex items-center space-x-2 px-4 py-3 bg-emerald-500 text-black font-bold rounded-xl hover:bg-emerald-400 transition-colors"
+                                >
+                                    <span className="text-sm">Hole 10</span>
+                                    <Icons.Next size={18} />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {isHost ? (
+                                    <button
+                                        onClick={handleFinish}
+                                        disabled={!isComplete}
+                                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center space-x-2 transition-all ${!isComplete 
+                                            ? 'bg-slate-700 text-slate-400 cursor-not-allowed' 
+                                            : 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30'}`}
+                                    >
+                                        <Icons.Trophy size={20} />
+                                        <span>Confirm Scores & Send Payouts</span>
+                                    </button>
+                                ) : (
+                                    <div className="text-center p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                                            <p className="text-slate-300 text-sm font-medium">Waiting for host to finalize...</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <button
+                                    onClick={handlePrev}
+                                    className="w-full text-slate-400 text-sm font-medium hover:text-white py-2 transition-colors"
+                                >
+                                    ← Back to Hole {activeRound.holeCount}
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="h-16"></div>
             </div>
@@ -445,202 +544,281 @@ export const Scorecard: React.FC = () => {
 
     // --- NORMAL SCORING UI ---
 
-    return (
-        <div className="flex flex-col h-screen bg-brand-dark text-white relative">
+    // Honor system: sort players by previous hole performance
+    // Best score on previous hole goes first, ties maintain current order
+    const getHonorSortedPlayers = () => {
+        if (!activeRound?.useHonorSystem || viewHole === 1) {
+            return players;
+        }
+        
+        const prevHole = viewHole - 1;
+        return [...players].sort((a, b) => {
+            const aScore = a.scores[prevHole] || Infinity;
+            const bScore = b.scores[prevHole] || Infinity;
+            
+            // Lower score = better = goes first
+            if (aScore !== bScore) {
+                return aScore - bScore;
+            }
+            
+            // If tied, check cumulative score up to previous hole
+            const aTotalToPrev = Object.entries(a.scores)
+                .filter(([h]) => parseInt(h) <= prevHole)
+                .reduce((sum, [, s]) => sum + s, 0);
+            const bTotalToPrev = Object.entries(b.scores)
+                .filter(([h]) => parseInt(h) <= prevHole)
+                .reduce((sum, [, s]) => sum + s, 0);
+            
+            return aTotalToPrev - bTotalToPrev;
+        });
+    };
 
+    const displayPlayers = getHonorSortedPlayers();
+
+    return (
+        <div className="flex flex-col h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white relative overflow-hidden">
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.08),transparent_50%)] pointer-events-none"></div>
+            
             {/* Toast Notification */}
             {toast && (
-                <div className="absolute bottom-36 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="bg-red-500/90 backdrop-blur-md text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm flex items-center space-x-2 border border-red-400/50">
+                <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="bg-rose-500/90 backdrop-blur-md text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm flex items-center space-x-2 border border-rose-400/50">
                         <Icons.Close size={16} />
                         <span>{toast}</span>
                     </div>
                 </div>
             )}
 
-            {/* Header */}
-            <div className="bg-brand-surface px-4 py-3 border-b border-slate-700 shadow-md z-10 flex justify-between items-center">
-                <div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{activeRound.courseName}</div>
-                    <div className="flex items-center space-x-3">
-                        <h1 className="text-2xl font-extrabold">Hole {viewHole}</h1>
-                        <div className="px-2 py-0.5 bg-slate-800 rounded border border-slate-600">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Par {DEFAULT_PAR}</span>
+            {/* Compact Header */}
+            <div className="relative z-10 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 px-4 py-2.5">
+                <div className="max-w-md mx-auto flex items-center justify-between">
+                    {/* Left: Hole Counter */}
+                    <div className="flex items-baseline space-x-1">
+                        <span className="text-3xl font-black text-white">{viewHole}</span>
+                        <span className="text-slate-500 text-sm font-medium">/ {activeRound.holeCount}</span>
+                    </div>
+                    
+                    {/* Center: Pots - Matching Payment Screen Style */}
+                    {(entryPot > 0 || acePot > 0) && (
+                        <div className="flex items-center space-x-1.5">
+                            {(() => {
+                                // Calculate min-width based on entry pot digits (usually larger)
+                                const maxDigits = Math.max(
+                                    entryPot.toLocaleString().length,
+                                    acePot.toLocaleString().length
+                                );
+                                const minWidth = maxDigits <= 2 ? 'min-w-[40px]' : 
+                                                 maxDigits <= 4 ? 'min-w-[48px]' : 
+                                                 maxDigits <= 6 ? 'min-w-[56px]' : 'min-w-[64px]';
+                                
+                                return (
+                                    <>
+                                        {entryPot > 0 && (
+                                            <div className={`bg-slate-800/80 rounded-lg px-2 py-1 border border-slate-700/50 ${minWidth} text-center`}>
+                                                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider leading-none">Entry</p>
+                                                <p className="text-sm font-bold text-brand-accent leading-tight">{entryPot.toLocaleString()}</p>
+                                            </div>
+                                        )}
+                                        {acePot > 0 && (
+                                            <div className={`bg-slate-800/80 rounded-lg px-2 py-1 border border-slate-700/50 ${minWidth} text-center`}>
+                                                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider leading-none">Ace</p>
+                                                <p className="text-sm font-bold text-brand-secondary leading-tight">{acePot.toLocaleString()}</p>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
+                    )}
+                    
+                    {/* Right: Help & Settings */}
+                    <div className="flex items-center space-x-0.5">
+                        <button className="p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-800/50">
+                            <Icons.Help size={18} />
+                        </button>
+                        <button className="p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-800/50">
+                            <Icons.Settings size={18} />
+                        </button>
                     </div>
                 </div>
-
-
-                {totalPot > 0 && (
-                    <div className="flex flex-col items-end">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total Pot</div>
-                        <div className="text-xl font-bold text-brand-accent">{totalPot.toLocaleString()} <span className="text-xs text-brand-accent/70">sats</span></div>
-                    </div>
-                )}
             </div>
 
             {/* Players List */}
-            <div className="flex-1 overflow-y-auto pb-32">
-                {players.map((p, idx) => {
-                    const currentHoleScore = p.scores[viewHole];
-                    const totalText = getPlayerTotalText(p.scores, p.handicap);
+            <div className="flex-1 overflow-y-auto pb-40">
+                <div className="max-w-md mx-auto px-4 py-4 space-y-3">
+                    {displayPlayers.map((p, idx) => {
+                        const currentHoleScore = p.scores[viewHole];
+                        const totalInfo = getPlayerTotalText(p.scores, p.handicap);
+                        const isAceAnimating = aceAnimation === p.id && currentHoleScore === 1;
 
-                    return (
-                        <div key={p.id} className="flex items-center justify-between p-4 border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-
-                            {/* Left: Info */}
-                            <div className="flex items-center space-x-3 min-w-0 flex-1 mr-4">
-                                {/* Avatar */}
-                                <div className="w-12 h-12 rounded-full bg-slate-700 overflow-hidden shrink-0 border-2 border-slate-600">
-                                    {p.photoUrl ? (
-                                        <img src={p.photoUrl} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Icons.Users className="w-full h-full p-3 text-slate-400" />
-                                    )}
-                                </div>
-
-                                {/* Name & Score */}
-                                <div className="min-w-0">
-                                    <div className="font-bold text-base truncate leading-tight mb-0.5">
-                                        {p.name} {p.isCurrentUser && <span className="text-[10px] text-brand-primary ml-1">(You)</span>}
-                                    </div>
-                                    <div className="text-sm text-slate-400 font-medium">
-                                        {totalText}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Right: Scoring Controls */}
-                            <div className="flex items-center space-x-4 shrink-0">
-                                {isHost ? (
-                                    <>
-                                        {/* Minus */}
-                                        <button
-                                            onClick={() => handleScoreChange(p.id, -1, currentHoleScore)}
-                                            className="w-12 h-12 rounded-full bg-brand-accent flex items-center justify-center shadow-lg shadow-orange-900/20 active:scale-95 transition-transform"
-                                        >
-                                            <div className="w-4 h-1 bg-black rounded-full"></div>
-                                        </button>
-
-                                        {/* Score Display */}
-                                        <div className="w-8 text-center">
-                                            <span className={`text-2xl font-bold ${currentHoleScore ? 'text-white' : 'text-slate-600'}`}>
-                                                {currentHoleScore || '-'}
-                                            </span>
+                        return (
+                            <div 
+                                key={p.id} 
+                                className={`bg-slate-800/40 backdrop-blur border border-slate-700/50 rounded-2xl p-4 transition-all ${p.isCurrentUser ? 'ring-1 ring-emerald-500/30' : ''} ${isAceAnimating ? 'ring-2 ring-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.3)]' : ''}`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    {/* Left: Player Info */}
+                                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                        <div className={`w-12 h-12 rounded-full bg-slate-700 overflow-hidden shrink-0 border-2 ${p.isCurrentUser ? 'border-emerald-500/50' : 'border-slate-600/50'}`}>
+                                            {p.photoUrl ? (
+                                                <img src={p.photoUrl} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <Icons.Users className="w-full h-full p-2 text-slate-400" />
+                                            )}
                                         </div>
 
-                                        {/* Plus */}
-                                        <button
-                                            onClick={() => handleScoreChange(p.id, 1, currentHoleScore)}
-                                            className="w-12 h-12 rounded-full bg-brand-accent flex items-center justify-center shadow-lg shadow-orange-900/20 active:scale-95 transition-transform"
-                                        >
-                                            <div className="relative w-4 h-4">
-                                                <div className="absolute top-1/2 left-0 w-4 h-1 bg-black rounded-full -translate-y-1/2"></div>
-                                                <div className="absolute top-0 left-1/2 w-1 h-4 bg-black rounded-full -translate-x-1/2"></div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-bold text-white truncate flex items-center">
+                                                {p.name}
+                                                {p.isCurrentUser && (
+                                                    <span className="ml-2 text-[10px] text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded shrink-0">YOU</span>
+                                                )}
                                             </div>
-                                        </button>
-                                    </>
-                                ) : (
-                                    /* Read-Only Score Display */
-                                    <div className="w-16 text-center">
-                                        <span className={`text-2xl font-bold ${currentHoleScore ? 'text-white' : 'text-slate-600'}`}>
-                                            {currentHoleScore || '-'}
-                                        </span>
+                                            <div className={`text-sm font-semibold ${parseInt(totalInfo.diff) < 0 ? 'text-emerald-400' : parseInt(totalInfo.diff) > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                                                {totalInfo.diff} <span className="text-slate-500">({totalInfo.total})</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
+
+                                    {/* Right: Scoring Controls */}
+                                    <div className="flex items-center space-x-2 shrink-0">
+                                        {isHost ? (
+                                            <>
+                                                <button
+                                                    onClick={() => handleScoreChange(p.id, -1, currentHoleScore)}
+                                                    className="w-11 h-11 rounded-xl bg-slate-700/80 border border-slate-600/50 flex items-center justify-center active:scale-95 active:bg-slate-600 transition-all hover:border-emerald-500/50 hover:bg-slate-700"
+                                                >
+                                                    <div className="w-4 h-0.5 bg-white rounded-full"></div>
+                                                </button>
+
+                                                <div className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all relative overflow-hidden ${
+                                                    currentHoleScore ? getScoreBg(currentHoleScore, isAceAnimating) : 'bg-slate-800/50 border-slate-700/50'
+                                                }`}>
+                                                    {/* Ace sparkle effect */}
+                                                    {currentHoleScore === 1 && (
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+                                                    )}
+                                                    <span className={`text-2xl font-black relative z-10 ${currentHoleScore === 1 ? 'text-black' : currentHoleScore ? getScoreColor(currentHoleScore) : 'text-slate-600'}`}>
+                                                        {currentHoleScore || '-'}
+                                                    </span>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => handleScoreChange(p.id, 1, currentHoleScore)}
+                                                    className="w-11 h-11 rounded-xl bg-slate-700/80 border border-slate-600/50 flex items-center justify-center active:scale-95 active:bg-slate-600 transition-all hover:border-emerald-500/50 hover:bg-slate-700"
+                                                >
+                                                    <div className="relative w-4 h-4">
+                                                        <div className="absolute top-1/2 left-0 w-4 h-0.5 bg-white rounded-full -translate-y-1/2"></div>
+                                                        <div className="absolute top-0 left-1/2 w-0.5 h-4 bg-white rounded-full -translate-x-1/2"></div>
+                                                    </div>
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 ${
+                                                currentHoleScore ? getScoreBg(currentHoleScore, false) : 'bg-slate-800/50 border-slate-700/50'
+                                            }`}>
+                                                <span className={`text-2xl font-black ${currentHoleScore ? getScoreColor(currentHoleScore) : 'text-slate-600'}`}>
+                                                    {currentHoleScore || '-'}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Bottom Navigation Bar */}
-            <div className="fixed bottom-16 left-0 right-0 bg-brand-surface/90 backdrop-blur border-t border-slate-700 p-4 z-20">
-                <div className="max-w-md mx-auto flex justify-between items-center">
-                    {/* Prev Button */}
-                    <button
-                        onClick={handlePrev}
-                        disabled={viewHole === 1}
-                        className="w-12 h-12 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all hover:bg-slate-700"
-                    >
-                        <Icons.Prev className="text-white" size={24} />
-                    </button>
+            {/* Bottom Navigation Bar - Redesigned */}
+            <div className="fixed bottom-16 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-slate-700/50 z-20">
+                <div className="max-w-md mx-auto px-3 py-3">
+                    {/* Progress Bar */}
+                    <div className="mb-3">
+                        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300"
+                                style={{ width: `${(viewHole / activeRound.holeCount) * 100}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                        {/* Prev Button */}
+                        <button
+                            onClick={handlePrev}
+                            disabled={viewHole === 1}
+                            className="w-11 h-11 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all hover:bg-slate-700 hover:border-slate-600"
+                        >
+                            <Icons.Prev className="text-white" size={18} />
+                        </button>
 
-                    {/* Hole Numbers */}
-                    <div className="flex space-x-1 items-center justify-center overflow-x-auto px-2 no-scrollbar flex-1 mx-2">
-                        {(() => {
-                            const count = activeRound.holeCount;
-                            // Sliding window logic: show 5 numbers centered on current
-                            let start = Math.max(1, viewHole - 2);
-                            let end = Math.min(count, start + 4);
+                        {/* Hole Pills */}
+                        <div className="flex items-center justify-center gap-1 flex-1 mx-2 overflow-hidden">
+                            {(() => {
+                                const count = activeRound.holeCount;
+                                let start = Math.max(1, viewHole - 2);
+                                let end = Math.min(count, start + 4);
+                                if (end - start < 4) start = Math.max(1, end - 4);
+                                start = Math.max(1, start);
 
-                            // Adjust window if at the very end to show 5 items if possible
-                            if (end - start < 4) {
-                                start = Math.max(1, end - 4);
-                            }
+                                const items = [];
+                                for (let i = start; i <= end; i++) {
+                                    if (i === 10 && count >= 10) items.push('REV');
+                                    items.push(i);
+                                }
 
-                            // Ensure start is not less than 1
-                            start = Math.max(1, start);
+                                return items.map(item => {
+                                    if (item === 'REV') {
+                                        return (
+                                            <button
+                                                key="rev"
+                                                onClick={() => setShowHalfwayReview(true)}
+                                                className="w-9 h-9 rounded-lg flex items-center justify-center text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all shrink-0"
+                                            >
+                                                <span className="text-sm">⭐</span>
+                                            </button>
+                                        );
+                                    }
 
-                            const items = [];
-                            for (let i = start; i <= end; i++) {
-                                // Insert Review button between 9 and 10
-                                if (i === 10) items.push('REV');
-                                items.push(i);
-                            }
+                                    const h = item as number;
+                                    const isActive = h === viewHole;
+                                    const complete = isHoleComplete(h);
+                                    const isPast = h < viewHole;
 
-                            return items.map(item => {
-                                if (item === 'REV') {
                                     return (
                                         <button
-                                            key="rev"
-                                            onClick={() => setShowHalfwayReview(true)}
-                                            className="w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shrink-0 text-brand-secondary bg-brand-secondary/10 border border-brand-secondary/30 hover:bg-brand-secondary hover:text-black"
+                                            key={h}
+                                            onClick={() => setViewHole(h)}
+                                            className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all shrink-0 ${
+                                                isActive 
+                                                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/40 scale-110 ring-2 ring-emerald-400/50' 
+                                                    : isPast && !complete 
+                                                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse' 
+                                                        : isPast && complete
+                                                            ? 'bg-slate-700/80 text-emerald-400 border border-emerald-500/30'
+                                                            : 'bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-white hover:bg-slate-700'
+                                            }`}
                                         >
-                                            REV
+                                            {h}
                                         </button>
-                                    );
-                                }
+                                    )
+                                });
+                            })()}
+                        </div>
 
-                                const h = item as number;
-                                const isActive = h === viewHole;
-                                const complete = isHoleComplete(h);
-                                const isPast = h < viewHole;
-
-                                let btnClass = "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all shrink-0 ";
-
-                                if (isActive) {
-                                    btnClass += "bg-brand-primary text-black shadow-lg scale-110";
-                                } else if (isPast && !complete) {
-                                    // Error indication for skipped holes
-                                    btnClass += "bg-red-500/10 text-red-400 border border-red-500/50";
-                                } else {
-                                    btnClass += "text-slate-400 hover:text-white hover:bg-slate-800";
-                                }
-
-                                return (
-                                    <button
-                                        key={h}
-                                        onClick={() => setViewHole(h)}
-                                        className={btnClass}
-                                    >
-                                        {h}
-                                    </button>
-                                )
-                            });
-                        })()}
+                        {/* Next / Finish Button */}
+                        <button
+                            onClick={handleNext}
+                            className={`w-11 h-11 rounded-xl border flex items-center justify-center active:scale-95 transition-all ${viewHole === activeRound.holeCount
+                                ? 'bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/40 ring-2 ring-emerald-400/30 hover:bg-emerald-400'
+                                : 'bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700 hover:border-slate-600'
+                                }`}
+                        >
+                            {viewHole === activeRound.holeCount ? <Icons.CheckMark size={18} /> : <Icons.Next size={18} />}
+                        </button>
                     </div>
-
-                    {/* Next / Finish Button */}
-                    <button
-                        onClick={handleNext}
-                        className={`w-12 h-12 rounded-full border flex items-center justify-center active:scale-95 transition-all ${viewHole === activeRound.holeCount
-                            ? 'bg-brand-primary border-brand-primary text-black shadow-lg hover:bg-emerald-400'
-                            : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                            }`}
-                    >
-                        {viewHole === activeRound.holeCount ? <Icons.CheckMark size={24} /> : <Icons.Next size={24} />}
-                    </button>
                 </div>
             </div>
 
@@ -676,13 +854,19 @@ export const Scorecard: React.FC = () => {
                                     <span className="text-white font-medium">{players.length}</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-400">Total Pot</span>
-                                    <span className="text-emerald-400 font-bold">{totalPot} sats</span>
+                                    <span className="text-slate-400">Entry Pot</span>
+                                    <span className="text-emerald-400 font-bold">{entryPot} sats</span>
                                 </div>
-                                <div className="flex justify-between text-sm">
+                                {acePot > 0 && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-400">Ace Pot</span>
+                                        <span className="text-amber-400 font-bold">{acePot} sats</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-sm border-t border-slate-700/50 pt-2 mt-2">
                                     <span className="text-slate-400">Leader</span>
                                     <span className="text-amber-400 font-medium">
-                                        {[...players].sort((a, b) => a.totalScore - b.totalScore)[0]?.name || '-'}
+                                        {sortedPlayers[0]?.name || '-'}
                                     </span>
                                 </div>
                             </div>
@@ -726,6 +910,17 @@ export const Scorecard: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* CSS for shimmer animation */}
+            <style>{`
+                @keyframes shimmer {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
+                }
+                .animate-shimmer {
+                    animation: shimmer 1.5s infinite;
+                }
+            `}</style>
         </div>
     );
 };

@@ -1440,6 +1440,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setActiveRound(prev => prev ? { ...prev, isFinalized: true } : null);
 
+    // Save to round history
+    try {
+      const historicalRound = {
+        id: activeRound.id,
+        roundName: activeRound.name,
+        courseName: activeRound.courseName,
+        date: activeRound.date,
+        par,
+        holeCount: activeRound.holeCount,
+        standings: sortedPlayers,
+        payouts: payoutsMade,
+        aceWinners,
+        acePotAmount,
+        totalPot: potSize,
+        entryFeeSats: activeRound.entryFeeSats,
+        acePotFeeSats: activeRound.acePotFeeSats,
+        finalizedAt: Date.now()
+      };
+      
+      const existingHistory = localStorage.getItem('cdg_round_history');
+      const history = existingHistory ? JSON.parse(existingHistory) : [];
+      // Add new round at the beginning, limit to 50 rounds
+      history.unshift(historicalRound);
+      if (history.length > 50) history.pop();
+      localStorage.setItem('cdg_round_history', JSON.stringify(history));
+      console.log('📜 Saved round to history');
+    } catch (e) {
+      console.warn('Failed to save round to history:', e);
+    }
+
     // Clear persisted game state from localStorage
     localStorage.removeItem('cdg_active_round');
     localStorage.removeItem('cdg_players');
