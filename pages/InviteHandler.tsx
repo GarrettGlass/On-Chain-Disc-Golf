@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { Icons } from '../components/Icons';
-import { PWAInstallPrompt } from '../components/PWAInstallPrompt';
 
 export const InviteHandler: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -20,7 +19,6 @@ export const InviteHandler: React.FC = () => {
     // Modal State
     const [showNewWorldModal, setShowNewWorldModal] = useState(false);
     const [showWhyKeyModal, setShowWhyKeyModal] = useState(false);
-    const [showPWAPrompt, setShowPWAPrompt] = useState(false);
 
     // Guard to prevent infinite loop
     const hasAttemptedLogin = useRef(false);
@@ -207,8 +205,8 @@ export const InviteHandler: React.FC = () => {
 
                             <button
                                 onClick={() => {
-                                    console.log('[InviteHandler] Show PWA prompt before profile setup');
-                                    setShowPWAPrompt(true);
+                                    console.log('[InviteHandler] Navigate to profile setup');
+                                    navigate('/profile-setup');
                                 }}
                                 className="w-full py-3 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
                             >
@@ -240,10 +238,7 @@ export const InviteHandler: React.FC = () => {
                 </div>
             </div>
 
-            {/* PWA Install Prompt */}
-            {showPWAPrompt && (
-                <PWAInstallPrompt onDismiss={() => navigate('/profile-setup')} />
-            )}
+
 
             {/* Modals rendered via Portal to document.body */}
             {showNewWorldModal && createPortal(

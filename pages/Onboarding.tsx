@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { Icons } from '../components/Icons';
-import { PWAInstallPrompt } from '../components/PWAInstallPrompt';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import { hexToBytes } from '@noble/hashes/utils';
 
@@ -21,7 +20,6 @@ export const Onboarding: React.FC = () => {
     // Modal State
     const [showNewWorldModal, setShowNewWorldModal] = useState(false);
     const [showWhyKeyModal, setShowWhyKeyModal] = useState(false);
-    const [showPWAPrompt, setShowPWAPrompt] = useState(false);
     const [showExistingNsecModal, setShowExistingNsecModal] = useState(false);
     const [existingNsecInput, setExistingNsecInput] = useState('');
     const [isLoggingInExisting, setIsLoggingInExisting] = useState(false);
@@ -35,18 +33,8 @@ export const Onboarding: React.FC = () => {
 
         const loadExistingSession = () => {
             try {
-                console.log('[📱 Onboarding] Loading existing session...', {
-                    isPWA: window.matchMedia('(display-mode: standalone)').matches,
-                    hasHash: window.location.hash.length > 0
-                });
-
                 // Get the existing guest session's nsec from localStorage
                 const existingSk = localStorage.getItem('nostr_sk');
-
-                console.log('[📱 Onboarding] localStorage check:', {
-                    hasKey: !!existingSk,
-                    keyPreview: existingSk ? existingSk.substring(0, 8) + '...' : 'none'
-                });
 
                 if (existingSk) {
                     // User already has a session (guest or otherwise)
@@ -54,10 +42,9 @@ export const Onboarding: React.FC = () => {
                     const nsec = nip19.nsecEncode(hexToBytes(existingSk));
                     setGeneratedNsec(nsec);
                     setStatus('success');
-                    console.log('[✅ Onboarding] Successfully loaded existing keypair');
                 } else {
                     // Fallback: generate new keypair if somehow no session exists
-                    console.warn('[⚠️ Onboarding] No existing session found, generating new keypair');
+                    console.warn('[Onboarding] No existing session found, generating new keypair');
                     const sk = generateSecretKey();
                     const nsec = nip19.nsecEncode(sk);
                     loginNsec(nsec); // This will save to localStorage
@@ -65,7 +52,7 @@ export const Onboarding: React.FC = () => {
                     setStatus('success');
                 }
             } catch (e) {
-                console.error("[❌ Onboarding] Session load failed:", e);
+                console.error("Session load failed:", e);
                 setStatus('error');
                 setErrorMessage('Failed to load session. Please refresh the page.');
             }
@@ -101,7 +88,7 @@ export const Onboarding: React.FC = () => {
         try {
             await loginNsec(existingNsecInput.trim());
             setShowExistingNsecModal(false);
-            setShowPWAPrompt(true);
+            navigate('/profile-setup');
         } catch (e) {
             console.error("Login with existing nsec failed:", e);
             alert('Invalid nsec. Please check and try again.');
@@ -255,8 +242,8 @@ export const Onboarding: React.FC = () => {
 
                             <button
                                 onClick={() => {
-                                    console.log('[Onboarding] Navigate to profile setup via PWA prompt');
-                                    setShowPWAPrompt(true);
+                                    console.log('[Onboarding] Navigate to profile setup');
+                                    navigate('/profile-setup');
                                 }}
                                 className="w-full py-3 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
                             >
@@ -284,10 +271,7 @@ export const Onboarding: React.FC = () => {
                 </div>
             </div>
 
-            {/* PWA Install Prompt */}
-            {showPWAPrompt && (
-                <PWAInstallPrompt onDismiss={() => navigate('/profile-setup')} />
-            )}
+
 
             {/* Existing Nsec Input Modal */}
             {showExistingNsecModal && createPortal(
