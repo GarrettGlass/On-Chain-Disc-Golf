@@ -201,10 +201,7 @@ MIT License — see [LICENSE](LICENSE)
 
 ## 💜 Support the Project
 
-On-Chain Disc Golf is open source and community-funded.
-
-- **GitHub Sponsors:** [Sponsor @GarrettGlass](https://github.com/sponsors/GarrettGlass)
-- **Zap us on Nostr:** Find us at `@onchaindiscgolf` on your favorite Nostr client
+All you have to do is... PLAY DISC GOLF ON-CHAIN <3
 
 ---
 
