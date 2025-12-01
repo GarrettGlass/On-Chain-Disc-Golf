@@ -40,7 +40,6 @@ export const MnemonicBackup: React.FC<MnemonicBackupProps> = ({
 }) => {
     const [copied, setCopied] = useState(false);
     const [showWords, setShowWords] = useState(false);
-    const [hasConfirmedSaved, setHasConfirmedSaved] = useState(false);
     const [showBackupOptions, setShowBackupOptions] = useState(false);
     
     // Backup option states
@@ -196,92 +195,80 @@ export const MnemonicBackup: React.FC<MnemonicBackupProps> = ({
                     </button>
                 )}
 
-                {/* More Ways to Save - Accordion */}
-                {showWords && (
-                    <div className="mt-4">
-                        <button
-                            onClick={() => setShowBackupOptions(!showBackupOptions)}
-                            className="w-full py-3 px-4 flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors"
-                        >
-                            <div className="flex items-center space-x-2">
-                                <span className="text-lg">💾</span>
-                                <span className="text-slate-300 font-medium">More Ways to Save</span>
-                            </div>
-                            <Icons.ChevronDown 
-                                size={20} 
-                                className={`text-slate-400 transition-transform duration-200 ${showBackupOptions ? 'rotate-180' : ''}`}
-                            />
-                        </button>
+                {/* More Ways to Save - Accordion (always visible) */}
+                <div className="mt-4">
+                    <button
+                        onClick={() => setShowBackupOptions(!showBackupOptions)}
+                        className="w-full py-3 px-4 flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors"
+                    >
+                        <div className="flex items-center space-x-2">
+                            <Icons.Shield className="text-teal-400" size={18} />
+                            <span className="text-slate-300 font-medium">More Ways to Save</span>
+                        </div>
+                        <Icons.ChevronDown 
+                            size={20} 
+                            className={`text-slate-400 transition-transform duration-200 ${showBackupOptions ? 'rotate-180' : ''}`}
+                        />
+                    </button>
 
-                        {showBackupOptions && (
-                            <div className="mt-2 space-y-2 animate-in slide-in-from-top-2 duration-200">
-                                {/* QR Code Option */}
-                                <button
-                                    onClick={handleShowQR}
-                                    className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
-                                >
-                                    <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                                        <Icons.QrCode className="text-purple-400" size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="text-white font-medium text-sm">Save as QR Code</p>
-                                        <p className="text-slate-500 text-xs">Quick scan for recovery</p>
-                                    </div>
-                                </button>
+                    {showBackupOptions && (
+                        <div className="mt-2 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                            {/* QR Code Option */}
+                            <button
+                                onClick={handleShowQR}
+                                className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
+                            >
+                                <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                    <Icons.QrCode className="text-purple-400" size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-white font-medium text-sm">Save as QR Code</p>
+                                    <p className="text-slate-500 text-xs">Quick scan for recovery</p>
+                                </div>
+                            </button>
 
-                                {/* PDF Wallet Card Option */}
-                                <button
-                                    onClick={handleDownloadPDF}
-                                    className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
-                                >
-                                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                                        <svg className="text-blue-400 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p className="text-white font-medium text-sm">Download Wallet Card</p>
-                                        <p className="text-slate-500 text-xs">PDF with words + memory story</p>
-                                    </div>
-                                </button>
+                            {/* PDF Wallet Card Option */}
+                            <button
+                                onClick={handleDownloadPDF}
+                                className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
+                            >
+                                <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                                    <Icons.Zap className="text-orange-400" size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-white font-medium text-sm">Download Wallet Card</p>
+                                    <p className="text-slate-500 text-xs">PDF with words + memory story</p>
+                                </div>
+                            </button>
 
-                                {/* Nostr Backup Option */}
-                                <button
-                                    onClick={() => setShowNostrModal(true)}
-                                    className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
-                                >
-                                    <div className="w-10 h-10 bg-teal-500/20 rounded-lg flex items-center justify-center">
-                                        <span className="text-lg">🌐</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-white font-medium text-sm">Backup to Nostr</p>
-                                        <p className="text-slate-500 text-xs">Encrypted cloud backup</p>
-                                    </div>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
+                            {/* Nostr Backup Option */}
+                            <button
+                                onClick={() => setShowNostrModal(true)}
+                                className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
+                            >
+                                <div className="w-10 h-10 bg-teal-500/20 rounded-lg flex items-center justify-center">
+                                    <Icons.Key className="text-teal-400" size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-white font-medium text-sm">Backup to Nostr</p>
+                                    <p className="text-slate-500 text-xs">Encrypted cloud backup</p>
+                                </div>
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Confirmation & Continue */}
-            <div className="p-4 space-y-3">
-                <label className="flex items-start space-x-3 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={hasConfirmedSaved}
-                        onChange={(e) => setHasConfirmedSaved(e.target.checked)}
-                        className="mt-1 w-5 h-5 rounded border-2 border-amber-500 bg-transparent checked:bg-amber-500 focus:ring-amber-500 accent-amber-500"
-                    />
-                    <span className="text-slate-300 text-sm">
-                        I have saved my recovery phrase
-                    </span>
-                </label>
+            {/* Continue Section - Minimal friction */}
+            <div className="p-4 space-y-2">
+                {/* Reassurance note */}
+                <p className="text-center text-slate-500 text-xs">
+                    You can view these words anytime in your <span className="text-teal-400">Wallet settings</span>
+                </p>
 
                 <button
                     onClick={onComplete}
-                    disabled={!hasConfirmedSaved || !showWords}
-                    className="w-full py-3 bg-gradient-to-r from-brand-primary to-cyan-400 text-black font-bold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    className="w-full py-3.5 bg-gradient-to-r from-brand-primary to-cyan-400 text-black font-bold rounded-xl hover:opacity-90 transition-all flex items-center justify-center space-x-2 shadow-lg shadow-brand-primary/20"
                 >
                     <span>Continue</span>
                     <Icons.Next size={18} />
