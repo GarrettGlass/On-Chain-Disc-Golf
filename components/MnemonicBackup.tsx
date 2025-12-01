@@ -2,18 +2,26 @@
  * MnemonicBackup Component
  * 
  * Displays 12/24 word mnemonic phrase for user backup.
- * Includes verification step where user confirms random words.
+ * Includes multiple backup options:
+ * - Copy to clipboard
+ * - QR Code with branding
+ * - PDF Wallet Card with memory story
+ * - Nostr encrypted backup
  * 
- * Flow:
- * 1. Display all words in a grid
- * 2. User confirms they've saved the words
- * 3. Verification: User enters 3 random words to confirm backup
- * 4. Success callback when verification passes
+ * NO VERIFICATION STEP - Users may be on the disc golf course ready to play!
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Icons } from './Icons';
-import { splitMnemonicToWords, getVerificationIndices } from '../services/mnemonicService';
+import { splitMnemonicToWords } from '../services/mnemonicService';
+import { 
+    generateBrandedQRCode, 
+    downloadQRCode, 
+    downloadWalletCardPDF,
+    generateMemoryStory,
+    backupToNostr,
+    hasNostrBackup
+} from '../services/backupService';
 
 interface MnemonicBackupProps {
     mnemonic: string;
@@ -21,36 +29,32 @@ interface MnemonicBackupProps {
     onBack?: () => void;
     title?: string;
     subtitle?: string;
-    showVerification?: boolean;
 }
-
-type Step = 'display' | 'verify' | 'complete';
 
 export const MnemonicBackup: React.FC<MnemonicBackupProps> = ({
     mnemonic,
     onComplete,
     onBack,
     title = "Save Your Recovery Phrase",
-    subtitle = "These 12 words are the ONLY way to recover your account and funds. Write them down and keep them safe.",
-    showVerification = true
+    subtitle = "These 12 words are the ONLY way to recover your account and wallet."
 }) => {
-    const [step, setStep] = useState<Step>('display');
     const [copied, setCopied] = useState(false);
     const [showWords, setShowWords] = useState(false);
-    const [verificationInputs, setVerificationInputs] = useState<string[]>(['', '', '']);
-    const [verificationError, setVerificationError] = useState(false);
     const [hasConfirmedSaved, setHasConfirmedSaved] = useState(false);
+    const [showBackupOptions, setShowBackupOptions] = useState(false);
+    
+    // Backup option states
+    const [showQRModal, setShowQRModal] = useState(false);
+    const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+    const [showNostrModal, setShowNostrModal] = useState(false);
+    const [nostrPassword, setNostrPassword] = useState('');
+    const [nostrPasswordConfirm, setNostrPasswordConfirm] = useState('');
+    const [nostrBackupSuccess, setNostrBackupSuccess] = useState(false);
+    const [nostrBackupError, setNostrBackupError] = useState('');
+    const [isBackingUp, setIsBackingUp] = useState(false);
 
     const words = useMemo(() => splitMnemonicToWords(mnemonic), [mnemonic]);
-    const verificationIndices = useMemo(() => getVerificationIndices(words.length, 3), [words.length]);
-
-    // Reset verification inputs when step changes
-    useEffect(() => {
-        if (step === 'verify') {
-            setVerificationInputs(['', '', '']);
-            setVerificationError(false);
-        }
-    }, [step]);
+    const memoryStory = useMemo(() => generateMemoryStory(mnemonic), [mnemonic]);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(mnemonic);
@@ -58,251 +62,357 @@ export const MnemonicBackup: React.FC<MnemonicBackupProps> = ({
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleProceedToVerify = () => {
-        if (showVerification) {
-            setStep('verify');
-        } else {
-            onComplete();
+    const handleShowQR = async () => {
+        const url = await generateBrandedQRCode(mnemonic);
+        setQrCodeUrl(url);
+        setShowQRModal(true);
+    };
+
+    const handleDownloadQR = async () => {
+        await downloadQRCode(mnemonic);
+    };
+
+    const handleDownloadPDF = async () => {
+        await downloadWalletCardPDF(mnemonic);
+    };
+
+    const handleNostrBackup = async () => {
+        if (nostrPassword !== nostrPasswordConfirm) {
+            setNostrBackupError('Passwords do not match');
+            return;
+        }
+        if (nostrPassword.length < 6) {
+            setNostrBackupError('Password must be at least 6 characters');
+            return;
+        }
+
+        setIsBackingUp(true);
+        setNostrBackupError('');
+
+        try {
+            const success = await backupToNostr(mnemonic, nostrPassword);
+            if (success) {
+                setNostrBackupSuccess(true);
+                setTimeout(() => {
+                    setShowNostrModal(false);
+                    setNostrBackupSuccess(false);
+                    setNostrPassword('');
+                    setNostrPasswordConfirm('');
+                }, 2000);
+            } else {
+                setNostrBackupError('Backup failed. Please try again.');
+            }
+        } catch (e) {
+            setNostrBackupError('Backup failed. Please try again.');
+        } finally {
+            setIsBackingUp(false);
         }
     };
 
-    const handleVerify = () => {
-        // Check if all inputs match the words at the verification indices
-        const allCorrect = verificationIndices.every((wordIndex, inputIndex) => {
-            const inputWord = verificationInputs[inputIndex].trim().toLowerCase();
-            return inputWord === words[wordIndex].toLowerCase();
-        });
-
-        if (allCorrect) {
-            setStep('complete');
-            setTimeout(onComplete, 1500); // Brief success animation before callback
-        } else {
-            setVerificationError(true);
-            setTimeout(() => setVerificationError(false), 2000);
-        }
-    };
-
-    const handleVerificationInput = (index: number, value: string) => {
-        const newInputs = [...verificationInputs];
-        newInputs[index] = value;
-        setVerificationInputs(newInputs);
-        setVerificationError(false);
-    };
-
-    // Display Step - Show all 12 words
-    if (step === 'display') {
-        return (
-            <div className="flex flex-col h-full animate-in fade-in duration-300">
-                {/* Header */}
-                <div className="text-center mb-4">
-                    {onBack && (
-                        <button
-                            onClick={onBack}
-                            className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white transition-colors"
-                        >
-                            <Icons.Back size={24} />
-                        </button>
-                    )}
-
-                    <div className="w-16 h-16 mx-auto mb-3 bg-amber-500/20 rounded-full flex items-center justify-center border-2 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-                        <Icons.Key className="text-amber-500" size={32} />
-                    </div>
-
-                    <h2 className="text-xl font-bold text-white mb-2">{title}</h2>
-                    <p className="text-slate-400 text-sm px-4">{subtitle}</p>
-                </div>
-
-                {/* Warning Banner */}
-                <div className="mx-4 mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
-                    <div className="flex items-start space-x-2">
-                        <Icons.Shield className="text-red-400 shrink-0 mt-0.5" size={18} />
-                        <div className="text-xs text-red-300">
-                            <strong className="block mb-1">Never share these words!</strong>
-                            Anyone with these words can steal your funds. We will NEVER ask for them.
-                        </div>
-                    </div>
-                </div>
-
-                {/* Word Grid */}
-                <div className="flex-1 mx-4 overflow-y-auto">
-                    <div className="relative">
-                        {/* Blur overlay when hidden */}
-                        {!showWords && (
-                            <div
-                                className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-md rounded-xl z-10 cursor-pointer"
-                                onClick={() => setShowWords(true)}
-                            >
-                                <div className="text-center p-4">
-                                    <Icons.Eye className="mx-auto text-slate-400 mb-2" size={32} />
-                                    <p className="text-slate-300 font-medium text-sm">Tap to reveal words</p>
-                                    <p className="text-slate-500 text-xs mt-1">Make sure no one is watching</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Word Grid */}
-                        <div className="grid grid-cols-3 gap-2 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-                            {words.map((word, index) => (
-                                <div
-                                    key={index}
-                                    className="flex items-center bg-slate-900/50 rounded-lg p-2 border border-slate-700"
-                                >
-                                    <span className="text-slate-500 text-xs font-mono w-5 shrink-0">
-                                        {index + 1}.
-                                    </span>
-                                    <span className="text-white font-mono text-sm">
-                                        {showWords ? word : '•••••'}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Copy Button */}
-                    {showWords && (
-                        <button
-                            onClick={handleCopy}
-                            className="mt-3 w-full py-2 flex items-center justify-center space-x-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors text-sm"
-                        >
-                            {copied ? (
-                                <>
-                                    <Icons.Check size={16} className="text-green-400" />
-                                    <span className="text-green-400">Copied!</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Icons.Copy size={16} className="text-slate-400" />
-                                    <span className="text-slate-300">Copy to clipboard</span>
-                                </>
-                            )}
-                        </button>
-                    )}
-                </div>
-
-                {/* Confirmation Checkbox & Continue Button */}
-                <div className="p-4 space-y-3">
-                    <label className="flex items-start space-x-3 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={hasConfirmedSaved}
-                            onChange={(e) => setHasConfirmedSaved(e.target.checked)}
-                            className="mt-1 w-5 h-5 rounded border-2 border-amber-500 bg-transparent checked:bg-amber-500 focus:ring-amber-500"
-                        />
-                        <span className="text-slate-300 text-sm">
-                            I have written down my recovery phrase and stored it safely
-                        </span>
-                    </label>
-
+    return (
+        <div className="flex flex-col h-full animate-in fade-in duration-300">
+            {/* Header */}
+            <div className="text-center mb-4">
+                {onBack && (
                     <button
-                        onClick={handleProceedToVerify}
-                        disabled={!hasConfirmedSaved || !showWords}
-                        className="w-full py-3 bg-amber-500 text-black font-bold rounded-xl hover:bg-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-                    >
-                        <span>{showVerification ? 'Verify Backup' : 'Continue'}</span>
-                        <Icons.Next size={18} />
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // Verification Step - User enters 3 random words
-    if (step === 'verify') {
-        return (
-            <div className="flex flex-col h-full animate-in fade-in duration-300">
-                {/* Header */}
-                <div className="text-center mb-6">
-                    <button
-                        onClick={() => setStep('display')}
+                        onClick={onBack}
                         className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white transition-colors"
                     >
                         <Icons.Back size={24} />
                     </button>
+                )}
 
-                    <div className="w-16 h-16 mx-auto mb-3 bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                        <Icons.Shield className="text-purple-500" size={32} />
-                    </div>
-
-                    <h2 className="text-xl font-bold text-white mb-2">Verify Your Backup</h2>
-                    <p className="text-slate-400 text-sm px-4">
-                        Enter the following words from your recovery phrase
-                    </p>
+                <div className="w-16 h-16 mx-auto mb-3 bg-amber-500/20 rounded-full flex items-center justify-center border-2 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                    <Icons.Key className="text-amber-500" size={32} />
                 </div>
 
-                {/* Verification Inputs */}
-                <div className="flex-1 mx-4 space-y-4">
-                    {verificationIndices.map((wordIndex, inputIndex) => (
-                        <div key={wordIndex} className="space-y-2">
-                            <label className="text-slate-400 text-sm font-medium">
-                                Word #{wordIndex + 1}
-                            </label>
-                            <input
-                                type="text"
-                                value={verificationInputs[inputIndex]}
-                                onChange={(e) => handleVerificationInput(inputIndex, e.target.value)}
-                                placeholder={`Enter word #${wordIndex + 1}`}
-                                className={`w-full px-4 py-3 bg-slate-800/50 border rounded-xl text-white font-mono focus:outline-none transition-colors ${verificationError
-                                        ? 'border-red-500 focus:border-red-500'
-                                        : 'border-slate-700 focus:border-purple-500'
-                                    }`}
-                                autoComplete="off"
-                                autoCapitalize="none"
-                                spellCheck={false}
-                            />
-                        </div>
-                    ))}
+                <h2 className="text-xl font-bold text-white mb-2">{title}</h2>
+                <p className="text-slate-400 text-sm px-4">{subtitle}</p>
+            </div>
 
-                    {verificationError && (
-                        <div className="flex items-center space-x-2 text-red-400 text-sm animate-in shake">
-                            <Icons.Close size={16} />
-                            <span>Incorrect words. Please try again.</span>
+            {/* Warning Banner */}
+            <div className="mx-4 mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                <div className="flex items-start space-x-2">
+                    <Icons.Shield className="text-red-400 shrink-0 mt-0.5" size={18} />
+                    <div className="text-xs text-red-300">
+                        <strong className="block mb-1">Never share these words!</strong>
+                        Anyone with these words can steal your funds. We will NEVER ask for them.
+                    </div>
+                </div>
+            </div>
+
+            {/* Word Grid */}
+            <div className="flex-1 mx-4 overflow-y-auto">
+                <div className="relative">
+                    {/* Blur overlay when hidden */}
+                    {!showWords && (
+                        <div
+                            className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-md rounded-xl z-10 cursor-pointer"
+                            onClick={() => setShowWords(true)}
+                        >
+                            <div className="text-center p-4">
+                                <Icons.Eye className="mx-auto text-slate-400 mb-2" size={32} />
+                                <p className="text-slate-300 font-medium text-sm">Tap to reveal words</p>
+                                <p className="text-slate-500 text-xs mt-1">Make sure no one is watching</p>
+                            </div>
                         </div>
                     )}
+
+                    {/* Word Grid */}
+                    <div className="grid grid-cols-3 gap-2 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                        {words.map((word, index) => (
+                            <div
+                                key={index}
+                                className="flex items-center bg-slate-900/50 rounded-lg p-2 border border-slate-700"
+                            >
+                                <span className="text-slate-500 text-xs font-mono w-5 shrink-0">
+                                    {index + 1}.
+                                </span>
+                                <span className="text-white font-mono text-sm">
+                                    {showWords ? word : '•••••'}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Verify Button */}
-                <div className="p-4">
+                {/* Copy Button */}
+                {showWords && (
                     <button
-                        onClick={handleVerify}
-                        disabled={verificationInputs.some(v => !v.trim())}
-                        className="w-full py-3 bg-purple-500 text-white font-bold rounded-xl hover:bg-purple-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                        onClick={handleCopy}
+                        className="mt-3 w-full py-2 flex items-center justify-center space-x-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors text-sm"
                     >
-                        <Icons.Shield size={18} />
-                        <span>Verify</span>
+                        {copied ? (
+                            <>
+                                <Icons.CheckMark size={16} className="text-green-400" />
+                                <span className="text-green-400">Copied!</span>
+                            </>
+                        ) : (
+                            <>
+                                <Icons.Copy size={16} className="text-slate-400" />
+                                <span className="text-slate-300">Copy to clipboard</span>
+                            </>
+                        )}
                     </button>
+                )}
 
-                    <button
-                        onClick={() => setStep('display')}
-                        className="w-full mt-2 py-2 text-slate-400 hover:text-white text-sm transition-colors"
-                    >
-                        Go back and view words
-                    </button>
-                </div>
+                {/* More Ways to Save - Accordion */}
+                {showWords && (
+                    <div className="mt-4">
+                        <button
+                            onClick={() => setShowBackupOptions(!showBackupOptions)}
+                            className="w-full py-3 px-4 flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-colors"
+                        >
+                            <div className="flex items-center space-x-2">
+                                <span className="text-lg">💾</span>
+                                <span className="text-slate-300 font-medium">More Ways to Save</span>
+                            </div>
+                            <Icons.ChevronDown 
+                                size={20} 
+                                className={`text-slate-400 transition-transform duration-200 ${showBackupOptions ? 'rotate-180' : ''}`}
+                            />
+                        </button>
+
+                        {showBackupOptions && (
+                            <div className="mt-2 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                                {/* QR Code Option */}
+                                <button
+                                    onClick={handleShowQR}
+                                    className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
+                                >
+                                    <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                        <Icons.QrCode className="text-purple-400" size={20} />
+                                    </div>
+                                    <div>
+                                        <p className="text-white font-medium text-sm">Save as QR Code</p>
+                                        <p className="text-slate-500 text-xs">Quick scan for recovery</p>
+                                    </div>
+                                </button>
+
+                                {/* PDF Wallet Card Option */}
+                                <button
+                                    onClick={handleDownloadPDF}
+                                    className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
+                                >
+                                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                        <svg className="text-blue-400 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-white font-medium text-sm">Download Wallet Card</p>
+                                        <p className="text-slate-500 text-xs">PDF with words + memory story</p>
+                                    </div>
+                                </button>
+
+                                {/* Nostr Backup Option */}
+                                <button
+                                    onClick={() => setShowNostrModal(true)}
+                                    className="w-full p-3 flex items-center space-x-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors text-left"
+                                >
+                                    <div className="w-10 h-10 bg-teal-500/20 rounded-lg flex items-center justify-center">
+                                        <span className="text-lg">🌐</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-white font-medium text-sm">Backup to Nostr</p>
+                                        <p className="text-slate-500 text-xs">Encrypted cloud backup</p>
+                                    </div>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
-        );
-    }
 
-    // Complete Step - Success animation
-    if (step === 'complete') {
-        return (
-            <div className="flex flex-col items-center justify-center h-full animate-in zoom-in duration-300">
-                <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center border-2 border-green-500 shadow-[0_0_30px_rgba(34,197,94,0.4)] animate-pulse">
-                    <Icons.Check className="text-green-500" size={48} />
-                </div>
+            {/* Confirmation & Continue */}
+            <div className="p-4 space-y-3">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={hasConfirmedSaved}
+                        onChange={(e) => setHasConfirmedSaved(e.target.checked)}
+                        className="mt-1 w-5 h-5 rounded border-2 border-amber-500 bg-transparent checked:bg-amber-500 focus:ring-amber-500 accent-amber-500"
+                    />
+                    <span className="text-slate-300 text-sm">
+                        I have saved my recovery phrase
+                    </span>
+                </label>
 
-                <h2 className="text-2xl font-bold text-white mt-6">Backup Verified!</h2>
-                <p className="text-slate-400 text-center mt-2 px-8">
-                    Your recovery phrase is safely backed up. You're ready to go!
-                </p>
+                <button
+                    onClick={onComplete}
+                    disabled={!hasConfirmedSaved || !showWords}
+                    className="w-full py-3 bg-gradient-to-r from-brand-primary to-cyan-400 text-black font-bold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                    <span>Continue</span>
+                    <Icons.Next size={18} />
+                </button>
             </div>
-        );
-    }
 
-    return null;
+            {/* QR Code Modal */}
+            {showQRModal && qrCodeUrl && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-white">QR Code Backup</h3>
+                                <button onClick={() => setShowQRModal(false)} className="text-slate-400 hover:text-white">
+                                    <Icons.Close size={24} />
+                                </button>
+                            </div>
+
+                            <div className="flex justify-center">
+                                <img src={qrCodeUrl} alt="Recovery QR Code" className="rounded-lg" />
+                            </div>
+
+                            <p className="text-xs text-slate-400 text-center">
+                                Screenshot or save this image. Scan to recover your wallet.
+                            </p>
+
+                            <div className="flex space-x-2">
+                                <button
+                                    onClick={() => setShowQRModal(false)}
+                                    className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600 transition-colors"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={handleDownloadQR}
+                                    className="flex-1 py-3 bg-purple-500 text-white font-bold rounded-xl hover:bg-purple-400 transition-colors"
+                                >
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Nostr Backup Modal */}
+            {showNostrModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-white">Backup to Nostr</h3>
+                                <button onClick={() => setShowNostrModal(false)} className="text-slate-400 hover:text-white">
+                                    <Icons.Close size={24} />
+                                </button>
+                            </div>
+
+                            {nostrBackupSuccess ? (
+                                <div className="text-center py-8">
+                                    <div className="w-16 h-16 mx-auto bg-green-500/20 rounded-full flex items-center justify-center border-2 border-green-500 mb-4">
+                                        <Icons.CheckMark className="text-green-500" size={32} />
+                                    </div>
+                                    <p className="text-green-400 font-medium">Backup Complete!</p>
+                                    <p className="text-slate-500 text-sm mt-1">Your encrypted backup is saved</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="bg-teal-500/10 border border-teal-500/30 rounded-xl p-3">
+                                        <p className="text-xs text-teal-300">
+                                            <strong>How it works:</strong> Your recovery phrase is encrypted with a password you choose, then stored on Nostr relays. Only you can decrypt it.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="block text-slate-400 text-xs mb-1">Choose a password</label>
+                                            <input
+                                                type="password"
+                                                value={nostrPassword}
+                                                onChange={(e) => setNostrPassword(e.target.value)}
+                                                placeholder="Enter password"
+                                                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm focus:border-teal-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-slate-400 text-xs mb-1">Confirm password</label>
+                                            <input
+                                                type="password"
+                                                value={nostrPasswordConfirm}
+                                                onChange={(e) => setNostrPasswordConfirm(e.target.value)}
+                                                placeholder="Confirm password"
+                                                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm focus:border-teal-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {nostrBackupError && (
+                                        <p className="text-red-400 text-xs">{nostrBackupError}</p>
+                                    )}
+
+                                    <p className="text-xs text-slate-500">
+                                        ⚠️ Remember this password! You'll need it to recover your wallet.
+                                    </p>
+
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={() => setShowNostrModal(false)}
+                                            className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleNostrBackup}
+                                            disabled={isBackingUp || !nostrPassword || !nostrPasswordConfirm}
+                                            className="flex-1 py-3 bg-teal-500 text-white font-bold rounded-xl hover:bg-teal-400 transition-colors disabled:opacity-50"
+                                        >
+                                            {isBackingUp ? 'Backing up...' : 'Backup'}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 /**
- * Simplified Mnemonic Display (no verification)
+ * Simplified Mnemonic Display (no backup options)
  * For showing existing mnemonic in settings/profile
  */
 export const MnemonicDisplay: React.FC<{
@@ -371,7 +481,7 @@ export const MnemonicDisplay: React.FC<{
                     >
                         {copied ? (
                             <>
-                                <Icons.Check size={16} className="text-green-400" />
+                                <Icons.CheckMark size={16} className="text-green-400" />
                                 <span className="text-green-400">Copied!</span>
                             </>
                         ) : (
@@ -388,7 +498,7 @@ export const MnemonicDisplay: React.FC<{
                         onClick={() => setShowWords(false)}
                         className="flex-1 py-2 flex items-center justify-center space-x-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors text-sm"
                     >
-                        <Icons.Eye className="text-slate-400" size={16} />
+                        <Icons.EyeOff className="text-slate-400" size={16} />
                         <span className="text-slate-300">Hide</span>
                     </button>
                 )}
@@ -558,4 +668,3 @@ export const MnemonicRecoveryInput: React.FC<{
 };
 
 export default MnemonicBackup;
-
