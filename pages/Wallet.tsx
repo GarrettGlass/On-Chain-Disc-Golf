@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { Icons } from '../components/Icons';
 import { FeedbackModal, FeedbackButton } from '../components/FeedbackModal';
 import { useNavigate } from 'react-router-dom';
+import { getBtcPrice, satsToUsd } from '../services/priceService';
 
 // Helper Component for Success Animation
 const SuccessOverlay: React.FC<{
@@ -209,6 +210,12 @@ export const Wallet: React.FC = () => {
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [transitionDirection, setTransitionDirection] = useState<'left' | 'right'>('left');
     
+    // Balance display toggle (SATS ↔ USD)
+    const [showUsd, setShowUsd] = useState(false);
+    const [usdValue, setUsdValue] = useState<string | null>(null);
+    const [isFetchingPrice, setIsFetchingPrice] = useState(false);
+    const usdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
     // Calculate gradient colors based on current selection
     const leftGlowType = getLeftGlowColor(walletMode);
     const rightGlowColor = WALLET_COLORS[walletMode];
@@ -234,6 +241,53 @@ export const Wallet: React.FC = () => {
             setIsTransitioning(false);
         }, 500);
     };
+    
+    // Handle balance tap to show USD for 3 seconds
+    const handleBalanceTap = async () => {
+        // If already showing USD, clear and return to sats immediately
+        if (showUsd) {
+            if (usdTimeoutRef.current) {
+                clearTimeout(usdTimeoutRef.current);
+                usdTimeoutRef.current = null;
+            }
+            setShowUsd(false);
+            return;
+        }
+        
+        // Don't fetch if already fetching
+        if (isFetchingPrice) return;
+        
+        setIsFetchingPrice(true);
+        
+        try {
+            const btcPrice = await getBtcPrice();
+            
+            if (btcPrice) {
+                const usd = satsToUsd(walletBalance, btcPrice);
+                setUsdValue(usd);
+                setShowUsd(true);
+                
+                // Auto-switch back to sats after 3 seconds
+                usdTimeoutRef.current = setTimeout(() => {
+                    setShowUsd(false);
+                    usdTimeoutRef.current = null;
+                }, 3000);
+            }
+        } catch (error) {
+            console.error('Failed to fetch price:', error);
+        } finally {
+            setIsFetchingPrice(false);
+        }
+    };
+    
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (usdTimeoutRef.current) {
+                clearTimeout(usdTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const [view, setView] = useState<'main' | 'receive' | 'deposit' | 'send-input' | 'send-contacts' | 'send-details' | 'settings'>('main');
     const [sendAmount, setSendAmount] = useState('');
@@ -1590,24 +1644,46 @@ export const Wallet: React.FC = () => {
                         <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Available Balance</p>
                     </div>
 
-                    <div className="flex items-baseline space-x-1 mb-8">
-                        <span 
-                            className={`text-5xl font-extrabold tracking-tight drop-shadow-sm transition-all duration-300 ${
-                                isBalanceLoading 
-                                    ? 'balance-shimmer' 
-                                    : 'text-white'
-                            }`}
-                        >
-                            {walletBalance.toLocaleString()}
+                    {/* Tappable Balance - toggles between SATS and USD */}
+                    <button 
+                        onClick={handleBalanceTap}
+                        disabled={isBalanceLoading}
+                        className="flex items-baseline space-x-1 mb-8 cursor-pointer active:scale-95 transition-transform select-none"
+                    >
+                        <div className="relative overflow-hidden">
+                            {/* SATS display */}
+                            <span 
+                                className={`text-5xl font-extrabold tracking-tight drop-shadow-sm transition-all duration-300 ${
+                                    isBalanceLoading || isFetchingPrice
+                                        ? 'balance-shimmer' 
+                                        : 'text-white'
+                                } ${showUsd ? 'opacity-0 absolute' : 'opacity-100'}`}
+                            >
+                                {walletBalance.toLocaleString()}
+                            </span>
+                            
+                            {/* USD display */}
+                            <span 
+                                className={`text-5xl font-extrabold tracking-tight drop-shadow-sm transition-all duration-300 text-green-400 ${
+                                    showUsd ? 'opacity-100' : 'opacity-0 absolute'
+                                }`}
+                            >
+                                {usdValue || '$0.00'}
+                            </span>
+                        </div>
+                        
+                        <span className={`text-xl font-bold transition-all duration-300 ${
+                            showUsd 
+                                ? 'text-green-400'
+                                : walletMode === 'breez' 
+                                    ? 'text-blue-400' 
+                                    : walletMode === 'nwc' 
+                                        ? 'text-purple-400' 
+                                        : 'text-emerald-400'
+                        }`}>
+                            {showUsd ? 'USD' : 'SATS'}
                         </span>
-                        <span className={`text-xl font-bold transition-colors duration-300 ${
-                            walletMode === 'breez' 
-                                ? 'text-blue-400' 
-                                : walletMode === 'nwc' 
-                                    ? 'text-purple-400' 
-                                    : 'text-emerald-400'
-                        }`}>SATS</span>
-                    </div>
+                    </button>
 
                     <div className="grid grid-cols-2 gap-4">
                         <button 
