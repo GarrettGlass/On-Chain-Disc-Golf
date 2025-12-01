@@ -689,7 +689,7 @@ export const uploadProfileImage = async (file: File): Promise<string> => {
 // --- Publishing ---
 
 export const publishProfile = async (profile: UserProfile) => {
-    const metadata = {
+    const metadata: Record<string, string | undefined> = {
         name: profile.name,
         display_name: profile.name,
         displayName: profile.name,
@@ -698,6 +698,11 @@ export const publishProfile = async (profile: UserProfile) => {
         nip05: profile.nip05,
         lud16: profile.lud16,
     };
+    
+    // Only include PDGA if set (keeps kind 0 clean)
+    if (profile.pdga) {
+        metadata.pdga = profile.pdga;
+    }
 
     const event = await signEventWrapper({
         kind: NOSTR_KIND_PROFILE,
@@ -711,7 +716,7 @@ export const publishProfile = async (profile: UserProfile) => {
 };
 
 export const publishProfileWithKey = async (profile: UserProfile, secretKey: Uint8Array) => {
-    const metadata = {
+    const metadata: Record<string, string | undefined> = {
         name: profile.name,
         display_name: profile.name,
         displayName: profile.name,
@@ -720,6 +725,11 @@ export const publishProfileWithKey = async (profile: UserProfile, secretKey: Uin
         nip05: profile.nip05,
         lud16: profile.lud16,
     };
+    
+    // Only include PDGA if set
+    if (profile.pdga) {
+        metadata.pdga = profile.pdga;
+    }
 
     const event = finalizeEvent({
         kind: NOSTR_KIND_PROFILE,
@@ -936,7 +946,8 @@ export const fetchProfilesBatch = async (pubkeys: string[]): Promise<DisplayProf
                         pubkey: event.pubkey,
                         name: profile.name,
                         image: profile.picture,
-                        nip05: profile.nip05 || profile.lud16
+                        nip05: profile.nip05 || profile.lud16,
+                        pdga: profile.pdga
                     });
                 }
             } catch (e) { }
@@ -1308,7 +1319,8 @@ const parseProfileContent = (content: any): UserProfile => {
         about: content.about || content.bio || '',
         picture: content.picture || content.image || content.avatar || '',
         lud16: content.lud16 || content.lud06 || '',
-        nip05: content.nip05 || ''
+        nip05: content.nip05 || '',
+        pdga: content.pdga || undefined
     };
 };
 
@@ -1410,8 +1422,61 @@ export const lookupUser = async (query: string): Promise<DisplayProfile | null> 
         pubkey,
         name: profile?.name || (cleanQuery.includes('@') ? cleanQuery.split('@')[0] : 'Unknown'),
         image: profile?.picture,
-        nip05: profile?.lud16 || profile?.nip05 || undefined
+        nip05: profile?.lud16 || profile?.nip05 || undefined,
+        pdga: profile?.pdga
     };
+};
+
+/**
+ * Search for a user by their PDGA number.
+ * This fetches recent kind 0 profiles from relays and checks for matching PDGA numbers.
+ * Note: This only finds users who have set their PDGA in On-Chain Disc Golf or compatible apps.
+ */
+export const lookupByPDGA = async (pdgaNumber: string): Promise<DisplayProfile | null> => {
+    const cleanNumber = pdgaNumber.trim().replace(/^#/, ''); // Remove leading # if present
+    
+    if (!/^\d{4,7}$/.test(cleanNumber)) {
+        console.warn('Invalid PDGA number format');
+        return null;
+    }
+    
+    console.log(`🔍 Searching for PDGA #${cleanNumber}...`);
+    
+    try {
+        // Fetch recent kind 0 profiles - we search through them for PDGA matches
+        // This is a broader search since we can't filter by content on most relays
+        const events = await listEvents(getRelays(), [{
+            kinds: [NOSTR_KIND_PROFILE],
+            limit: 500  // Get a good sample of recent profiles
+        }], 5000);
+        
+        // Search for matching PDGA number in profile content
+        for (const event of events) {
+            try {
+                const content = JSON.parse(event.content);
+                if (content.pdga && content.pdga.toString() === cleanNumber) {
+                    const profile = parseProfileContent(content);
+                    console.log(`✅ Found PDGA #${cleanNumber}: ${profile.name}`);
+                    return {
+                        pubkey: event.pubkey,
+                        name: profile.name,
+                        image: profile.picture,
+                        nip05: profile.nip05 || profile.lud16,
+                        pdga: profile.pdga
+                    };
+                }
+            } catch (e) {
+                // Skip invalid profiles
+            }
+        }
+        
+        console.log(`❌ No profile found with PDGA #${cleanNumber}`);
+        return null;
+        
+    } catch (e) {
+        console.warn('PDGA lookup failed:', e);
+        return null;
+    }
 };
 
 export const getPool = () => pool;

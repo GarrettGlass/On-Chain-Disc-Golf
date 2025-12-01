@@ -9,6 +9,7 @@ export const ProfileSetup: React.FC = () => {
     const { userProfile, updateUserProfile, currentUserPubkey, activeRound, createAccount, isGuest } = useApp();
     const [name, setName] = useState(userProfile.name || 'Disc Golfer');
     const [picture, setPicture] = useState(userProfile.picture || '');
+    const [pdga, setPdga] = useState(userProfile.pdga || '');
     const [showKeyInfo, setShowKeyInfo] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [copiedKeyType, setCopiedKeyType] = useState<'npub' | 'nsec' | null>(null);
@@ -60,8 +61,13 @@ export const ProfileSetup: React.FC = () => {
             await createAccount();
         }
 
-        // Update profile with name and picture
-        await updateUserProfile({ ...userProfile, name, picture });
+        // Update profile with name, picture, and PDGA
+        await updateUserProfile({ 
+            ...userProfile, 
+            name, 
+            picture,
+            pdga: pdga || undefined  // Only include if set
+        });
 
         // Navigate to root - HomeOrOnboarding will show Home (Play tab) for authenticated users
         navigate('/');
@@ -130,6 +136,30 @@ export const ProfileSetup: React.FC = () => {
                         placeholder="Enter your name"
                         className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white focus:border-brand-primary focus:outline-none"
                     />
+                </div>
+
+                {/* PDGA Number Input */}
+                <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-300 uppercase tracking-wide flex items-center space-x-2">
+                        <span>PDGA Number</span>
+                        <span className="text-xs font-normal text-slate-500 normal-case">(optional)</span>
+                    </label>
+                    <input
+                        type="text"
+                        value={pdga}
+                        onChange={(e) => {
+                            // Only allow digits
+                            const value = e.target.value.replace(/\D/g, '');
+                            setPdga(value);
+                        }}
+                        placeholder="e.g. 12345"
+                        maxLength={7}
+                        inputMode="numeric"
+                        className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white focus:border-brand-primary focus:outline-none"
+                    />
+                    <p className="text-xs text-slate-500">
+                        Your PDGA membership number. Other players can find you by searching this number.
+                    </p>
                 </div>
 
                 {/* Key Explanation */}

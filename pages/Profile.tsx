@@ -64,7 +64,8 @@ export const Profile: React.FC = () => {
         lud16: '',
         about: '',
         nip05: '',
-        picture: ''
+        picture: '',
+        pdga: ''
     });
 
     // Settings State
@@ -141,7 +142,8 @@ export const Profile: React.FC = () => {
                 lud16: userProfile.lud16 || getMagicLightningAddress(currentUserPubkey),
                 about: userProfile.about || '',
                 nip05: userProfile.nip05 || '',
-                picture: userProfile.picture || ''
+                picture: userProfile.picture || '',
+                pdga: userProfile.pdga || ''
             });
             refreshStats();
         }
@@ -211,7 +213,8 @@ export const Profile: React.FC = () => {
             lud16: formData.lud16,
             about: formData.about,
             nip05: formData.nip05,
-            picture: formData.picture
+            picture: formData.picture,
+            pdga: formData.pdga || undefined
         });
         setIsEditing(false);
     };
@@ -674,6 +677,30 @@ export const Profile: React.FC = () => {
                                             placeholder="name@nostr.com"
                                             value={formData.nip05}
                                             onChange={e => setFormData({ ...formData, nip05: e.target.value })}
+                                            className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white text-sm focus:ring-1 focus:ring-brand-primary outline-none"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PDGA Number</label>
+                                            <button
+                                                onClick={() => openHelp('PDGA Number', 'Your Professional Disc Golf Association membership number. Other players can find you by searching this number when adding you to their card.')}
+                                                className="text-slate-500 hover:text-brand-primary transition-colors"
+                                            >
+                                                <Icons.Help size={14} />
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. 12345"
+                                            value={formData.pdga}
+                                            onChange={e => {
+                                                const value = e.target.value.replace(/\D/g, '');
+                                                setFormData({ ...formData, pdga: value });
+                                            }}
+                                            maxLength={7}
+                                            inputMode="numeric"
                                             className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white text-sm focus:ring-1 focus:ring-brand-primary outline-none"
                                         />
                                     </div>

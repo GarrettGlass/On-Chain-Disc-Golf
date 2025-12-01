@@ -6,7 +6,7 @@ import { Icons } from '../components/Icons';
 import { InfoModal } from '../components/InfoModal';
 import { FeedbackModal, FeedbackButton } from '../components/FeedbackModal';
 import { useNavigate } from 'react-router-dom';
-import { getPool, getRelays, listEvents, lookupUser, publishProfileWithKey, getMagicLightningAddress, updateContactList } from '../services/nostrService';
+import { getPool, getRelays, listEvents, lookupUser, lookupByPDGA, publishProfileWithKey, getMagicLightningAddress, updateContactList } from '../services/nostrService';
 import { NOSTR_KIND_ROUND, DisplayProfile } from '../types';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import { useQrScanner } from '../hooks/useQrScanner';
@@ -533,7 +533,21 @@ export const Home: React.FC = () => {
         if (!searchQuery) return;
         setIsSearching(true);
         setFoundUser(null);
-        const user = await lookupUser(searchQuery);
+        
+        let user = null;
+        const cleanQuery = searchQuery.trim().replace(/^#/, ''); // Remove leading # if present
+        
+        // Check if query looks like a PDGA number (4-7 digits)
+        if (/^\d{4,7}$/.test(cleanQuery)) {
+            // Try PDGA lookup first
+            user = await lookupByPDGA(cleanQuery);
+        }
+        
+        // If not found via PDGA (or wasn't a PDGA number), try standard lookup
+        if (!user) {
+            user = await lookupUser(searchQuery);
+        }
+        
         setFoundUser(user);
         setIsSearching(false);
     };
@@ -1041,7 +1055,11 @@ export const Home: React.FC = () => {
             all.forEach(p => uniqueMap.set(p.pubkey, p));
             list = Array.from(uniqueMap.values());
 
-            list = list.filter(p => p.name.toLowerCase().includes(q) || (p.nip05 && p.nip05.toLowerCase().includes(q)));
+            list = list.filter(p => 
+                p.name.toLowerCase().includes(q) || 
+                (p.nip05 && p.nip05.toLowerCase().includes(q)) ||
+                (p.pdga && p.pdga.includes(q))
+            );
         } else {
             // Otherwise respect tabs
             if (playerTab === 'frequent' || playerTab === 'recent') {

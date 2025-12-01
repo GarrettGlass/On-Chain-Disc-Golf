@@ -18,6 +18,7 @@ export interface DisplayProfile {
   name: string;
   image?: string;
   nip05?: string;
+  pdga?: string; // PDGA Number
   totalRoundsPlayed?: number;
   paid?: boolean;
   paysEntry?: boolean;
@@ -94,6 +95,7 @@ export interface UserProfile {
   picture: string;
   lud16: string; // Lightning Address
   nip05?: string; // NIP-05 Verified Address
+  pdga?: string; // PDGA Number (Professional Disc Golf Association)
 }
 
 export interface UserStats {
