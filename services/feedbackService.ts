@@ -124,7 +124,7 @@ const getAppState = () => {
             try {
                 const proofs = JSON.parse(proofsRaw);
                 walletBalance = proofs.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-            } catch { }
+            } catch { /* ignore parse errors */ }
         }
         
         return {
@@ -135,7 +135,7 @@ const getAppState = () => {
             activeMint: mints.find((m: any) => m.isActive)?.nickname || 'Unknown',
             walletBalance: walletBalance > 0 ? `${walletBalance} sats` : 'Empty'
         };
-    } catch (e) {
+    } catch (_e) {
         return { error: 'Failed to capture app state' };
     }
 };
