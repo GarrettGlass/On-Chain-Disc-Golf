@@ -84,6 +84,84 @@ const HelpModal: React.FC<{
     );
 };
 
+// Wallet Mode Pill Switcher Component
+const WalletModeSwitcher: React.FC<{
+    activeMode: 'breez' | 'cashu' | 'nwc';
+    onModeChange: (mode: 'breez' | 'cashu' | 'nwc') => void;
+}> = ({ activeMode, onModeChange }) => {
+    const modes = [
+        { id: 'breez' as const, label: 'Lightning', icon: Icons.Zap, color: 'blue' },
+        { id: 'cashu' as const, label: 'Cashu', icon: Icons.Wallet, color: 'emerald' },
+        { id: 'nwc' as const, label: 'NWC', icon: Icons.Link, color: 'purple' },
+    ];
+
+    const getColorClasses = (color: string, isActive: boolean) => {
+        const colors: Record<string, { active: string; inactive: string; border: string; text: string }> = {
+            blue: {
+                active: 'bg-blue-500/30',
+                inactive: 'bg-blue-500/10 hover:bg-blue-500/20',
+                border: 'border-blue-500/50',
+                text: 'text-blue-400'
+            },
+            emerald: {
+                active: 'bg-emerald-500/30',
+                inactive: 'bg-emerald-500/10 hover:bg-emerald-500/20',
+                border: 'border-emerald-500/50',
+                text: 'text-emerald-400'
+            },
+            purple: {
+                active: 'bg-purple-500/30',
+                inactive: 'bg-purple-500/10 hover:bg-purple-500/20',
+                border: 'border-purple-500/50',
+                text: 'text-purple-400'
+            }
+        };
+        return colors[color];
+    };
+
+    return (
+        <div className="flex items-center bg-black/30 rounded-xl p-1 border border-white/10 backdrop-blur-sm">
+            {modes.map((mode) => {
+                const isActive = activeMode === mode.id;
+                const colors = getColorClasses(mode.color, isActive);
+                const IconComponent = mode.icon;
+
+                return (
+                    <button
+                        key={mode.id}
+                        onClick={() => onModeChange(mode.id)}
+                        className={`
+                            relative flex items-center justify-center rounded-lg transition-all duration-300 ease-out
+                            ${isActive 
+                                ? `${colors.active} ${colors.border} border px-3 py-1.5 min-w-[100px]` 
+                                : `${colors.inactive} px-2.5 py-1.5 border border-transparent`
+                            }
+                        `}
+                        style={{
+                            flex: isActive ? '1 1 auto' : '0 0 auto',
+                        }}
+                    >
+                        <IconComponent 
+                            size={isActive ? 14 : 16} 
+                            className={`${colors.text} transition-all duration-300 ${isActive ? 'mr-1.5' : ''}`} 
+                        />
+                        <span 
+                            className={`
+                                text-xs font-bold uppercase tracking-wide overflow-hidden whitespace-nowrap
+                                transition-all duration-300 ease-out
+                                ${isActive ? 'max-w-[80px] opacity-100' : 'max-w-0 opacity-0'}
+                                ${colors.text}
+                            `}
+                        >
+                            {mode.label}
+                        </span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
+
 export const Wallet: React.FC = () => {
     const { walletBalance, transactions, userProfile, currentUserPubkey, mints, setActiveMint, addMint, removeMint, sendFunds, receiveEcash, depositFunds, checkDepositStatus, confirmDeposit, getLightningQuote, isAuthenticated, refreshWalletBalance, walletMode, nwcString, setWalletMode, setNwcConnection, checkForPayments } = useApp();
     const navigate = useNavigate();
@@ -1354,31 +1432,18 @@ export const Wallet: React.FC = () => {
                             : 'bg-emerald-600/10'
                 }`}></div>
 
-                {/* Mode Indicator Header */}
+                {/* Wallet Mode Switcher */}
                 <div className="relative z-10 flex items-center justify-between mb-6">
-                    <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border ${
-                        walletMode === 'breez' 
-                            ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' 
-                            : walletMode === 'nwc' 
-                                ? 'bg-purple-500/10 border-purple-500/30 text-purple-300' 
-                                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                    }`}>
-                        {walletMode === 'breez' ? (
-                            <Icons.Zap size={16} />
-                        ) : walletMode === 'nwc' ? (
-                            <Icons.Link size={16} />
-                        ) : (
-                            <Icons.Wallet size={16} />
-                        )}
-                        <span className="text-xs font-bold tracking-wider uppercase">
-                            {walletMode === 'breez' ? 'Lightning' : walletMode === 'nwc' ? 'NWC' : 'Cashu'}
-                        </span>
-                    </div>
+                    <WalletModeSwitcher 
+                        activeMode={walletMode} 
+                        onModeChange={setWalletMode} 
+                    />
 
+                    {/* Status Indicator */}
                     {walletMode === 'cashu' && activeMint && (
                         <div className="flex items-center space-x-1.5 bg-black/30 px-2 py-1 rounded-md border border-white/5">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
-                            <span className="text-[10px] text-slate-400 font-mono truncate max-w-[100px]">
+                            <span className="text-[10px] text-slate-400 font-mono truncate max-w-[80px]">
                                 {activeMint.nickname}
                             </span>
                         </div>
@@ -1387,7 +1452,15 @@ export const Wallet: React.FC = () => {
                         <div className="flex items-center space-x-1.5 bg-black/30 px-2 py-1 rounded-md border border-white/5">
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
                             <span className="text-[10px] text-slate-400 font-mono">
-                                Pending
+                                Setup
+                            </span>
+                        </div>
+                    )}
+                    {walletMode === 'nwc' && nwcString && (
+                        <div className="flex items-center space-x-1.5 bg-black/30 px-2 py-1 rounded-md border border-white/5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_5px_rgba(168,85,247,0.5)]"></div>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                                Connected
                             </span>
                         </div>
                     )}
