@@ -162,9 +162,47 @@ const WalletModeSwitcher: React.FC<{
     );
 };
 
+// Color mapping for wallet modes
+const WALLET_COLORS = {
+    breez: { 
+        primary: 'rgb(59, 130, 246)',    // blue-500
+        glow: 'rgba(59, 130, 246, 0.15)',
+        border: 'rgba(59, 130, 246, 0.3)'
+    },
+    cashu: { 
+        primary: 'rgb(16, 185, 129)',    // emerald-500
+        glow: 'rgba(16, 185, 129, 0.15)',
+        border: 'rgba(16, 185, 129, 0.3)'
+    },
+    nwc: { 
+        primary: 'rgb(168, 85, 247)',    // purple-500
+        glow: 'rgba(168, 85, 247, 0.15)',
+        border: 'rgba(168, 85, 247, 0.3)'
+    }
+};
+
 export const Wallet: React.FC = () => {
     const { walletBalance, transactions, userProfile, currentUserPubkey, mints, setActiveMint, addMint, removeMint, sendFunds, receiveEcash, depositFunds, checkDepositStatus, confirmDeposit, getLightningQuote, isAuthenticated, refreshWalletBalance, walletMode, nwcString, setWalletMode, setNwcConnection, checkForPayments } = useApp();
     const navigate = useNavigate();
+    
+    // Track previous wallet mode for gradient transition
+    const [prevWalletMode, setPrevWalletMode] = useState<'breez' | 'cashu' | 'nwc'>(walletMode);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const [transitionKey, setTransitionKey] = useState(0);
+    
+    // Handle wallet mode change with transition
+    const handleWalletModeChange = (newMode: 'breez' | 'cashu' | 'nwc') => {
+        if (newMode === walletMode) return;
+        setPrevWalletMode(walletMode);
+        setIsTransitioning(true);
+        setTransitionKey(prev => prev + 1);
+        setWalletMode(newMode);
+        
+        // End transition after animation completes
+        setTimeout(() => {
+            setIsTransitioning(false);
+        }, 600);
+    };
 
     const [view, setView] = useState<'main' | 'receive' | 'deposit' | 'send-input' | 'send-contacts' | 'send-details' | 'settings'>('main');
     const [sendAmount, setSendAmount] = useState('');
@@ -1408,35 +1446,72 @@ export const Wallet: React.FC = () => {
                 </div>
             </div>
 
-            {/* Wallet Balance Tile - Color coded by wallet type */}
-            <div className={`rounded-3xl p-6 shadow-xl border relative overflow-hidden mb-8 transition-all duration-500 ${
-                walletMode === 'breez' 
-                    ? 'bg-gradient-to-br from-slate-800 via-slate-900 to-blue-950 border-blue-500/30' 
-                    : walletMode === 'nwc' 
-                        ? 'bg-gradient-to-br from-slate-800 via-slate-900 to-purple-950 border-purple-500/30' 
-                        : 'bg-gradient-to-br from-slate-800 via-slate-900 to-emerald-950 border-emerald-500/30'
-            }`}>
-                {/* Ambient glow effect */}
-                <div className={`absolute -top-6 -right-6 w-32 h-32 rounded-full blur-3xl ${
-                    walletMode === 'breez' 
-                        ? 'bg-blue-500/15' 
-                        : walletMode === 'nwc' 
-                            ? 'bg-purple-500/15' 
-                            : 'bg-emerald-500/15'
-                }`}></div>
-                <div className={`absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-3xl ${
-                    walletMode === 'breez' 
-                        ? 'bg-blue-600/10' 
-                        : walletMode === 'nwc' 
-                            ? 'bg-purple-600/10' 
-                            : 'bg-emerald-600/10'
-                }`}></div>
+            {/* Wallet Balance Tile - Color coded by wallet type with shimmer transitions */}
+            <div 
+                className="rounded-3xl p-6 shadow-xl relative overflow-hidden mb-8 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950"
+                style={{
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: WALLET_COLORS[walletMode].border,
+                    transition: 'border-color 0.5s ease-out'
+                }}
+            >
+                {/* Previous color - slides to left during transition */}
+                <div 
+                    key={`prev-${transitionKey}`}
+                    className="absolute w-48 h-48 rounded-full blur-3xl pointer-events-none"
+                    style={{
+                        background: WALLET_COLORS[prevWalletMode].glow,
+                        top: '-24px',
+                        transition: 'all 0.6s ease-out',
+                        left: isTransitioning ? '-60px' : 'auto',
+                        right: isTransitioning ? 'auto' : '-24px',
+                        opacity: isTransitioning ? 0.5 : 0,
+                        transform: isTransitioning ? 'scale(1.2)' : 'scale(1)',
+                    }}
+                />
+                
+                {/* Current color - main glow on right */}
+                <div 
+                    key={`curr-${transitionKey}`}
+                    className="absolute w-40 h-40 rounded-full blur-3xl pointer-events-none"
+                    style={{
+                        background: WALLET_COLORS[walletMode].glow,
+                        top: '-24px',
+                        right: '-24px',
+                        opacity: 1,
+                        transition: 'all 0.5s ease-out',
+                        transform: isTransitioning ? 'scale(0.8)' : 'scale(1)',
+                    }}
+                />
+                
+                {/* Secondary glow - bottom left accent */}
+                <div 
+                    className="absolute w-48 h-48 rounded-full blur-3xl pointer-events-none"
+                    style={{
+                        background: WALLET_COLORS[walletMode].glow.replace('0.15', '0.08'),
+                        bottom: '-40px',
+                        left: '-40px',
+                        transition: 'background 0.6s ease-out',
+                    }}
+                />
+                
+                {/* Shimmer sweep effect during transition */}
+                {isTransitioning && (
+                    <div 
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            background: `linear-gradient(90deg, transparent 0%, ${WALLET_COLORS[walletMode].glow} 50%, transparent 100%)`,
+                            animation: 'shimmerSweep 0.6s ease-out forwards',
+                        }}
+                    />
+                )}
 
                 {/* Wallet Mode Switcher */}
                 <div className="relative z-10 flex items-center justify-between mb-6">
                     <WalletModeSwitcher 
                         activeMode={walletMode} 
-                        onModeChange={setWalletMode} 
+                        onModeChange={handleWalletModeChange} 
                     />
 
                     {/* Status Indicator */}

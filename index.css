@@ -350,6 +350,27 @@ body {
   pointer-events: none;
 }
 
+/* Wallet Mode Shimmer Sweep Animation */
+@keyframes shimmerSweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  
+  30% {
+    opacity: 0.6;
+  }
+  
+  70% {
+    opacity: 0.4;
+  }
+  
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
 /* ===========================================
    Bottom Nav Safe Area Utilities
    =========================================== */
