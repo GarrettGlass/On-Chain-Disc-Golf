@@ -197,8 +197,12 @@ export const MnemonicBackup: React.FC<MnemonicBackupProps> = ({
                         />
                     </button>
 
-                    {showBackupOptions && (
-                        <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-1 duration-300 ease-out">
+                    <div 
+                        className={`overflow-hidden transition-all duration-300 ease-out ${
+                            showBackupOptions ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
+                        }`}
+                    >
+                        <div className="space-y-2 pt-1">
                             {/* 1. Download Recovery Card (PDF) - First */}
                             <button
                                 onClick={handleDownloadPDF}
@@ -241,7 +245,7 @@ export const MnemonicBackup: React.FC<MnemonicBackupProps> = ({
                                 </div>
                             </button>
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
 
