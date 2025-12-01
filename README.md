@@ -39,9 +39,9 @@ Think [UDisc](https://udisc.com), but with **freedom technology**:
 
 Every disc golfer knows the chaos:
 - Tournament directors juggling cash, Venmo, and PayPal
-- Accounts flagged for "suspicious gambling activity" (it's a $5 ace pot, Karen)
+- Accounts flagged for "suspicious gambling activity" (it's a $5 ace pot, Mr.IRS Agent)
 - The guy who "forgot his wallet" and will "get you next time"
-- League organizers spending more time on spreadsheets than throwing discs
+- League organizers spending more time on spreadsheets, collecting payments and counting scores than throwing discs
 
 **On-Chain Disc Golf fixes this.** Entry fees are collected automatically when players join. Payouts happen instantly when the round ends. No human required.
 
