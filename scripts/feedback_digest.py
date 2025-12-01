@@ -27,7 +27,7 @@ import ssl
 
 # For NIP-44 decryption
 try:
-    from secp256k1 import PrivateKey, PublicKey
+    from coincurve import PrivateKey, PublicKey
     from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
     HAS_CRYPTO = True
 except ImportError:
@@ -220,8 +220,10 @@ def nip44_decrypt(ciphertext_b64: str, conversation_key: bytes) -> str:
 def get_conversation_key(sk_hex: str, pk_hex: str) -> bytes:
     """Compute NIP-44 conversation key (shared secret)."""
     sk = PrivateKey(bytes.fromhex(sk_hex))
-    pk = PublicKey(bytes.fromhex("02" + pk_hex), raw=True)
-    shared = sk.ecdh(pk.serialize())
+    # coincurve expects compressed pubkey format (33 bytes with 02/03 prefix)
+    pk = PublicKey(bytes.fromhex("02" + pk_hex))
+    # ECDH shared secret
+    shared = sk.ecdh(pk.format())
     return shared
 
 

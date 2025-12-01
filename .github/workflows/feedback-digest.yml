@@ -37,7 +37,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install anthropic websockets secp256k1 cryptography
+          # Use coincurve instead of secp256k1 (better pre-built wheels)
+          pip install anthropic websockets coincurve cryptography
       
       - name: Generate feedback digest
         id: digest
