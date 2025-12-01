@@ -198,7 +198,7 @@ export const MnemonicBackup: React.FC<MnemonicBackupProps> = ({
                     </button>
 
                     {showBackupOptions && (
-                        <div className="mt-2 space-y-2 animate-in slide-in-from-top-2 duration-200">
+                        <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-1 duration-300 ease-out">
                             {/* 1. Download Recovery Card (PDF) - First */}
                             <button
                                 onClick={handleDownloadPDF}

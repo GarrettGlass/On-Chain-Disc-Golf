@@ -201,7 +201,7 @@ export const downloadQRCode = async (mnemonic: string): Promise<void> => {
     
     const link = document.createElement('a');
     link.href = dataUrl;
-    link.download = 'onchain-discgolf-backup.png';
+    link.download = 'onchain-discgolf-recovery.png';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
