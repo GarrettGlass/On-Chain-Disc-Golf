@@ -4,13 +4,17 @@ import { NOSTR_KIND_PROFILE, NOSTR_KIND_CONTACTS, NOSTR_KIND_ROUND, NOSTR_KIND_S
 import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
 import { generateNostrConnectURI, signEventWithAmber, nip04EncryptWithAmber, nip04DecryptWithAmber } from './amberSigner';
 
-// Default relays - Optimized for profile discovery and payment applications
+// Default relays - Optimized for robustness, profile discovery, and payment applications
+// Using 8 well-connected, free, and geographically distributed relays for maximum reliability
 const DEFAULT_RELAYS = [
-    'wss://relay.damus.io',
-    'wss://relay.snort.social',
-    'wss://relay.nostr.net',
-    'wss://relay.primal.net',
-    'wss://relay.npub.bar'            // Quality relay for payment services
+    'wss://relay.damus.io',       // Most popular relay, extremely well-connected
+    'wss://relay.primal.net',     // Primal's relay, excellent indexing and uptime
+    'wss://nos.lol',              // Very popular, fast, and stable
+    'wss://relay.nostr.band',     // Excellent search/indexing, great for profile discovery
+    'wss://purplepag.es',         // Optimized for profile/metadata discovery
+    'wss://relay.snort.social',   // Reliable, well-maintained by Snort team
+    'wss://nostr.wine',           // Free tier, well-connected across the network
+    'wss://relay.nostr.net',      // Stable general-purpose relay
 ];
 
 // Load relays from storage or use defaults

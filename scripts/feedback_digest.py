@@ -84,12 +84,17 @@ def hex_to_npub(hex_pubkey: str) -> str:
     """Convert hex pubkey to npub (simplified)."""
     return f"npub1...{hex_pubkey[:8]}"
 
-# Default relays
+# Default relays - Optimized for robustness and wide network coverage
+# Matching the app's default relays for consistency
 DEFAULT_RELAYS = [
-    "wss://relay.damus.io",
-    "wss://relay.snort.social", 
-    "wss://relay.primal.net",
-    "wss://nos.lol"
+    "wss://relay.damus.io",       # Most popular relay
+    "wss://relay.primal.net",     # Excellent indexing
+    "wss://nos.lol",              # Fast and stable
+    "wss://relay.nostr.band",     # Great for discovery
+    "wss://purplepag.es",         # Profile discovery optimized
+    "wss://relay.snort.social",   # Reliable
+    "wss://nostr.wine",           # Well-connected
+    "wss://relay.nostr.net",      # General-purpose
 ]
 
 # Support npub (receives feedback)
