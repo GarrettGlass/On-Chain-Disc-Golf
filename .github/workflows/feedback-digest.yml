@@ -23,6 +23,8 @@ jobs:
   generate-digest:
     name: Generate Feedback Digest
     runs-on: ubuntu-latest
+    env:
+      CUSTOM_GH_TOKEN: ${{ secrets.CUSTOM_GH_TOKEN }}
     
     steps:
       - name: Checkout repository
@@ -64,6 +66,7 @@ jobs:
         if: success()
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.CUSTOM_GH_TOKEN }}
           script: |
             const fs = require('fs');
             const files = fs.readdirSync('.').filter(f => f.startsWith('feedback_digest_') && f.endsWith('.md'));
@@ -103,11 +106,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: generate-digest
     if: failure()
+    env:
+      CUSTOM_GH_TOKEN: ${{ secrets.CUSTOM_GH_TOKEN }}
     
     steps:
       - name: Create failure issue
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.CUSTOM_GH_TOKEN }}
           script: |
             const date = new Date().toISOString().split('T')[0];
             
