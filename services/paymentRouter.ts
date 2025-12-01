@@ -1,0 +1,429 @@
+/**
+ * Payment Router Service
+ * 
+ * Smart payout routing for round settlements.
+ * 
+ * Priority Order:
+ * 1. Check recipient's kind 0 for lud16 (Lightning address)
+ * 2. If no lud16 → Fallback to npub@npub.cash
+ * 3. If Lightning payment fails → Send Cashu via Gift Wrap DM
+ * 
+ * Future Integration:
+ * - When Breez SDK is active, use it as primary payment method
+ * - Breez provides more reliable payments with better routing
+ */
+
+import { fetchProfile, sendGiftWrap, getMagicLightningAddress } from './nostrService';
+import { 
+    resolveLightningAddress, 
+    getInvoiceFromLnurl, 
+    payInvoice,
+    payLightningAddress,
+    isBreezInitialized,
+    getBreezBalance
+} from './breezService';
+import { nip19 } from 'nostr-tools';
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+export interface PaymentResult {
+    success: boolean;
+    method: 'breez' | 'lnurl' | 'npubcash' | 'cashu_dm' | 'failed';
+    txId?: string;
+    feeSats?: number;
+    error?: string;
+}
+
+export interface PayoutRecipient {
+    pubkey: string;
+    amountSats: number;
+    name?: string;
+}
+
+// =============================================================================
+// LNURL RESOLUTION (Works without Breez SDK)
+// =============================================================================
+
+/**
+ * Resolve a Lightning address and get a payment invoice
+ * This works independently of Breez SDK
+ */
+export const resolveAndGetInvoice = async (
+    lightningAddress: string,
+    amountSats: number,
+    comment?: string
+): Promise<string | null> => {
+    try {
+        // Step 1: Resolve the Lightning address
+        const resolved = await resolveLightningAddress(lightningAddress);
+        if (!resolved) {
+            console.warn(`Failed to resolve Lightning address: ${lightningAddress}`);
+            return null;
+        }
+
+        // Step 2: Check amount bounds
+        if (amountSats < resolved.minSendable) {
+            console.warn(`Amount ${amountSats} below minimum ${resolved.minSendable}`);
+            return null;
+        }
+        if (amountSats > resolved.maxSendable) {
+            console.warn(`Amount ${amountSats} above maximum ${resolved.maxSendable}`);
+            return null;
+        }
+
+        // Step 3: Get invoice from callback
+        const invoice = await getInvoiceFromLnurl(resolved.callback, amountSats, comment);
+        return invoice;
+
+    } catch (error) {
+        console.error('Error resolving Lightning address:', error);
+        return null;
+    }
+};
+
+/**
+ * Get the Lightning address for a recipient
+ * Priority: kind 0 lud16 → npub@npub.cash fallback
+ */
+export const getRecipientLightningAddress = async (pubkey: string): Promise<{
+    address: string;
+    source: 'kind0' | 'npubcash';
+}> => {
+    try {
+        // Try to fetch their profile
+        const profile = await fetchProfile(pubkey);
+
+        if (profile?.lud16 && profile.lud16.includes('@')) {
+            console.log(`Found lud16 in kind 0: ${profile.lud16}`);
+            return {
+                address: profile.lud16,
+                source: 'kind0'
+            };
+        }
+
+        // Fallback to npub.cash
+        const npub = nip19.npubEncode(pubkey);
+        const fallbackAddress = `${npub}@npubx.cash`;
+        console.log(`No lud16 found, using fallback: ${fallbackAddress}`);
+
+        return {
+            address: fallbackAddress,
+            source: 'npubcash'
+        };
+
+    } catch (error) {
+        console.error('Error getting recipient Lightning address:', error);
+        // Final fallback
+        const npub = nip19.npubEncode(pubkey);
+        return {
+            address: `${npub}@npubx.cash`,
+            source: 'npubcash'
+        };
+    }
+};
+
+// =============================================================================
+// PAYMENT METHODS
+// =============================================================================
+
+/**
+ * Pay via Breez SDK (when available)
+ * Primary method when SDK is initialized and has balance
+ */
+const payViaBreez = async (
+    lightningAddress: string,
+    amountSats: number,
+    comment?: string
+): Promise<PaymentResult> => {
+    if (!isBreezInitialized()) {
+        return {
+            success: false,
+            method: 'breez',
+            error: 'Breez SDK not initialized'
+        };
+    }
+
+    const balance = await getBreezBalance();
+    if (balance.balanceSats < amountSats) {
+        return {
+            success: false,
+            method: 'breez',
+            error: `Insufficient Breez balance: ${balance.balanceSats} < ${amountSats}`
+        };
+    }
+
+    const result = await payLightningAddress(lightningAddress, amountSats, comment);
+
+    return {
+        success: result.success,
+        method: 'breez',
+        txId: result.paymentHash,
+        feeSats: result.feeSats,
+        error: result.error
+    };
+};
+
+/**
+ * Pay via Cashu → Lightning (current method)
+ * Uses the existing CashuWallet melt functionality
+ */
+const payViaCashu = async (
+    invoice: string,
+    cashuPaymentFn: (invoice: string) => Promise<boolean>
+): Promise<PaymentResult> => {
+    try {
+        const success = await cashuPaymentFn(invoice);
+        return {
+            success,
+            method: 'lnurl',
+            error: success ? undefined : 'Cashu payment failed'
+        };
+    } catch (error) {
+        return {
+            success: false,
+            method: 'lnurl',
+            error: error instanceof Error ? error.message : 'Cashu payment failed'
+        };
+    }
+};
+
+/**
+ * Send Cashu token via Gift Wrap DM
+ * Last resort fallback when Lightning fails
+ */
+const sendCashuViaDm = async (
+    recipientPubkey: string,
+    amountSats: number,
+    cashuToken: string
+): Promise<PaymentResult> => {
+    try {
+        const message = JSON.stringify({
+            type: 'cashu_payment',
+            amount: amountSats,
+            token: cashuToken,
+            message: `You received ${amountSats} sats from a ChainLinks round!`
+        });
+
+        await sendGiftWrap(recipientPubkey, message);
+
+        return {
+            success: true,
+            method: 'cashu_dm'
+        };
+    } catch (error) {
+        return {
+            success: false,
+            method: 'cashu_dm',
+            error: error instanceof Error ? error.message : 'Failed to send Cashu via DM'
+        };
+    }
+};
+
+// =============================================================================
+// MAIN PAYMENT ROUTER
+// =============================================================================
+
+/**
+ * Route a payment to a recipient
+ * 
+ * This is the main function that implements the payment priority:
+ * 1. Try Breez (if available)
+ * 2. Try Lightning via recipient's lud16 or npub.cash
+ * 3. Fallback to Cashu DM
+ * 
+ * @param recipient - Recipient details (pubkey, amount)
+ * @param cashuPaymentFn - Function to execute Cashu → Lightning payment
+ * @param createCashuTokenFn - Function to create Cashu token for DM fallback
+ */
+export const routePayment = async (
+    recipient: PayoutRecipient,
+    cashuPaymentFn: (invoice: string) => Promise<boolean>,
+    createCashuTokenFn?: (amount: number) => Promise<string>
+): Promise<PaymentResult> => {
+    console.log(`🔀 Routing payment of ${recipient.amountSats} sats to ${recipient.name || recipient.pubkey.substring(0, 8)}...`);
+
+    // Step 1: Get recipient's Lightning address
+    const { address, source } = await getRecipientLightningAddress(recipient.pubkey);
+    console.log(`📍 Lightning address: ${address} (source: ${source})`);
+
+    // Step 2: Try Breez first (if available)
+    if (isBreezInitialized()) {
+        console.log('⚡ Attempting Breez payment...');
+        const breezResult = await payViaBreez(
+            address,
+            recipient.amountSats,
+            `ChainLinks payout to ${recipient.name || 'player'}`
+        );
+
+        if (breezResult.success) {
+            console.log('✅ Breez payment successful!');
+            return breezResult;
+        }
+        console.log(`⚠️ Breez payment failed: ${breezResult.error}`);
+    }
+
+    // Step 3: Try Lightning via LNURL (using Cashu to melt)
+    console.log('⚡ Attempting LNURL payment...');
+    const invoice = await resolveAndGetInvoice(
+        address,
+        recipient.amountSats,
+        `ChainLinks payout`
+    );
+
+    if (invoice) {
+        const cashuResult = await payViaCashu(invoice, cashuPaymentFn);
+        if (cashuResult.success) {
+            console.log('✅ LNURL payment successful!');
+            return {
+                ...cashuResult,
+                method: source === 'kind0' ? 'lnurl' : 'npubcash'
+            };
+        }
+        console.log(`⚠️ LNURL payment failed: ${cashuResult.error}`);
+    }
+
+    // Step 4: Fallback to Cashu DM
+    if (createCashuTokenFn) {
+        console.log('📨 Falling back to Cashu DM...');
+        try {
+            const token = await createCashuTokenFn(recipient.amountSats);
+            const dmResult = await sendCashuViaDm(recipient.pubkey, recipient.amountSats, token);
+
+            if (dmResult.success) {
+                console.log('✅ Cashu DM sent successfully!');
+                return dmResult;
+            }
+        } catch (error) {
+            console.error('Failed to create Cashu token for DM:', error);
+        }
+    }
+
+    // All methods failed
+    console.error('❌ All payment methods failed');
+    return {
+        success: false,
+        method: 'failed',
+        error: 'All payment methods failed'
+    };
+};
+
+/**
+ * Process multiple payouts in batch
+ * 
+ * @param recipients - Array of payout recipients
+ * @param cashuPaymentFn - Function to execute Cashu payments
+ * @param createCashuTokenFn - Function to create Cashu tokens
+ * @param onProgress - Callback for progress updates
+ */
+export const processPayouts = async (
+    recipients: PayoutRecipient[],
+    cashuPaymentFn: (invoice: string) => Promise<boolean>,
+    createCashuTokenFn?: (amount: number) => Promise<string>,
+    onProgress?: (completed: number, total: number, current: PayoutRecipient) => void
+): Promise<{
+    results: Map<string, PaymentResult>;
+    successCount: number;
+    failCount: number;
+    totalPaid: number;
+}> => {
+    const results = new Map<string, PaymentResult>();
+    let successCount = 0;
+    let failCount = 0;
+    let totalPaid = 0;
+
+    for (let i = 0; i < recipients.length; i++) {
+        const recipient = recipients[i];
+
+        // Progress callback
+        if (onProgress) {
+            onProgress(i, recipients.length, recipient);
+        }
+
+        // Route the payment
+        const result = await routePayment(
+            recipient,
+            cashuPaymentFn,
+            createCashuTokenFn
+        );
+
+        results.set(recipient.pubkey, result);
+
+        if (result.success) {
+            successCount++;
+            totalPaid += recipient.amountSats;
+        } else {
+            failCount++;
+        }
+
+        // Small delay between payments to avoid rate limiting
+        if (i < recipients.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+
+    console.log(`📊 Payout summary: ${successCount}/${recipients.length} successful, ${totalPaid} sats paid`);
+
+    return {
+        results,
+        successCount,
+        failCount,
+        totalPaid
+    };
+};
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Check if a Lightning address is valid/reachable
+ */
+export const validateLightningAddress = async (address: string): Promise<boolean> => {
+    try {
+        const resolved = await resolveLightningAddress(address);
+        return resolved !== null;
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Format payment method for display
+ */
+export const formatPaymentMethod = (method: PaymentResult['method']): string => {
+    switch (method) {
+        case 'breez':
+            return 'Lightning (Breez)';
+        case 'lnurl':
+            return 'Lightning (Direct)';
+        case 'npubcash':
+            return 'Lightning (npub.cash)';
+        case 'cashu_dm':
+            return 'eCash (DM)';
+        case 'failed':
+            return 'Failed';
+        default:
+            return 'Unknown';
+    }
+};
+
+/**
+ * Get icon for payment method (for UI)
+ */
+export const getPaymentMethodIcon = (method: PaymentResult['method']): string => {
+    switch (method) {
+        case 'breez':
+        case 'lnurl':
+        case 'npubcash':
+            return '⚡';
+        case 'cashu_dm':
+            return '📨';
+        case 'failed':
+            return '❌';
+        default:
+            return '❓';
+    }
+};
+

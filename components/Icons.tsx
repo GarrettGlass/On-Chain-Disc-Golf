@@ -210,6 +210,7 @@ export const Icons = {
   Users,
   Next: ChevronRight,
   Prev: ChevronLeft,
+  Back: ChevronLeft,
   Chart: TrendingUp,
   Zap,
   History,

@@ -134,6 +134,8 @@ export const configureStatusBar = async (): Promise<void> => {
   try {
     await StatusBar.setStyle({ style: Style.Dark });
     await StatusBar.setBackgroundColor({ color: '#0f172a' });
+    // Ensure status bar doesn't overlay content
+    await StatusBar.setOverlaysWebView({ overlay: false });
   } catch (e) {
     console.warn('StatusBar configuration failed:', e);
   }

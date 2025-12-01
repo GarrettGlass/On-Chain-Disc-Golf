@@ -1,6 +1,7 @@
 /* Global Styles */
 :root {
   --nav-height: 5rem; /* 80px - matches BottomNav height (h-16 + pt-2 + buffer) */
+  --status-bar-height: env(safe-area-inset-top, 24px); /* iOS safe area or Android status bar fallback */
 }
 
 html,
@@ -10,6 +11,22 @@ body,
   margin: 0;
   overscroll-behavior-y: none;
   /* Prevent pull-to-refresh */
+}
+
+/* ===========================================
+   Top Safe Area for Status Bar (Android/iOS)
+   =========================================== */
+
+/* Add padding for status bar on native apps */
+.safe-top {
+  padding-top: var(--status-bar-height);
+}
+
+/* For Capacitor/native context - detect via user agent or Capacitor global */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
 }
 
 #root {

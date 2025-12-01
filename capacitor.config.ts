@@ -18,8 +18,8 @@ const config: CapacitorConfig = {
       backgroundColor: '#0f172a',
       showSpinner: false,
       androidScaleType: 'CENTER_CROP',
-      splashFullScreen: true,
-      splashImmersive: true,
+      splashFullScreen: false,
+      splashImmersive: false,
     },
     StatusBar: {
       style: 'DARK',

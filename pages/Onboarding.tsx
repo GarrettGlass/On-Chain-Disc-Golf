@@ -1,459 +1,582 @@
-import React, { useEffect, useState, useRef } from 'react';
+/**
+ * Onboarding Page
+ * 
+ * New architecture with mnemonic-based identity:
+ * 
+ * Flow Options:
+ * 1. NEW USER → Generate 12-word mnemonic → Backup → Profile Setup
+ * 2. RECOVERY → Enter 12-word mnemonic → Profile Setup
+ * 3. NSEC LOGIN → Enter nsec → Profile Setup
+ * 4. AMBER LOGIN → Connect via NIP-46 → Profile Setup
+ * 
+ * The mnemonic serves as a UNIFIED backup for:
+ * - Nostr identity (derived via NIP-06)
+ * - Breez Lightning wallet (same seed)
+ */
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { Icons } from '../components/Icons';
-import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
-import { hexToBytes } from '@noble/hashes/utils';
+import { MnemonicBackup, MnemonicRecoveryInput } from '../components/MnemonicBackup';
+import { generateNewProfileFromMnemonic, loginWithMnemonic, loginWithNsec } from '../services/nostrService';
+import { isNative, getPlatform } from '../services/capacitorService';
+
+type OnboardingStep = 
+    | 'welcome'           // Initial screen with options
+    | 'generating'        // Brief loading while generating keys
+    | 'backup'            // Show mnemonic backup
+    | 'recovery'          // Enter existing mnemonic
+    | 'nsec'              // Enter existing nsec
+    | 'amber'             // Amber connection flow
+    | 'complete';         // Success, redirect to profile setup
 
 export const Onboarding: React.FC = () => {
     const navigate = useNavigate();
-    const { loginNsec } = useApp();
-    const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-    const [errorMessage, setErrorMessage] = useState('');
-    const [generatedNsec, setGeneratedNsec] = useState('');
-    const [copied, setCopied] = useState(false);
-
-    // Animation State
+    const { loginNsec: appLoginNsec, loginAmber } = useApp();
+    
+    const [step, setStep] = useState<OnboardingStep>('welcome');
+    const [generatedMnemonic, setGeneratedMnemonic] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    
+    // Animation State for welcome screen
     const [activeIcon, setActiveIcon] = useState(0);
+    
+    // Modal states
+    const [showWhyModal, setShowWhyModal] = useState(false);
+    const [showExistingOptionsModal, setShowExistingOptionsModal] = useState(false);
 
-    // Modal State
-    const [showNewWorldModal, setShowNewWorldModal] = useState(false);
-    const [showWhyKeyModal, setShowWhyKeyModal] = useState(false);
-    const [showExistingNsecModal, setShowExistingNsecModal] = useState(false);
-    const [existingNsecInput, setExistingNsecInput] = useState('');
-    const [isLoggingInExisting, setIsLoggingInExisting] = useState(false);
-
-    // Guard to prevent infinite loop
-    const hasLoadedSession = useRef(false);
-
+    // Icon animation loop
     useEffect(() => {
-        // Prevent re-execution
-        if (hasLoadedSession.current) return;
-
-        const loadExistingSession = () => {
-            try {
-                // Get the existing guest session's nsec from localStorage
-                const existingSk = localStorage.getItem('nostr_sk');
-
-                if (existingSk) {
-                    // User already has a session (guest or otherwise)
-                    // Display their existing nsec
-                    const nsec = nip19.nsecEncode(hexToBytes(existingSk));
-                    setGeneratedNsec(nsec);
-                    setStatus('success');
-                } else {
-                    // Fallback: generate new keypair if somehow no session exists
-                    console.warn('[Onboarding] No existing session found, generating new keypair');
-                    const sk = generateSecretKey();
-                    const nsec = nip19.nsecEncode(sk);
-                    loginNsec(nsec); // This will save to localStorage
-                    setGeneratedNsec(nsec);
-                    setStatus('success');
-                }
-            } catch (e) {
-                console.error("Session load failed:", e);
-                setStatus('error');
-                setErrorMessage('Failed to load session. Please refresh the page.');
-            }
-        };
-
-        hasLoadedSession.current = true;
-        loadExistingSession();
-
-    }, [loginNsec]);
-
-    // Icon Crossfade Loop
-    useEffect(() => {
-        if (status === 'success') {
+        if (step === 'welcome') {
             const interval = setInterval(() => {
                 setActiveIcon(prev => (prev + 1) % 3);
-            }, 3000); // Change every 3 seconds
+            }, 3000);
             return () => clearInterval(interval);
         }
-    }, [status]);
+    }, [step]);
 
-    const copyToClipboard = () => {
-        if (generatedNsec) {
-            navigator.clipboard.writeText(generatedNsec);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+    // Check if user is on Android (for Amber option)
+    const showAmberOption = isNative() && getPlatform() === 'android';
+
+    // =========================================================================
+    // ACTION HANDLERS
+    // =========================================================================
+
+    const handleCreateNewAccount = async () => {
+        setStep('generating');
+        setError('');
+
+        try {
+            // Small delay for UI feedback
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Generate mnemonic and derive keys
+            const { mnemonic } = generateNewProfileFromMnemonic();
+            setGeneratedMnemonic(mnemonic);
+            setStep('backup');
+
+        } catch (e) {
+            console.error('Failed to generate identity:', e);
+            setError('Failed to create account. Please try again.');
+            setStep('welcome');
         }
     };
 
-    const handleExistingNsecSubmit = async () => {
-        if (!existingNsecInput.trim()) return;
+    const handleBackupComplete = () => {
+        // Mnemonic is already stored by generateNewProfileFromMnemonic
+        // Navigate to profile setup
+        navigate('/profile-setup');
+    };
 
-        setIsLoggingInExisting(true);
+    const handleRecoverySubmit = async (mnemonic: string) => {
+        setIsLoading(true);
+        setError('');
+
         try {
-            await loginNsec(existingNsecInput.trim());
-            setShowExistingNsecModal(false);
+            loginWithMnemonic(mnemonic);
             navigate('/profile-setup');
         } catch (e) {
-            console.error("Login with existing nsec failed:", e);
-            alert('Invalid nsec. Please check and try again.');
+            console.error('Recovery failed:', e);
+            setError('Invalid recovery phrase. Please check and try again.');
         } finally {
-            setIsLoggingInExisting(false);
+            setIsLoading(false);
+        }
+    };
+
+    const handleNsecSubmit = async (nsec: string) => {
+        setIsLoading(true);
+        setError('');
+
+        try {
+            loginWithNsec(nsec);
+            await appLoginNsec(nsec);
+            navigate('/profile-setup');
+        } catch (e) {
+            console.error('Nsec login failed:', e);
+            setError('Invalid nsec. Please check and try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAmberConnect = async () => {
+        try {
+            await loginAmber();
+            // Amber will redirect back to the app after approval
+        } catch (e) {
+            console.error('Amber connection failed:', e);
+            setError('Failed to connect to Amber.');
+        }
+    };
+
+    // =========================================================================
+    // RENDER: WELCOME SCREEN
+    // =========================================================================
+
+    if (step === 'welcome') {
+        return (
+            <div className="min-h-screen bg-brand-dark flex flex-col">
+                {/* Header */}
+                <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4">
+                    <div className="max-w-md mx-auto text-center">
+                        <p className="golden-shimmer text-base mb-2 font-semibold">Welcome to..</p>
+                        <h1 className="font-extrabold tracking-tight leading-tight">
+                            <div className="text-7xl mb-1">
+                                <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
+                            </div>
+                            <div className="text-6xl">
+                                <span className="text-white">Disc Golf</span>
+                            </div>
+                        </h1>
+                    </div>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center justify-between p-4 text-center">
+                    <div className="max-w-md w-full">
+                        {/* Animated Icon Container */}
+                        <div className="relative w-28 h-28 flex items-center justify-center mx-auto mb-4">
+                            {/* Disc Golf */}
+                            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 0 ? 'opacity-100' : 'opacity-0'}`}>
+                                <div className="w-24 h-24 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)]">
+                                    <Icons.Trophy className="text-brand-primary" size={48} strokeWidth={2} />
+                                </div>
+                            </div>
+
+                            {/* Bitcoin */}
+                            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 1 ? 'opacity-100' : 'opacity-0'}`}>
+                                <div className="w-24 h-24 bg-orange-500/20 rounded-full flex items-center justify-center border-2 border-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
+                                    <Icons.Bitcoin className="text-orange-500" size={56} strokeWidth={2} />
+                                </div>
+                            </div>
+
+                            {/* Nostr */}
+                            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 2 ? 'opacity-100' : 'opacity-0'}`}>
+                                <div className="w-24 h-24 bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                                    <Icons.Key className="text-purple-500" size={48} strokeWidth={2} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tagline */}
+                        <div className="space-y-2 mb-6">
+                            <p className="text-slate-300 text-sm font-medium">This app uses</p>
+                            <p className="text-lg font-bold">
+                                <span className={`text-brand-primary transition-all duration-500 ${activeIcon === 0 ? 'drop-shadow-[0_0_12px_rgba(45,212,191,0.8)] scale-110 inline-block' : ''}`}>
+                                    Disc Golf
+                                </span>
+                                {' + '}
+                                <span className={`text-orange-500 transition-all duration-500 ${activeIcon === 1 ? 'drop-shadow-[0_0_12px_rgba(249,115,22,0.8)] scale-110 inline-block' : ''}`}>
+                                    Bitcoin
+                                </span>
+                                {' + '}
+                                <span className={`text-purple-500 transition-all duration-500 ${activeIcon === 2 ? 'drop-shadow-[0_0_12px_rgba(168,85,247,0.8)] scale-110 inline-block' : ''}`}>
+                                    Nostr
+                                </span>
+                            </p>
+                            <button
+                                onClick={() => setShowWhyModal(true)}
+                                className="text-slate-400 text-xs hover:text-white transition-colors border-b border-dashed border-slate-600 hover:border-white pb-0.5"
+                            >
+                                Learn why
+                            </button>
+                        </div>
+
+                        {/* Main CTA: Create New Account */}
+                        <button
+                            onClick={handleCreateNewAccount}
+                            className="w-full py-4 bg-gradient-to-r from-brand-primary to-cyan-400 text-black font-bold rounded-xl hover:opacity-90 transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/30 flex items-center justify-center space-x-2 mb-4"
+                        >
+                            <Icons.Plus size={20} />
+                            <span>Create New Account</span>
+                        </button>
+
+                        {/* Secondary Options */}
+                        <button
+                            onClick={() => setShowExistingOptionsModal(true)}
+                            className="w-full py-3 bg-slate-800/50 border border-slate-700 text-white font-medium rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center space-x-2"
+                        >
+                            <Icons.Key size={18} className="text-slate-400" />
+                            <span>I already have an account</span>
+                        </button>
+
+                        {/* Error display */}
+                        {error && (
+                            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                                {error}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Why Modal */}
+                {showWhyModal && createPortal(
+                    <WhyModal onClose={() => setShowWhyModal(false)} />,
+                    document.body
+                )}
+
+                {/* Existing Account Options Modal */}
+                {showExistingOptionsModal && createPortal(
+                    <ExistingAccountModal
+                        onClose={() => setShowExistingOptionsModal(false)}
+                        onSelectRecovery={() => {
+                            setShowExistingOptionsModal(false);
+                            setStep('recovery');
+                        }}
+                        onSelectNsec={() => {
+                            setShowExistingOptionsModal(false);
+                            setStep('nsec');
+                        }}
+                        onSelectAmber={() => {
+                            setShowExistingOptionsModal(false);
+                            handleAmberConnect();
+                        }}
+                        showAmber={showAmberOption}
+                    />,
+                    document.body
+                )}
+            </div>
+        );
+    }
+
+    // =========================================================================
+    // RENDER: GENERATING KEYS
+    // =========================================================================
+
+    if (step === 'generating') {
+        return (
+            <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-4">
+                <div className="w-20 h-20 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)] animate-pulse">
+                    <Icons.Key className="text-brand-primary animate-spin" size={40} />
+                </div>
+                <h2 className="text-xl font-bold text-white mt-6">Creating Your Identity</h2>
+                <p className="text-slate-400 text-sm mt-2">Generating secure keys...</p>
+            </div>
+        );
+    }
+
+    // =========================================================================
+    // RENDER: MNEMONIC BACKUP
+    // =========================================================================
+
+    if (step === 'backup' && generatedMnemonic) {
+        return (
+            <div className="min-h-screen bg-brand-dark flex flex-col p-4 pt-8">
+                <MnemonicBackup
+                    mnemonic={generatedMnemonic}
+                    onComplete={handleBackupComplete}
+                    onBack={() => setStep('welcome')}
+                    title="Save Your Recovery Phrase"
+                    subtitle="These 12 words are the ONLY way to recover your account AND Bitcoin wallet. Write them down and keep them safe."
+                    showVerification={true}
+                />
+            </div>
+        );
+    }
+
+    // =========================================================================
+    // RENDER: RECOVERY (Mnemonic Input)
+    // =========================================================================
+
+    if (step === 'recovery') {
+        return (
+            <div className="min-h-screen bg-brand-dark flex flex-col p-4 pt-8">
+                <button
+                    onClick={() => setStep('welcome')}
+                    className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white transition-colors"
+                >
+                    <Icons.Back size={24} />
+                </button>
+
+                <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+                    <MnemonicRecoveryInput
+                        onSubmit={handleRecoverySubmit}
+                        onCancel={() => setStep('welcome')}
+                        error={error}
+                        isLoading={isLoading}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // =========================================================================
+    // RENDER: NSEC LOGIN
+    // =========================================================================
+
+    if (step === 'nsec') {
+        return (
+            <div className="min-h-screen bg-brand-dark flex flex-col p-4 pt-8">
+                <button
+                    onClick={() => setStep('welcome')}
+                    className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white transition-colors"
+                >
+                    <Icons.Back size={24} />
+                </button>
+
+                <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+                    <NsecLoginForm
+                        onSubmit={handleNsecSubmit}
+                        onCancel={() => setStep('welcome')}
+                        error={error}
+                        isLoading={isLoading}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Fallback
+    return null;
+};
+
+// =============================================================================
+// SUB-COMPONENTS
+// =============================================================================
+
+/**
+ * Why Modal - Explains Bitcoin + Nostr
+ */
+const WhyModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[75vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-white">Why This Combo?</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white">
+                        <Icons.Close size={24} />
+                    </button>
+                </div>
+                <div className="space-y-4 text-slate-300 leading-relaxed text-sm">
+                    <p className="text-brand-primary font-semibold italic">
+                        "We'll settle up after the round!"
+                    </p>
+                    <p>
+                        Famous last words. Every disc golfer knows the awkward shuffle at the parking lot, someone doesn't have cash, Venmo is "acting weird," and somehow those $5 ace pot donations just... evaporate into the ether.
+                    </p>
+                    <p>
+                        This app fixes that. Pay when you start. Automatic payouts when you finish. No excuses, no IOUs, no "I swear I'll get you next time."
+                    </p>
+                    <p className="font-semibold text-white">
+                        But why <span className="text-orange-500">Bitcoin</span>?
+                    </p>
+                    <p>
+                        Because traditional money is broken. Banks print it endlessly, devaluing your savings. They freeze accounts, charge fees, and track every transaction.
+                    </p>
+                    <p>
+                        <strong className="text-orange-500">Bitcoin</strong> is different. It's un-inflatable, unstoppable money that <em className="text-slate-200">you</em> truly own.
+                    </p>
+                    <p className="font-semibold text-white">
+                        And <span className="text-purple-500">Nostr</span>?
+                    </p>
+                    <p>
+                        Big Tech owns your identity. They decide what you see, who sees you, and whether you even get to speak.
+                    </p>
+                    <p>
+                        <strong className="text-purple-500">Nostr</strong> gives that power back to you. Your identity, your content, your network—nobody can take it away.
+                    </p>
+                    <p className="italic text-brand-primary text-center pt-2">
+                        Disc golf, financial sovereignty, and digital freedom. Now let's play.
+                    </p>
+                </div>
+                <button
+                    onClick={onClose}
+                    className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors mt-4"
+                >
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+/**
+ * Existing Account Modal - Options for recovery, nsec, amber
+ */
+const ExistingAccountModal: React.FC<{
+    onClose: () => void;
+    onSelectRecovery: () => void;
+    onSelectNsec: () => void;
+    onSelectAmber: () => void;
+    showAmber: boolean;
+}> = ({ onClose, onSelectRecovery, onSelectNsec, onSelectAmber, showAmber }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-white">Welcome Back!</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white">
+                        <Icons.Close size={24} />
+                    </button>
+                </div>
+
+                <p className="text-slate-400 text-sm">
+                    Choose how you want to sign in:
+                </p>
+
+                <div className="space-y-3">
+                    {/* Recovery Phrase (Recommended) */}
+                    <button
+                        onClick={onSelectRecovery}
+                        className="w-full p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-colors text-left"
+                    >
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center">
+                                <Icons.Key className="text-amber-500" size={20} />
+                            </div>
+                            <div>
+                                <p className="font-bold text-white">Recovery Phrase</p>
+                                <p className="text-xs text-slate-400">12 words from this app</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Nsec */}
+                    <button
+                        onClick={onSelectNsec}
+                        className="w-full p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl hover:bg-purple-500/20 transition-colors text-left"
+                    >
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center">
+                                <Icons.Shield className="text-purple-500" size={20} />
+                            </div>
+                            <div>
+                                <p className="font-bold text-white">Private Key (nsec)</p>
+                                <p className="text-xs text-slate-400">From Damus, Primal, etc.</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Amber (Android only) */}
+                    {showAmber && (
+                        <button
+                            onClick={onSelectAmber}
+                            className="w-full p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-colors text-left"
+                        >
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
+                                    <Icons.Android className="text-orange-500" size={20} />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-white">Amber Signer</p>
+                                    <p className="text-xs text-slate-400">Android key manager</p>
+                                </div>
+                            </div>
+                        </button>
+                    )}
+                </div>
+
+                <button
+                    onClick={onClose}
+                    className="w-full py-2 text-slate-400 hover:text-white text-sm transition-colors"
+                >
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+/**
+ * Nsec Login Form
+ */
+const NsecLoginForm: React.FC<{
+    onSubmit: (nsec: string) => void;
+    onCancel: () => void;
+    error?: string;
+    isLoading?: boolean;
+}> = ({ onSubmit, onCancel, error, isLoading }) => {
+    const [nsec, setNsec] = useState('');
+    const [showKey, setShowKey] = useState(false);
+
+    const handleSubmit = () => {
+        if (nsec.trim()) {
+            onSubmit(nsec.trim());
         }
     };
 
     return (
-        <div className="min-h-screen bg-brand-dark flex flex-col">
-            {/* Header - matching Play tab exactly */}
-            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4">
-                <div className="max-w-md mx-auto text-center">
-                    <p className="golden-shimmer text-base mb-2 font-semibold">Welcome to..</p>
-                    <h1 className="font-extrabold tracking-tight leading-tight">
-                        <div className="text-7xl mb-1">
-                            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
-                        </div>
-                        <div className="text-6xl">
-                            <span className="text-white">Disc Golf</span>
-                        </div>
-                    </h1>
+        <div className="space-y-4">
+            <div className="text-center mb-4">
+                <div className="w-14 h-14 mx-auto mb-3 bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-purple-500">
+                    <Icons.Shield className="text-purple-500" size={28} />
                 </div>
+                <h3 className="text-lg font-bold text-white">Enter Your Secret Key</h3>
+                <p className="text-slate-400 text-sm">Paste your nsec private key</p>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-between p-4 text-center">
-                <div className="max-w-md w-full">
-                    {status === 'loading' && (
-                        <div className="flex flex-col items-center space-y-4">
-                            <Icons.Zap className="text-brand-primary animate-bounce" size={48} />
-                            <h2 className="text-xl font-bold text-white">Loading...</h2>
-                            <p className="text-slate-400">Preparing your account.</p>
-                        </div>
-                    )}
-
-                    {status === 'success' && (
-                        <div className="flex flex-col items-center space-y-5 animate-in zoom-in duration-300">
-
-                            {/* Animated Icon Container - closer to header */}
-                            <div className="relative w-28 h-28 flex items-center justify-center -mt-2">
-                                {/* 1. Teal Disc Golf Basket */}
-                                <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 0 ? 'opacity-100' : 'opacity-0'}`}>
-                                    <div className="w-24 h-24 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)]">
-                                        <Icons.Trophy className="text-brand-primary" size={48} strokeWidth={2} />
-                                    </div>
-                                </div>
-
-                                {/* 2. Orange Bitcoin */}
-                                <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 1 ? 'opacity-100' : 'opacity-0'}`}>
-                                    <div className="w-24 h-24 bg-orange-500/20 rounded-full flex items-center justify-center border-2 border-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
-                                        <Icons.Bitcoin className="text-orange-500" size={56} strokeWidth={2} />
-                                    </div>
-                                </div>
-
-                                {/* 3. Purple Keypair */}
-                                <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 2 ? 'opacity-100' : 'opacity-0'}`}>
-                                    <div className="w-24 h-24 bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
-                                        <Icons.Key className="text-purple-500" size={48} strokeWidth={2} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="text-slate-300 text-sm font-medium">This app uses</p>
-                                <p className="text-lg font-bold">
-                                    <span
-                                        className={`text-brand-primary transition-all duration-500 ${activeIcon === 0 ? 'drop-shadow-[0_0_12px_rgba(45,212,191,0.8)] scale-110 inline-block' : ''
-                                            }`}
-                                    >
-                                        Disc Golf
-                                    </span>
-                                    {' + '}
-                                    <span
-                                        className={`text-orange-500 transition-all duration-500 ${activeIcon === 1 ? 'drop-shadow-[0_0_12px_rgba(249,115,22,0.8)] scale-110 inline-block' : ''
-                                            }`}
-                                    >
-                                        Bitcoin
-                                    </span>
-                                    {' + '}
-                                    <span
-                                        className={`text-purple-500 transition-all duration-500 ${activeIcon === 2 ? 'drop-shadow-[0_0_12px_rgba(168,85,247,0.8)] scale-110 inline-block' : ''
-                                            }`}
-                                    >
-                                        Nostr
-                                    </span>
-                                </p>
-                                <button
-                                    onClick={() => {
-                                        console.log('[Onboarding] Learn why clicked');
-                                        setShowNewWorldModal(true);
-                                    }}
-                                    className="text-slate-400 text-xs hover:text-white transition-colors border-b border-dashed border-slate-600 hover:border-white pb-0.5"
-                                >
-                                    Learn why
-                                </button>
-                            </div>
-
-                            <div className="w-full bg-slate-700/50 hover:bg-slate-700 border border-slate-600 hover:border-slate-500 rounded-xl p-4 text-left shadow-lg transition-colors">
-                                {/* Clickable title to open Why modal */}
-                                <button
-                                    onClick={() => {
-                                        console.log('[Onboarding] Why key clicked');
-                                        setShowWhyKeyModal(true);
-                                    }}
-                                    className="w-full text-left mb-3 group"
-                                >
-                                    <p className="text-xs text-slate-400 group-hover:text-slate-300 font-bold uppercase tracking-wider border-b border-dashed border-slate-600 group-hover:border-slate-400 pb-1 inline-block transition-colors">
-                                        Save your secret Key
-                                    </p>
-                                </button>
-
-                                {/* nsec field and copy button on same line */}
-                                <div className="flex items-center justify-between space-x-3 bg-slate-900/50 rounded-lg p-3 border border-slate-800 mb-2">
-                                    <code className="text-sm text-slate-300 font-mono flex-1">
-                                        {generatedNsec.substring(0, 5)}...{generatedNsec.substring(generatedNsec.length - 4)}
-                                    </code>
-                                    <button
-                                        onClick={copyToClipboard}
-                                        className="flex items-center space-x-2 bg-brand-primary hover:bg-brand-accent text-black font-bold px-4 py-2 rounded-lg transition-all active:scale-95 shrink-0"
-                                        title="Copy your secret key"
-                                    >
-                                        {copied ? (
-                                            <>
-                                                <Icons.Check size={16} />
-                                                <span className="text-xs">Copied!</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Icons.Copy size={16} />
-                                                <span className="text-xs">Copy Key</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-
-                                {/* Helper text */}
-                                <p className="text-xs text-slate-500 text-center">
-                                    Tap to copy • Keep this safe
-                                </p>
-
-                                {/* "I already have a nsec" option */}
-                                <div className="mt-3 text-center">
-                                    <button
-                                        onClick={() => setShowExistingNsecModal(true)}
-                                        className="text-xs text-slate-500 hover:text-slate-300 transition-colors border-b border-dashed border-slate-700 hover:border-slate-500"
-                                    >
-                                        I already have a nsec
-                                    </button>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => {
-                                    console.log('[Onboarding] Navigate to profile setup');
-                                    navigate('/profile-setup');
-                                }}
-                                className="w-full py-3 bg-brand-primary text-black font-bold rounded-xl hover:bg-brand-accent transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/20 flex items-center justify-center space-x-2"
-                            >
-                                <span>Go to Profile</span>
-                                <Icons.Next size={18} />
-                            </button>
-                        </div>
-                    )}
-
-                    {status === 'error' && (
-                        <div className="flex flex-col items-center space-y-4">
-                            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center border-2 border-red-500">
-                                <Icons.Close className="text-red-500" size={32} />
-                            </div>
-                            <h2 className="text-xl font-bold text-white">Setup Failed</h2>
-                            <p className="text-red-300 text-center px-4">{errorMessage}</p>
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="mt-4 px-6 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-white font-bold transition-colors"
-                            >
-                                Refresh Page
-                            </button>
-                        </div>
-                    )}
-                </div>
+            <div className="relative">
+                <input
+                    type={showKey ? 'text' : 'password'}
+                    value={nsec}
+                    onChange={(e) => setNsec(e.target.value)}
+                    placeholder="nsec1..."
+                    className="w-full px-4 py-3 pr-12 bg-slate-800/50 border border-slate-700 rounded-xl text-white font-mono text-sm focus:border-purple-500 focus:outline-none"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                />
+                <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                    {showKey ? <Icons.EyeOff size={20} /> : <Icons.Eye size={20} />}
+                </button>
             </div>
 
-
-
-            {/* Existing Nsec Input Modal */}
-            {showExistingNsecModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="p-6 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-bold text-white">Enter Your Secret Key</h3>
-                                <button onClick={() => setShowExistingNsecModal(false)} className="text-slate-400 hover:text-white">
-                                    <Icons.Close size={24} />
-                                </button>
-                            </div>
-                            <div className="space-y-3 text-slate-300 text-sm">
-                                <p>
-                                    If you already have a Nostr account, paste your <strong className="text-purple-400">private key (nsec)</strong> below.
-                                </p>
-                                <div className="space-y-2">
-                                    <input
-                                        type="password"
-                                        value={existingNsecInput}
-                                        onChange={(e) => setExistingNsecInput(e.target.value)}
-                                        placeholder="nsec1..."
-                                        className="w-full px-4 py-3 bg-black/50 border border-slate-800 rounded-lg text-white font-mono text-sm focus:border-purple-500 focus:outline-none"
-                                        autoFocus
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') handleExistingNsecSubmit();
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={() => setShowExistingNsecModal(false)}
-                                    className="flex-1 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleExistingNsecSubmit}
-                                    disabled={!existingNsecInput.trim() || isLoggingInExisting}
-                                    className="flex-1 py-3 bg-purple-500 text-white font-bold rounded-xl hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isLoggingInExisting ? 'Logging in...' : 'Login'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>,
-                document.body
+            {error && (
+                <div className="flex items-center space-x-2 text-red-400 text-sm">
+                    <Icons.Close size={16} />
+                    <span>{error}</span>
+                </div>
             )}
 
-            {/* Modals rendered via Portal to document.body */}
-            {showNewWorldModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[75vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="p-6 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-bold text-white">Why This Combo?</h3>
-                                <button onClick={() => setShowNewWorldModal(false)} className="text-slate-400 hover:text-white">
-                                    <Icons.Close size={24} />
-                                </button>
-                            </div>
-                            <div className="space-y-4 text-slate-300 leading-relaxed text-sm">
-                                <p className="text-brand-primary font-semibold italic">
-                                    "We'll settle up after the round!"
-                                </p>
-                                <p>
-                                    Famous last words. Every disc golfer knows the awkward shuffle at the parking lot, someone doesn't have cash, Venmo is "acting weird," and somehow those $5 ace pot donations just... evaporate into the ether.
-                                </p>
-                                <p>
-                                    This app fixes that. Pay when you start. Automatic payouts when you finish. No excuses, no IOUs, no "I swear I'll get you next time."
-                                </p>
-                                <p className="font-semibold text-white">
-                                    But why <span className="text-orange-500">Bitcoin</span>?
-                                </p>
-                                <p>
-                                    Because traditional money is broken. Banks print it endlessly, devaluing your savings. They freeze accounts, charge fees, and track every transaction. Your $100 today buys less than it did last year, and even less next year.
-                                </p>
-                                <p>
-                                    <strong className="text-orange-500">Bitcoin</strong> is different. It's un-inflatable, unstoppable money that <em className="text-slate-200">you</em> truly own. No bank can freeze it. No government can print more of it. It's financial freedom.
-                                </p>
-                                <p className="font-semibold text-white">
-                                    And <span className="text-purple-500">Nostr</span>?
-                                </p>
-                                <p>
-                                    Big Tech owns your identity. Facebook, Twitter, Google—they decide what you see, who sees you, and whether you even get to speak. Shadow bans. Account suspensions. Censorship committees.
-                                </p>
-                                <p>
-                                    <strong className="text-purple-500">Nostr</strong> gives that power back to you. It's a protocol, not a platform. Your identity, your content, your network—nobody can take it away. Move between apps freely. Speak freely.
-                                </p>
-                                <p className="italic text-brand-primary text-center pt-2">
-                                    Disc golf, financial sovereignty, and digital freedom. Now let's play.
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setShowNewWorldModal(false)}
-                                className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors mt-4"
-                            >
-                                Got it
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+            <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-3">
+                <p className="text-xs text-slate-400">
+                    <strong className="text-slate-300">Note:</strong> Your nsec is stored locally on this device. We never send it anywhere. However, logging in with nsec means your Bitcoin wallet will be separate from your Nostr identity.
+                </p>
+            </div>
 
-            {/* Why Save Key Modal */}
-            {showWhyKeyModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full max-h-[75vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="p-6 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-bold text-white">Your Money, Your Responsibility</h3>
-                                <button onClick={() => setShowWhyKeyModal(false)} className="text-slate-400 hover:text-white">
-                                    <Icons.Close size={24} />
-                                </button>
-                            </div>
-                            <div className="space-y-3 text-slate-300 text-sm leading-relaxed">
-                                <p className="font-medium text-slate-200">
-                                    This key is literally your money.
-                                </p>
-                                <p>
-                                    Lose it, and your funds are gone forever. There's no "Forgot Password" button. No customer support agent to call. No reset email.
-                                </p>
-                                <p>
-                                    <strong className="text-orange-400">You are the bank now.</strong> That's scary and liberating at the same time.
-                                </p>
-                                <p className="text-xs text-slate-400 italic">
-                                    (Seriously though, text it to yourself if you have to. Screenshot it. Tattoo it on your forearm. We don't recommend any of those, but they're better than nothing.)
-                                </p>
-                                <p className="font-medium text-slate-200">
-                                    Save it somewhere safe:
-                                </p>
-                                <ul className="list-disc pl-5 space-y-1 text-xs">
-                                    <li>Password manager (best option)</li>
-                                    <li>Encrypted note on your phone</li>
-                                    <li>Good old pen and paper</li>
-                                </ul>
-
-                                {/* Copyable nsec */}
-                                <div className="pt-2">
-                                    <p className="text-xs text-slate-400 mb-2 uppercase tracking-wide font-bold">Your Key:</p>
-                                    <div className="flex items-center space-x-2 bg-black/50 rounded-lg p-2 border border-slate-800">
-                                        <code className="flex-1 text-xs text-slate-300 font-mono truncate select-all">
-                                            {generatedNsec}
-                                        </code>
-                                        <button
-                                            onClick={copyToClipboard}
-                                            className="p-1.5 hover:bg-slate-800 rounded transition-colors text-brand-primary"
-                                        >
-                                            {copied ? <Icons.Check size={14} /> : <Icons.Copy size={14} />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Nostr Clients */}
-                                <div className="pt-2">
-                                    <p className="text-xs text-slate-400 mb-2">Use your key in other apps:</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        <a href="https://damus.io" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
-                                            Damus
-                                        </a>
-                                        <a href="https://primal.net" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
-                                            Primal
-                                        </a>
-                                        <a href="https://fountain.fm" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded-full hover:bg-purple-500/30 transition-colors text-xs font-bold border border-purple-500/30">
-                                            Fountain
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setShowWhyKeyModal(false)}
-                                className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors mt-4"
-                            >
-                                I'll Guard It With My Life
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+            <div className="flex space-x-2 pt-2">
+                <button
+                    onClick={onCancel}
+                    className="flex-1 py-3 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600 transition-colors"
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={handleSubmit}
+                    disabled={!nsec.trim() || isLoading}
+                    className="flex-1 py-3 bg-purple-500 text-white font-bold rounded-xl hover:bg-purple-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isLoading ? 'Logging in...' : 'Login'}
+                </button>
+            </div>
         </div>
     );
 };
+
+export default Onboarding;

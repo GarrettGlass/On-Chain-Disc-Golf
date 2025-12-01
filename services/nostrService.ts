@@ -3,6 +3,15 @@ import { SimplePool, generateSecretKey, getPublicKey, finalizeEvent, nip19, Filt
 import { NOSTR_KIND_PROFILE, NOSTR_KIND_CONTACTS, NOSTR_KIND_ROUND, NOSTR_KIND_SCORE, NOSTR_KIND_APP_DATA, NOSTR_KIND_GIFT_WRAP, Player, RoundSettings, UserProfile, DisplayProfile, Proof, Mint, WalletTransaction } from '../types';
 import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
 import { generateNostrConnectURI, signEventWithAmber, nip04EncryptWithAmber, nip04DecryptWithAmber } from './amberSigner';
+import { 
+    generateNewIdentity, 
+    deriveNostrKeyFromMnemonic, 
+    validateMnemonic, 
+    storeMnemonicEncrypted, 
+    setAuthSource, 
+    setUnifiedSeed,
+    AuthSource
+} from './mnemonicService';
 
 // Default relays - Optimized for robustness, profile discovery, and payment applications
 // Using 8 well-connected, free, and geographically distributed relays for maximum reliability
@@ -158,6 +167,81 @@ export const generateNewProfile = () => {
     return { pk, sk: secret };
 };
 
+/**
+ * Generate a new identity from a BIP-39 mnemonic (NIP-06)
+ * This is the PRIMARY method for new users going forward.
+ * 
+ * The mnemonic will be used for BOTH:
+ * 1. Nostr key derivation (m/44'/1237'/0'/0/0)
+ * 2. Breez wallet initialization
+ * 
+ * @returns Object with mnemonic, public key, and private key
+ */
+export const generateNewProfileFromMnemonic = (): {
+    mnemonic: string;
+    pk: string;
+    sk: Uint8Array;
+} => {
+    // Generate new identity with mnemonic
+    const identity = generateNewIdentity();
+    
+    // Store keys in localStorage (same as before)
+    localStorage.setItem('nostr_sk', identity.privateKeyHex);
+    localStorage.setItem('nostr_pk', identity.publicKey);
+    localStorage.setItem('auth_method', 'local');
+    
+    // Store encrypted mnemonic and set auth source
+    storeMnemonicEncrypted(identity.mnemonic, identity.publicKey, false);
+    setAuthSource('mnemonic');
+    setUnifiedSeed(true); // Same mnemonic for Nostr + Breez
+    
+    console.log('🔑 New identity generated from mnemonic');
+    console.log(`📍 Derivation path: m/44'/1237'/0'/0/0`);
+    
+    return {
+        mnemonic: identity.mnemonic,
+        pk: identity.publicKey,
+        sk: identity.privateKey
+    };
+};
+
+/**
+ * Login with an existing mnemonic (recovery flow)
+ * Derives Nostr keys using NIP-06 standard
+ * 
+ * @param mnemonic - 12 or 24 word BIP-39 mnemonic
+ * @returns Object with public key and private key
+ */
+export const loginWithMnemonic = (mnemonic: string): {
+    pk: string;
+    sk: Uint8Array;
+} => {
+    // Validate mnemonic
+    if (!validateMnemonic(mnemonic)) {
+        throw new Error('Invalid mnemonic phrase');
+    }
+    
+    // Derive keys from mnemonic
+    const keys = deriveNostrKeyFromMnemonic(mnemonic);
+    
+    // Store keys
+    localStorage.setItem('nostr_sk', keys.privateKeyHex);
+    localStorage.setItem('nostr_pk', keys.publicKey);
+    localStorage.setItem('auth_method', 'local');
+    
+    // Store encrypted mnemonic
+    storeMnemonicEncrypted(mnemonic, keys.publicKey, false);
+    setAuthSource('mnemonic');
+    setUnifiedSeed(true);
+    
+    console.log('🔑 Logged in with mnemonic');
+    
+    return {
+        pk: keys.publicKey,
+        sk: keys.privateKey
+    };
+};
+
 export const loginWithNsec = (nsec: string) => {
     try {
         const { type, data } = nip19.decode(nsec);
@@ -170,6 +254,10 @@ export const loginWithNsec = (nsec: string) => {
         localStorage.setItem('nostr_sk', skHex);
         localStorage.setItem('nostr_pk', pk);
         localStorage.setItem('auth_method', 'local');
+        
+        // Mark as nsec login - Breez wallet will need separate mnemonic
+        setAuthSource('nsec');
+        setUnifiedSeed(false);
 
         return { pk, sk };
     } catch (e) {

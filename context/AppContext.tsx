@@ -3,7 +3,8 @@ import { CashuMint, CashuWallet, getDecodedToken } from '@cashu/cashu-ts';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, Player, RoundSettings, WalletTransaction, UserProfile, UserStats, NOSTR_KIND_SCORE, Mint, DisplayProfile, Proof, PayoutConfig } from '../types';
 import { DEFAULT_HOLE_COUNT } from '../constants';
-import { publishProfile, publishRound, publishScore, subscribeToRound, subscribeToPlayerRounds, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, loginWithAmber, generateNewProfile, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps, subscribeToNutzaps, subscribeToLightningGiftWraps, fetchHistoricalGiftWraps, getMagicLightningAddress } from '../services/nostrService';
+import { publishProfile, publishRound, publishScore, subscribeToRound, subscribeToPlayerRounds, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, loginWithAmber, generateNewProfile, generateNewProfileFromMnemonic, loginWithMnemonic as nostrLoginWithMnemonic, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps, subscribeToNutzaps, subscribeToLightningGiftWraps, fetchHistoricalGiftWraps, getMagicLightningAddress } from '../services/nostrService';
+import { getAuthSource, hasStoredMnemonic, hasUnifiedSeed, AuthSource } from '../services/mnemonicService';
 import { checkPendingPayments, NpubCashQuote, subscribeToQuoteUpdates, unsubscribeFromQuoteUpdates, getQuoteById, registerWithAllGateways, checkGatewayRegistration, subscribeToAllGatewayUpdates } from '../services/npubCashService';
 import { checkGatewayRegistration as getGatewayRegistrations } from '../services/npubCashService';
 import { WalletService } from '../services/walletService';
@@ -46,12 +47,18 @@ interface AppContextType extends AppState {
 
   // Auth Actions
   loginNsec: (nsec: string) => Promise<void>;
+  loginMnemonic: (mnemonic: string) => Promise<void>;
   loginNip46: (bunkerUrl: string) => Promise<void>;
   loginAmber: () => Promise<void>;
   createAccount: () => Promise<void>;
+  createAccountFromMnemonic: () => Promise<{ mnemonic: string }>;
   performLogout: () => void;
   isProfileLoading: boolean;
   createToken: (amount: number) => Promise<string>;
+  
+  // Auth Info
+  authSource: AuthSource | null;
+  hasUnifiedBackup: boolean;
 
   // NWC Actions
   setWalletMode: (mode: 'cashu' | 'nwc') => void;
@@ -96,6 +103,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authMethod, setAuthMethod] = useState<'local' | 'nip46' | 'amber' | null>(null);
   const [currentUserPubkey, setCurrentUserPubkey] = useState('');
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  
+  // Mnemonic/Auth Source State
+  const [authSource, setAuthSourceState] = useState<AuthSource | null>(() => getAuthSource());
+  const [hasUnifiedBackup, setHasUnifiedBackup] = useState<boolean>(() => hasUnifiedSeed());
 
   // Wallet & Local State
   const [proofs, setProofs] = useState<Proof[]>(() => {
@@ -959,9 +970,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUserProfile({ name: 'Loading...', about: '', picture: '', lud16: '', nip05: '' });
     setCurrentUserPubkey(pk);
     setAuthMethod('local');
+    setAuthSourceState('nsec');
+    setHasUnifiedBackup(false);
     setIsAuthenticated(true);
     setIsGuest(false);
     localStorage.removeItem('is_guest_mode');
+  };
+
+  const loginMnemonic = async (mnemonic: string) => {
+    const { pk } = nostrLoginWithMnemonic(mnemonic);
+    setUserProfile({ name: 'Loading...', about: '', picture: '', lud16: '', nip05: '' });
+    setCurrentUserPubkey(pk);
+    setAuthMethod('local');
+    setAuthSourceState('mnemonic');
+    setHasUnifiedBackup(true);
+    setIsAuthenticated(true);
+    setIsGuest(false);
+    localStorage.removeItem('is_guest_mode');
+  };
+
+  const createAccountFromMnemonic = async (): Promise<{ mnemonic: string }> => {
+    // Generate new identity from mnemonic (NIP-06)
+    const { mnemonic, pk } = generateNewProfileFromMnemonic();
+    
+    setUserProfile({ name: 'Loading...', about: '', picture: '', lud16: '', nip05: '' });
+    setCurrentUserPubkey(pk);
+    setAuthMethod('local');
+    setAuthSourceState('mnemonic');
+    setHasUnifiedBackup(true);
+    setIsAuthenticated(true);
+    setIsGuest(false);
+    localStorage.removeItem('is_guest_mode');
+    
+    return { mnemonic };
   };
 
   const loginNip46 = async (bunkerUrl: string) => {
@@ -2081,12 +2122,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshWalletBalance,
       addRecentPlayer,
       loginNsec,
+      loginMnemonic,
       loginNip46,
       loginAmber,
       createAccount,
+      createAccountFromMnemonic,
       performLogout,
       isProfileLoading,
       createToken,
+      authSource,
+      hasUnifiedBackup,
       setWalletMode: setWalletModeAction,
       setNwcConnection,
       checkForPayments,
