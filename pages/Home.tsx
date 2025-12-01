@@ -70,6 +70,7 @@ export const Home: React.FC = () => {
 
     // Local UI state for the creation wizard
     const [view, setView] = useState<'menu' | 'setup' | 'select_players' | 'customize' | 'scan_player' | 'settings'>('menu');
+    const [previousView, setPreviousView] = useState<'menu' | 'setup' | 'select_players' | 'customize'>('menu');
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
     // Setup Form State
@@ -81,8 +82,8 @@ export const Home: React.FC = () => {
     const [layout, setLayout] = useState<'9' | '18' | 'custom'>('18');
     const [customHoles, setCustomHoles] = useState(21);
     const [hasEntryFee, setHasEntryFee] = useState(true);
-    const [entryFee, setEntryFee] = useState(10); // Test default: 10 sats
-    const [acePot, setAcePot] = useState(0); // Test default: 0 sats
+    const [entryFee, setEntryFee] = useState(1000); // Default: 1000 sats
+    const [acePot, setAcePot] = useState(500); // Default: 500 sats
 
     // Player Selection State
     const [searchQuery, setSearchQuery] = useState('');
@@ -567,6 +568,19 @@ export const Home: React.FC = () => {
 
     const removeCardmate = (pubkey: string) => {
         setSelectedCardmates(prev => prev.filter(p => p.pubkey !== pubkey));
+    };
+
+    // Navigate to settings while remembering where we came from
+    const goToSettings = () => {
+        if (view !== 'settings' && view !== 'scan_player') {
+            setPreviousView(view);
+        }
+        setView('settings');
+    };
+
+    // Go back from settings to previous view
+    const goBackFromSettings = () => {
+        setView(previousView);
     };
 
     const toggleScoreExclusion = (pubkey: string) => {
@@ -1166,7 +1180,7 @@ export const Home: React.FC = () => {
                             <Icons.Help size={20} />
                         </button>
                         <button
-                            onClick={() => setView('settings')}
+                            onClick={goToSettings}
                             className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                         >
                             <Icons.Settings size={20} />
@@ -1719,7 +1733,7 @@ export const Home: React.FC = () => {
                             <Icons.Help size={20} />
                         </button>
                         <button
-                            onClick={() => setView('settings')}
+                            onClick={goToSettings}
                             className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                         >
                             <Icons.Settings size={20} />
@@ -2253,7 +2267,7 @@ export const Home: React.FC = () => {
                             <Icons.Help size={20} />
                         </button>
                         <button
-                            onClick={() => setView('settings')}
+                            onClick={goToSettings}
                             className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                         >
                             <Icons.Settings size={20} />
@@ -2369,10 +2383,15 @@ export const Home: React.FC = () => {
                                 <div className="space-y-2">
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Entry Fee (Sats)</label>
                                     <input
-                                        type="number"
-                                        step="1000"
-                                        value={entryFee}
-                                        onChange={(e) => setEntryFee(Number(e.target.value))}
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={entryFee || ''}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '');
+                                            setEntryFee(val === '' ? 0 : parseInt(val, 10));
+                                        }}
+                                        onFocus={(e) => e.target.select()}
+                                        placeholder="0"
                                         className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-brand-primary outline-none"
                                     />
 
@@ -2458,10 +2477,15 @@ export const Home: React.FC = () => {
                                 <div className="space-y-2">
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ace Pot (Sats)</label>
                                     <input
-                                        type="number"
-                                        step="500"
-                                        value={acePot}
-                                        onChange={(e) => setAcePot(Number(e.target.value))}
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={acePot || ''}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '');
+                                            setAcePot(val === '' ? 0 : parseInt(val, 10));
+                                        }}
+                                        onFocus={(e) => e.target.select()}
+                                        placeholder="0"
                                         className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-brand-primary outline-none"
                                     />
 
@@ -2635,7 +2659,7 @@ export const Home: React.FC = () => {
         return (
             <div className="p-6 flex flex-col h-full bg-brand-dark">
                 <div className="flex items-center mb-6">
-                    <button onClick={() => setView('menu')} className="mr-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700">
+                    <button onClick={goBackFromSettings} className="mr-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700">
                         <Icons.Prev />
                     </button>
                     <h2 className="text-xl font-bold">Settings</h2>
@@ -2681,7 +2705,7 @@ export const Home: React.FC = () => {
                     <Icons.Help size={20} />
                 </button>
                 <button
-                    onClick={() => setView('settings')}
+                    onClick={goToSettings}
                     className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                 >
                     <Icons.Settings size={20} />
