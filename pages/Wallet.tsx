@@ -433,6 +433,7 @@ export const Wallet: React.FC = () => {
     
     // Fund wallet modal
     const [showFundModal, setShowFundModal] = useState(false);
+    const [rabbitHoleLevel, setRabbitHoleLevel] = useState(0); // 0 = main, 1 = deeper, 2 = deepest
     const [showLightningExplainer, setShowLightningExplainer] = useState(false);
     const [showWhyThreeWallets, setShowWhyThreeWallets] = useState(false);
     const [showWalletHelp, setShowWalletHelp] = useState(false);
@@ -2312,121 +2313,209 @@ export const Wallet: React.FC = () => {
                             </div>
                         </div>
                         
-                        {/* Content */}
-                        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
-                            {/* The Rant */}
-                            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                                <p className="text-slate-300 text-sm leading-relaxed mb-3">
-                                    <span className="text-white font-bold">Here's the deal:</span> The government has made it unnecessarily complicated to buy Bitcoin. 
-                                    They'd prefer you keep your savings in dollars that lose value every year while they print trillions more.
-                                </p>
-                                <p className="text-slate-400 text-xs italic">
-                                    Meanwhile, Bitcoin's supply is fixed forever. No one can print more. Ever. 
-                                    That's kind of the point.
-                                </p>
-                            </div>
-                            
-                            {/* The Good News */}
-                            <p className="text-slate-300 text-sm">
-                                <span className="text-brand-primary font-bold">The good news?</span> A few apps make it easy to buy Bitcoin and send it directly to your wallet via Lightning:
-                            </p>
-                            
-                            {/* App Recommendations */}
-                            <div className="space-y-3">
-                                {/* Cash App */}
-                                <a 
-                                    href="https://cash.app" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="block p-4 bg-[#00D64F]/10 border border-[#00D64F]/30 rounded-xl hover:bg-[#00D64F]/20 transition-colors group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="font-bold text-[#00D64F]">Cash App</p>
-                                            <p className="text-xs text-slate-400">US & UK • Free Lightning withdrawals</p>
-                                        </div>
-                                        <Icons.Next size={18} className="text-slate-500 group-hover:text-[#00D64F] transition-colors" />
-                                    </div>
-                                </a>
+                        {/* Content - Level 0: Getting Started */}
+                        {rabbitHoleLevel === 0 && (
+                            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                                {/* The Rant */}
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                                    <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                        <span className="text-white font-bold">Here's the deal:</span> The government has made it unnecessarily complicated to buy Bitcoin. 
+                                        They'd prefer you keep your savings in dollars that lose value every year while they print trillions more.
+                                    </p>
+                                    <p className="text-slate-400 text-xs italic mb-2">
+                                        Meanwhile, Bitcoin's supply is fixed forever. No one can print more. Ever.
+                                    </p>
+                                    <button 
+                                        onClick={() => setRabbitHoleLevel(1)}
+                                        className="text-xs text-orange-400 hover:text-orange-300 underline transition-colors"
+                                    >
+                                        🐇 Go Deeper...
+                                    </button>
+                                </div>
                                 
-                                {/* Strike */}
-                                <a 
-                                    href="https://strike.me" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="block p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl hover:bg-blue-500/20 transition-colors group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="font-bold text-blue-400">Strike</p>
-                                            <p className="text-xs text-slate-400">US & Americas • Lowest fees (0.3%)</p>
-                                        </div>
-                                        <Icons.Next size={18} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
-                                    </div>
-                                </a>
-                                
-                                {/* Relai */}
-                                <a 
-                                    href="https://relai.app" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="block p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-colors group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="font-bold text-orange-400">Relai</p>
-                                            <p className="text-xs text-slate-400">Europe • No KYC for small amounts</p>
-                                        </div>
-                                        <Icons.Next size={18} className="text-slate-500 group-hover:text-orange-400 transition-colors" />
-                                    </div>
-                                </a>
-                                
-                                {/* Blink */}
-                                <a 
-                                    href="https://blink.sv" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="block p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl hover:bg-purple-500/20 transition-colors group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="font-bold text-purple-400">Blink</p>
-                                            <p className="text-xs text-slate-400">Global • Great for Latin America</p>
-                                        </div>
-                                        <Icons.Next size={18} className="text-slate-500 group-hover:text-purple-400 transition-colors" />
-                                    </div>
-                                </a>
-                            </div>
-                            
-                            {/* Instructions */}
-                            <div className="bg-brand-primary/10 border border-brand-primary/30 rounded-xl p-4">
-                                <p className="text-sm text-slate-300 mb-2">
-                                    <span className="text-brand-primary font-bold">Quick steps:</span>
+                                {/* The Good News */}
+                                <p className="text-slate-300 text-sm">
+                                    <span className="text-brand-primary font-bold">The good news?</span> A few apps make it easy to buy Bitcoin and send it directly to your wallet via Lightning:
                                 </p>
-                                <ol className="text-xs text-slate-400 space-y-1 ml-4 list-decimal">
-                                    <li>Download one of the apps above</li>
-                                    <li>Buy some Bitcoin</li>
-                                    <li>Withdraw to Lightning</li>
-                                    <li>Paste your address: <span className="text-brand-primary font-mono">{receiveAddress.length > 20 ? receiveAddress.substring(0, 20) + '...' : receiveAddress}</span></li>
-                                </ol>
+                                
+                                {/* App Recommendations */}
+                                <div className="space-y-3">
+                                    <a href="https://cash.app" target="_blank" rel="noopener noreferrer" className="block p-4 bg-[#00D64F]/10 border border-[#00D64F]/30 rounded-xl hover:bg-[#00D64F]/20 transition-colors group">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-bold text-[#00D64F]">Cash App</p>
+                                                <p className="text-xs text-slate-400">US & UK • Free Lightning withdrawals</p>
+                                            </div>
+                                            <Icons.Next size={18} className="text-slate-500 group-hover:text-[#00D64F] transition-colors" />
+                                        </div>
+                                    </a>
+                                    <a href="https://strike.me" target="_blank" rel="noopener noreferrer" className="block p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl hover:bg-blue-500/20 transition-colors group">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-bold text-blue-400">Strike</p>
+                                                <p className="text-xs text-slate-400">US & Americas • Lowest fees (0.3%)</p>
+                                            </div>
+                                            <Icons.Next size={18} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
+                                        </div>
+                                    </a>
+                                    <a href="https://relai.app" target="_blank" rel="noopener noreferrer" className="block p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-colors group">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-bold text-orange-400">Relai</p>
+                                                <p className="text-xs text-slate-400">Europe • No KYC for small amounts</p>
+                                            </div>
+                                            <Icons.Next size={18} className="text-slate-500 group-hover:text-orange-400 transition-colors" />
+                                        </div>
+                                    </a>
+                                    <a href="https://blink.sv" target="_blank" rel="noopener noreferrer" className="block p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl hover:bg-purple-500/20 transition-colors group">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-bold text-purple-400">Blink</p>
+                                                <p className="text-xs text-slate-400">Global • Great for Latin America</p>
+                                            </div>
+                                            <Icons.Next size={18} className="text-slate-500 group-hover:text-purple-400 transition-colors" />
+                                        </div>
+                                    </a>
+                                </div>
+                                
+                                {/* Instructions */}
+                                <div className="bg-brand-primary/10 border border-brand-primary/30 rounded-xl p-4">
+                                    <p className="text-sm text-slate-300 mb-2">
+                                        <span className="text-brand-primary font-bold">Quick steps:</span>
+                                    </p>
+                                    <ol className="text-xs text-slate-400 space-y-1 ml-4 list-decimal">
+                                        <li>Download one of the apps above</li>
+                                        <li>Buy some Bitcoin</li>
+                                        <li>Withdraw to Lightning</li>
+                                        <li>Paste your address: <span className="text-brand-primary font-mono">{receiveAddress.length > 20 ? receiveAddress.substring(0, 20) + '...' : receiveAddress}</span></li>
+                                    </ol>
+                                </div>
+                                
+                                {/* Copy Address Button */}
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(receiveAddress);
+                                        alert('Lightning Address copied!');
+                                    }}
+                                    className="w-full p-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl transition-colors flex items-center justify-center space-x-2"
+                                >
+                                    <Icons.Copy size={16} className="text-slate-400" />
+                                    <span className="text-sm text-slate-300">Copy Your Lightning Address</span>
+                                </button>
                             </div>
-                            
-                            {/* Copy Address Button */}
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(receiveAddress);
-                                    alert('Lightning Address copied!');
-                                }}
-                                className="w-full p-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl transition-colors flex items-center justify-center space-x-2"
-                            >
-                                <Icons.Copy size={16} className="text-slate-400" />
-                                <span className="text-sm text-slate-300">Copy Your Lightning Address</span>
-                            </button>
-                        </div>
+                        )}
+                        
+                        {/* Content - Level 1: Down the Rabbit Hole */}
+                        {rabbitHoleLevel === 1 && (
+                            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                                <div className="text-center mb-2">
+                                    <span className="text-2xl">🐇</span>
+                                    <h3 className="text-lg font-bold text-white mt-1">Down the Rabbit Hole</h3>
+                                </div>
+                                
+                                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                                    <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                        Governments are, at their core, <span className="text-red-400 font-bold">institutions of coercion</span>. 
+                                        They fund themselves not through voluntary exchange, but through taxation backed by force — 
+                                        and increasingly, by simply <span className="text-red-400 font-bold">printing money out of thin air</span>.
+                                    </p>
+                                    <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                        Every dollar printed dilutes your savings. Your purchasing power erodes while you sleep. 
+                                        This isn't a bug — <span className="text-white font-bold">it's how the system is designed</span>.
+                                    </p>
+                                </div>
+                                
+                                <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+                                    <p className="text-orange-400 text-sm italic leading-relaxed">
+                                        "No man should work for what another man prints."
+                                    </p>
+                                    <p className="text-slate-500 text-xs mt-2 text-right">— Jack Mallers, CEO of Strike</p>
+                                </div>
+                                
+                                <p className="text-slate-400 text-sm leading-relaxed">
+                                    Bitcoin is the first technology that allows you to <span className="text-white font-bold">opt out</span> of this system. 
+                                    Not through violence. Not through politics. Through mathematics. Through code that no government can change.
+                                </p>
+                                
+                                <div className="text-center">
+                                    <button 
+                                        onClick={() => setRabbitHoleLevel(2)}
+                                        className="text-sm text-orange-400 hover:text-orange-300 underline transition-colors"
+                                    >
+                                        🕳️ How deep does this go?
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Content - Level 2: The Deepest Level */}
+                        {rabbitHoleLevel === 2 && (
+                            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                                <div className="text-center mb-2">
+                                    <span className="text-2xl">🌌</span>
+                                    <h3 className="text-lg font-bold text-white mt-1">The Signal in the Noise</h3>
+                                </div>
+                                
+                                <div className="bg-gradient-to-br from-purple-500/10 to-orange-500/10 border border-purple-500/30 rounded-xl p-4">
+                                    <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                        Bitcoin isn't just a currency. It's an <span className="text-purple-400 font-bold">intergalactic protocol</span> — 
+                                        a discovery of absolute digital scarcity that will outlast not just our generation, 
+                                        but our <span className="text-orange-400 font-bold">civilizations</span>.
+                                    </p>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        This technology will be here for <span className="text-white font-bold">millennia</span>. 
+                                        Long after every fiat currency has hyperinflated into oblivion, 
+                                        Bitcoin will still be running — block after block, forever.
+                                    </p>
+                                </div>
+                                
+                                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                                    <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                        Throughout history, every coercive institution has eventually fallen. 
+                                        Empires. Monarchies. Dictatorships. They all crumble.
+                                    </p>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        Bitcoin is the <span className="text-brand-primary font-bold">peaceful revolution</span>. 
+                                        It doesn't fight governments — it simply makes them irrelevant. 
+                                        When you can store and transfer value without permission, 
+                                        the power to inflate, confiscate, and control <span className="text-white font-bold">evaporates</span>.
+                                    </p>
+                                </div>
+                                
+                                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                                    <p className="text-amber-400 text-sm leading-relaxed mb-2">
+                                        <span className="font-bold">This is why there's so much misinformation.</span>
+                                    </p>
+                                    <p className="text-slate-400 text-xs leading-relaxed">
+                                        Those in power understand the threat. They'll call it a scam, a bubble, a tool for criminals — 
+                                        anything to delay the inevitable. But the signal cannot be stopped.
+                                    </p>
+                                </div>
+                                
+                                <div className="bg-gradient-to-r from-orange-500/20 to-purple-500/20 border border-orange-500/30 rounded-xl p-4 text-center">
+                                    <p className="text-white font-bold text-sm mb-1">
+                                        A golden age for humanity awaits.
+                                    </p>
+                                    <p className="text-slate-400 text-xs">
+                                        You're early. You're here. Welcome to the revolution.
+                                    </p>
+                                    <p className="text-2xl mt-2">🧡</p>
+                                </div>
+                            </div>
+                        )}
                         
                         {/* Footer */}
                         <div className="p-4 border-t border-slate-800">
-                            <Button fullWidth onClick={() => setShowFundModal(false)}>Got it</Button>
+                            {rabbitHoleLevel > 0 ? (
+                                <div className="flex space-x-3">
+                                    <Button variant="secondary" onClick={() => setRabbitHoleLevel(rabbitHoleLevel - 1)}>
+                                        <Icons.Back size={16} className="mr-1" /> Back
+                                    </Button>
+                                    <Button fullWidth onClick={() => { setShowFundModal(false); setRabbitHoleLevel(0); }}>Got it</Button>
+                                </div>
+                            ) : (
+                                <Button fullWidth onClick={() => { setShowFundModal(false); setRabbitHoleLevel(0); }}>Got it</Button>
+                            )}
                         </div>
                     </div>
                 </div>
