@@ -193,7 +193,9 @@ const WalletHelpModal: React.FC<{
     onClose: () => void;
     onLightningClick: () => void;
     onWhyThreeClick: () => void;
-}> = ({ isOpen, onClose, onLightningClick, onWhyThreeClick }) => {
+    onNewToBitcoinClick: () => void;
+    showNewToBitcoin?: boolean;
+}> = ({ isOpen, onClose, onLightningClick, onWhyThreeClick, onNewToBitcoinClick, showNewToBitcoin = false }) => {
     const [expandedWallet, setExpandedWallet] = useState<string | null>(null);
     
     if (!isOpen) return null;
@@ -268,6 +270,25 @@ const WalletHelpModal: React.FC<{
                     <p className="text-xs text-slate-500">
                         Tap a wallet above for more details. Switch anytime using the selector at the top.
                     </p>
+                    
+                    {/* New to Bitcoin - shows when user has balance */}
+                    {showNewToBitcoin && (
+                        <button
+                            onClick={onNewToBitcoinClick}
+                            className="w-full mt-4 p-3 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-xl transition-colors group"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <Icons.Bitcoin size={20} className="text-orange-500" />
+                                    <div className="text-left">
+                                        <p className="text-sm font-medium text-white">Need more sats?</p>
+                                        <p className="text-xs text-slate-400">Learn how to buy Bitcoin</p>
+                                    </div>
+                                </div>
+                                <Icons.Next size={16} className="text-slate-500 group-hover:text-orange-500 transition-colors" />
+                            </div>
+                        </button>
+                    )}
                 </div>
                 
                 {/* Footer */}
@@ -1281,6 +1302,96 @@ export const Wallet: React.FC = () => {
     if (view === 'receive') {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(receiveAddress)}&bgcolor=ffffff&color=000000&margin=2`;
 
+        // Breez wallet receive view (Coming Soon)
+        if (walletMode === 'breez') {
+            return (
+                <div className="p-6 h-full flex flex-col items-center text-center">
+                    <div className="w-full flex justify-start mb-6">
+                        <button onClick={() => setView('main')} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700">
+                            <Icons.Prev />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center max-w-xs">
+                        <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center mb-6">
+                            <Icons.Zap size={48} className="text-blue-400" />
+                        </div>
+                        
+                        <h2 className="text-2xl font-bold text-white mb-3">Breez Wallet</h2>
+                        <p className="text-slate-400 text-sm mb-6">
+                            Self-custodial Lightning receiving is coming soon! We're finishing up the integration.
+                        </p>
+                        
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 w-full mb-6">
+                            <div className="flex items-center space-x-3 mb-2">
+                                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                                <span className="text-amber-400 text-sm font-bold">Coming Soon</span>
+                            </div>
+                            <p className="text-slate-400 text-xs">
+                                Your Breez Lightning address will appear here once setup is complete. Until then, you can use Cashu or NWC to receive.
+                            </p>
+                        </div>
+                        
+                        <Button 
+                            fullWidth 
+                            variant="secondary"
+                            onClick={() => { setWalletMode('cashu'); setView('receive'); }}
+                        >
+                            <Icons.Cashew size={18} className="mr-2 text-emerald-400" /> 
+                            Use Cashu Instead
+                        </Button>
+                    </div>
+                </div>
+            );
+        }
+        
+        // NWC wallet receive view (Setup Required if not connected)
+        if (walletMode === 'nwc' && !nwcString) {
+            return (
+                <div className="p-6 h-full flex flex-col items-center text-center">
+                    <div className="w-full flex justify-start mb-6">
+                        <button onClick={() => setView('main')} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700">
+                            <Icons.Prev />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center max-w-xs">
+                        <div className="w-24 h-24 rounded-full bg-purple-500/20 flex items-center justify-center mb-6">
+                            <Icons.Link size={48} className="text-purple-400" />
+                        </div>
+                        
+                        <h2 className="text-2xl font-bold text-white mb-3">Connect Your Wallet</h2>
+                        <p className="text-slate-400 text-sm mb-6">
+                            To receive with NWC, you need to connect an external Lightning wallet first.
+                        </p>
+                        
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 w-full mb-6">
+                            <p className="text-purple-400 text-sm font-bold mb-2">Setup Required</p>
+                            <p className="text-slate-400 text-xs">
+                                NWC lets you use your existing wallet (like Alby or Zeus) to send and receive. Go to settings to connect.
+                            </p>
+                        </div>
+                        
+                        <Button 
+                            fullWidth 
+                            onClick={() => setView('settings')}
+                        >
+                            <Icons.Settings size={18} className="mr-2" /> 
+                            Go to Settings
+                        </Button>
+                        
+                        <button 
+                            onClick={() => { setWalletMode('cashu'); setView('receive'); }}
+                            className="mt-4 text-sm text-slate-400 hover:text-emerald-400 transition-colors"
+                        >
+                            Or use Cashu instead
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // Cashu (and connected NWC) receive view - shows npub.cash address
         return (
             <div className="p-6 h-full flex flex-col items-center text-center">
                 <div className="w-full flex justify-start mb-6">
@@ -1289,12 +1400,25 @@ export const Wallet: React.FC = () => {
                     </button>
                 </div>
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                    <h2 className="text-2xl font-bold">Lightning Address</h2>
+                    <h2 className="text-2xl font-bold">
+                        {walletMode === 'nwc' ? 'Receive via NWC' : 'Lightning Address'}
+                    </h2>
                     <button
                         onClick={() => setHelpModal({
                             isOpen: true,
-                            title: "Lightning Address",
-                            text: `
+                            title: walletMode === 'nwc' ? "NWC Receiving" : "Lightning Address",
+                            text: walletMode === 'nwc' 
+                                ? `
+                                    <p class="mb-3">Funds sent to this address will be routed to your <strong>connected NWC wallet</strong>.</p>
+                                    
+                                    <p class="font-bold text-white mb-2">📱 How it works:</p>
+                                    <ol class="list-decimal ml-5 mb-4 space-y-1">
+                                        <li>Someone sends to your Lightning address</li>
+                                        <li>The payment arrives in your connected wallet</li>
+                                        <li>You see the balance in your external app</li>
+                                    </ol>
+                                `
+                                : `
                                 <p class="mb-3">Think of this like your <strong>email address for money</strong>. It's permanent and reusable!</p>
                                 
                                 <p class="font-bold text-white mb-2">✅ You can:</p>
@@ -1322,10 +1446,16 @@ export const Wallet: React.FC = () => {
                     </button>
                 </div>
                 <p className="text-slate-400 text-sm mb-6 max-w-xs mx-auto">
-                    Your permanent address for receiving payments. Share it like a username.
+                    {walletMode === 'nwc' 
+                        ? 'Payments will be routed to your connected wallet.'
+                        : 'Your permanent address for receiving payments. Share it like a username.'}
                 </p>
 
-                <div className="bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 p-1 rounded-2xl shadow-2xl shadow-purple-500/20 mb-6">
+                <div className={`p-1 rounded-2xl shadow-2xl mb-6 ${
+                    walletMode === 'nwc' 
+                        ? 'bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 shadow-purple-500/20'
+                        : 'bg-gradient-to-br from-cyan-400 via-emerald-500 to-teal-600 shadow-emerald-500/20'
+                }`}>
                     <div className="bg-white p-3 rounded-xl">
                         <img src={qrUrl} alt="Wallet QR Code" className="w-48 h-48" loading="eager" />
                     </div>
@@ -1337,8 +1467,12 @@ export const Wallet: React.FC = () => {
                         className="w-full flex items-center justify-between bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-brand-primary transition-all group"
                     >
                         <div className="flex items-center space-x-3 overflow-hidden">
-                            <div className="bg-brand-primary/10 p-2 rounded-lg">
-                                <Icons.Zap size={18} className="text-brand-primary" />
+                            <div className={`p-2 rounded-lg ${
+                                walletMode === 'nwc' ? 'bg-purple-500/10' : 'bg-emerald-500/10'
+                            }`}>
+                                {walletMode === 'nwc' 
+                                    ? <Icons.Link size={18} className="text-purple-400" />
+                                    : <Icons.Cashew size={18} className="text-emerald-400" />}
                             </div>
                             <div className="flex flex-col items-start overflow-hidden">
                                 <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Your Address</span>
@@ -1376,8 +1510,10 @@ export const Wallet: React.FC = () => {
                 </div>
 
                 <div className="mt-6 w-full flex flex-col items-center space-y-4">
-                    <div className="flex items-center space-x-2 text-brand-primary animate-pulse">
-                        <Icons.Zap size={18} />
+                    <div className={`flex items-center space-x-2 animate-pulse ${
+                        walletMode === 'nwc' ? 'text-purple-400' : 'text-emerald-400'
+                    }`}>
+                        {walletMode === 'nwc' ? <Icons.Link size={18} /> : <Icons.Cashew size={18} />}
                         <span className="text-sm font-bold">Waiting for payment...</span>
                     </div>
                     
@@ -1469,6 +1605,95 @@ export const Wallet: React.FC = () => {
         const fileInput = (
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
         );
+
+        // Breez wallet send view (Coming Soon)
+        if (walletMode === 'breez') {
+            return (
+                <div className="p-6 h-full flex flex-col items-center text-center">
+                    <div className="w-full flex justify-start mb-6">
+                        <button onClick={() => setView('main')} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700">
+                            <Icons.Prev />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center max-w-xs">
+                        <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center mb-6">
+                            <Icons.Send size={48} className="text-blue-400" />
+                        </div>
+                        
+                        <h2 className="text-2xl font-bold text-white mb-3">Breez Wallet</h2>
+                        <p className="text-slate-400 text-sm mb-6">
+                            Self-custodial Lightning sending is coming soon! We're finishing up the integration.
+                        </p>
+                        
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 w-full mb-6">
+                            <div className="flex items-center space-x-3 mb-2">
+                                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                                <span className="text-amber-400 text-sm font-bold">Coming Soon</span>
+                            </div>
+                            <p className="text-slate-400 text-xs">
+                                Breez sending will be available once setup is complete. Until then, you can use Cashu or NWC to send.
+                            </p>
+                        </div>
+                        
+                        <Button 
+                            fullWidth 
+                            variant="secondary"
+                            onClick={() => { setWalletMode('cashu'); }}
+                        >
+                            <Icons.Cashew size={18} className="mr-2 text-emerald-400" /> 
+                            Use Cashu Instead
+                        </Button>
+                    </div>
+                </div>
+            );
+        }
+        
+        // NWC wallet send view (Setup Required if not connected)
+        if (walletMode === 'nwc' && !nwcString) {
+            return (
+                <div className="p-6 h-full flex flex-col items-center text-center">
+                    <div className="w-full flex justify-start mb-6">
+                        <button onClick={() => setView('main')} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700">
+                            <Icons.Prev />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center max-w-xs">
+                        <div className="w-24 h-24 rounded-full bg-purple-500/20 flex items-center justify-center mb-6">
+                            <Icons.Link size={48} className="text-purple-400" />
+                        </div>
+                        
+                        <h2 className="text-2xl font-bold text-white mb-3">Connect Your Wallet</h2>
+                        <p className="text-slate-400 text-sm mb-6">
+                            To send with NWC, you need to connect an external Lightning wallet first.
+                        </p>
+                        
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 w-full mb-6">
+                            <p className="text-purple-400 text-sm font-bold mb-2">Setup Required</p>
+                            <p className="text-slate-400 text-xs">
+                                NWC lets you use your existing wallet (like Alby or Zeus) to send and receive. Go to settings to connect.
+                            </p>
+                        </div>
+                        
+                        <Button 
+                            fullWidth 
+                            onClick={() => setView('settings')}
+                        >
+                            <Icons.Settings size={18} className="mr-2" /> 
+                            Go to Settings
+                        </Button>
+                        
+                        <button 
+                            onClick={() => { setWalletMode('cashu'); }}
+                            className="mt-4 text-sm text-slate-400 hover:text-emerald-400 transition-colors"
+                        >
+                            Or use Cashu instead
+                        </button>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="p-6 h-full flex flex-col">
@@ -2013,8 +2238,8 @@ export const Wallet: React.FC = () => {
                         </span>
                     </button>
                     
-                    {/* Zero Balance Prompt - Only shows when balance is 0 */}
-                    {walletBalance === 0 && !isBalanceLoading && (
+                    {/* Zero Balance Prompt - Shows immediately if balance is 0 (don't wait for loading) */}
+                    {walletBalance === 0 && (
                         <button
                             onClick={() => setShowFundModal(true)}
                             className="w-full mb-4 p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-orange-500/30 rounded-xl transition-all group"
@@ -2428,6 +2653,8 @@ export const Wallet: React.FC = () => {
                 onClose={() => setShowWalletHelp(false)}
                 onLightningClick={() => { setShowWalletHelp(false); setReturnToWalletHelp(true); setShowLightningExplainer(true); }}
                 onWhyThreeClick={() => { setShowWalletHelp(false); setShowWhyThreeWallets(true); }}
+                onNewToBitcoinClick={() => { setShowWalletHelp(false); setShowFundModal(true); }}
+                showNewToBitcoin={walletBalance > 0}
             />
             
         </div >
