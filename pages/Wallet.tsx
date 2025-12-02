@@ -247,6 +247,8 @@ export const Wallet: React.FC = () => {
     // Fund wallet modal
     const [showFundModal, setShowFundModal] = useState(false);
     const [showLightningExplainer, setShowLightningExplainer] = useState(false);
+    const [showWhyThreeWallets, setShowWhyThreeWallets] = useState(false);
+    const [expandedWalletType, setExpandedWalletType] = useState<string | null>(null);
     
     // Calculate gradient colors based on current selection
     const leftGlowType = getLeftGlowColor(walletMode);
@@ -1102,7 +1104,13 @@ export const Wallet: React.FC = () => {
                     </div>
                 )}
 
-                {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); } }} />}
+                {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { 
+                if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); }
+                else if (action === 'why-three-wallets') { setHelpModal(null); setShowWhyThreeWallets(true); }
+                else if (action === 'expand-breez') { setHelpModal(null); setExpandedWalletType('breez'); }
+                else if (action === 'expand-cashu') { setHelpModal(null); setExpandedWalletType('cashu'); }
+                else if (action === 'expand-nwc') { setHelpModal(null); setExpandedWalletType('nwc'); }
+            }} />}
             </div>
         );
     }
@@ -1218,7 +1226,13 @@ export const Wallet: React.FC = () => {
                         Don't have Bitcoin yet? Learn how to buy
                     </button>
                 </div>
-                {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); } }} />}
+                {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { 
+                if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); }
+                else if (action === 'why-three-wallets') { setHelpModal(null); setShowWhyThreeWallets(true); }
+                else if (action === 'expand-breez') { setHelpModal(null); setExpandedWalletType('breez'); }
+                else if (action === 'expand-cashu') { setHelpModal(null); setExpandedWalletType('cashu'); }
+                else if (action === 'expand-nwc') { setHelpModal(null); setExpandedWalletType('nwc'); }
+            }} />}
                 
                 {/* Fund Modal also available from receive view */}
                 {showFundModal && (
@@ -1660,23 +1674,35 @@ export const Wallet: React.FC = () => {
                                     <li><strong>Pull down</strong> to refresh your balance</li>
                                 </ul>
                                 
-                                <p class="font-bold text-white mb-2">🔄 Three Wallet Options:</p>
-                                <div class="space-y-3 mb-4">
-                                    <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                                        <p class="font-bold text-blue-400">⚡ Lightning (Breez)</p>
-                                        <p class="text-xs text-slate-400">Self-custodial Lightning wallet. You control your keys. <em>(Coming soon)</em></p>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <p class="font-bold text-white">🔄 Three Wallet Options</p>
+                                    <span class="text-brand-primary text-xs cursor-pointer hover:underline" data-action="why-three-wallets">(Why three?)</span>
+                                </div>
+                                <div class="space-y-2 mb-4">
+                                    <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 cursor-pointer hover:bg-blue-500/20 transition-colors" data-action="expand-breez">
+                                        <div class="flex items-center justify-between">
+                                            <p class="font-bold text-blue-400">⚡ Lightning (Breez)</p>
+                                            <span class="text-blue-400 text-xs">▼</span>
+                                        </div>
+                                        <p class="text-xs text-slate-400">Self-custodial Lightning wallet. <em>(Coming soon)</em></p>
                                     </div>
-                                    <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
-                                        <p class="font-bold text-emerald-400">🥜 Cashu</p>
-                                        <p class="text-xs text-slate-400">Private eCash tokens. Instant, anonymous payments. Great for beginners!</p>
+                                    <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 cursor-pointer hover:bg-emerald-500/20 transition-colors" data-action="expand-cashu">
+                                        <div class="flex items-center justify-between">
+                                            <p class="font-bold text-emerald-400">🥜 Cashu</p>
+                                            <span class="text-emerald-400 text-xs">▼</span>
+                                        </div>
+                                        <p class="text-xs text-slate-400">Private eCash tokens. Great for beginners!</p>
                                     </div>
-                                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
-                                        <p class="font-bold text-purple-400">🔗 NWC</p>
-                                        <p class="text-xs text-slate-400">Connect your existing wallet (Alby, Zeus, etc.) via Nostr Wallet Connect.</p>
+                                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 cursor-pointer hover:bg-purple-500/20 transition-colors" data-action="expand-nwc">
+                                        <div class="flex items-center justify-between">
+                                            <p class="font-bold text-purple-400">🔗 NWC</p>
+                                            <span class="text-purple-400 text-xs">▼</span>
+                                        </div>
+                                        <p class="text-xs text-slate-400">Connect your existing wallet (Alby, Zeus, etc.)</p>
                                     </div>
                                 </div>
                                 
-                                <p class="text-xs text-slate-500">Switch between wallets anytime using the selector at the top of the tile.</p>
+                                <p class="text-xs text-slate-500">Tap a wallet above for more details. Switch anytime using the selector at the top.</p>
                             `
                         })}
                         className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
@@ -1979,7 +2005,13 @@ export const Wallet: React.FC = () => {
                         ))
                 )}
             </div>
-            {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); } }} />}
+            {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { 
+                if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); }
+                else if (action === 'why-three-wallets') { setHelpModal(null); setShowWhyThreeWallets(true); }
+                else if (action === 'expand-breez') { setHelpModal(null); setExpandedWalletType('breez'); }
+                else if (action === 'expand-cashu') { setHelpModal(null); setExpandedWalletType('cashu'); }
+                else if (action === 'expand-nwc') { setHelpModal(null); setExpandedWalletType('nwc'); }
+            }} />}
             
             {/* Fund Wallet Modal */}
             {showFundModal && (
@@ -2182,6 +2214,208 @@ export const Wallet: React.FC = () => {
                         {/* Footer */}
                         <div className="p-4 border-t border-slate-800">
                             <Button fullWidth onClick={() => setShowLightningExplainer(false)}>Got it</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Why Three Wallets Modal */}
+            {showWhyThreeWallets && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowWhyThreeWallets(false)}>
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-5 border-b border-slate-800">
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-full bg-brand-primary/20 flex items-center justify-center">
+                                        <Icons.Help size={20} className="text-brand-primary" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white">Why Three Wallets?</h3>
+                                </div>
+                                <button onClick={() => setShowWhyThreeWallets(false)} className="text-slate-400 hover:text-white p-1">
+                                    <Icons.Close size={20} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                                <p className="text-slate-300 text-sm leading-relaxed">
+                                    <span className="text-amber-400 font-bold">We get it — this might seem confusing.</span> Why can't there just be one wallet?
+                                </p>
+                            </div>
+                            
+                            <p className="text-slate-300 text-sm leading-relaxed">
+                                Bitcoin is still young, and different wallet types have different trade-offs. We give you <strong className="text-white">three options</strong> so you can pick what works best for you:
+                            </p>
+                            
+                            <div className="space-y-3">
+                                <div className="flex items-start space-x-3">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                                        <Icons.Zap size={16} className="text-blue-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-blue-400 font-bold text-sm">Lightning</p>
+                                        <p className="text-slate-400 text-xs">Maximum control. Your keys, your coins. Best for larger amounts.</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-3">
+                                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                                        <Icons.Cashew size={16} className="text-emerald-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-emerald-400 font-bold text-sm">Cashu</p>
+                                        <p className="text-slate-400 text-xs">Super simple & private. Perfect for beginners and small amounts.</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-3">
+                                    <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                                        <Icons.Link size={16} className="text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-purple-400 font-bold text-sm">NWC</p>
+                                        <p className="text-slate-400 text-xs">Already have a wallet? Connect it and use what you know.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-slate-800/50 rounded-xl p-4">
+                                <p className="text-slate-400 text-xs leading-relaxed">
+                                    <span className="text-white font-bold">Our recommendation:</span> Start with <span className="text-emerald-400">Cashu</span> if you're new. It's the easiest way to get started and you can always switch later!
+                                </p>
+                            </div>
+                        </div>
+                        
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-800">
+                            <Button fullWidth onClick={() => setShowWhyThreeWallets(false)}>Got it</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Wallet Detail Explainer Modal */}
+            {expandedWalletType && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setExpandedWalletType(null)}>
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header - Dynamic based on wallet type */}
+                        <div className="p-5 border-b border-slate-800">
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center space-x-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                        expandedWalletType === 'breez' ? 'bg-blue-500/20' :
+                                        expandedWalletType === 'cashu' ? 'bg-emerald-500/20' : 'bg-purple-500/20'
+                                    }`}>
+                                        {expandedWalletType === 'breez' && <Icons.Zap size={20} className="text-blue-400" />}
+                                        {expandedWalletType === 'cashu' && <Icons.Cashew size={20} className="text-emerald-400" />}
+                                        {expandedWalletType === 'nwc' && <Icons.Link size={20} className="text-purple-400" />}
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white">
+                                        {expandedWalletType === 'breez' && 'Lightning (Breez)'}
+                                        {expandedWalletType === 'cashu' && 'Cashu Wallet'}
+                                        {expandedWalletType === 'nwc' && 'Nostr Wallet Connect'}
+                                    </h3>
+                                </div>
+                                <button onClick={() => setExpandedWalletType(null)} className="text-slate-400 hover:text-white p-1">
+                                    <Icons.Close size={20} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Content - Dynamic based on wallet type */}
+                        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                            {expandedWalletType === 'breez' && (
+                                <>
+                                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                                        <p className="text-slate-300 text-sm leading-relaxed">
+                                            <span className="text-blue-400 font-bold">Self-custodial Lightning.</span> This means YOU hold your own keys — not us, not anyone else.
+                                        </p>
+                                    </div>
+                                    
+                                    <p className="text-slate-400 text-sm leading-relaxed">
+                                        The Breez SDK creates a Lightning node on your phone. It's like having a mini Bitcoin bank in your pocket that only you control.
+                                    </p>
+                                    
+                                    <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                        <p className="text-white font-bold text-sm">Best for:</p>
+                                        <ul className="text-slate-400 text-xs space-y-1.5">
+                                            <li>✓ Larger amounts you want to protect</li>
+                                            <li>✓ Maximum security and control</li>
+                                            <li>✓ Users who value self-custody</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
+                                        <p className="text-amber-400 text-xs font-bold">⏳ Coming Soon</p>
+                                        <p className="text-slate-400 text-xs">We're finishing integration. For now, try Cashu!</p>
+                                    </div>
+                                </>
+                            )}
+                            
+                            {expandedWalletType === 'cashu' && (
+                                <>
+                                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+                                        <p className="text-slate-300 text-sm leading-relaxed">
+                                            <span className="text-emerald-400 font-bold">Digital cash tokens.</span> Think of it like arcade tokens — simple, private, and instant.
+                                        </p>
+                                    </div>
+                                    
+                                    <p className="text-slate-400 text-sm leading-relaxed">
+                                        Cashu uses "mints" that create tokens backed by Bitcoin. You can send these tokens instantly and privately — the mint doesn't even know who you sent them to!
+                                    </p>
+                                    
+                                    <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                        <p className="text-white font-bold text-sm">Best for:</p>
+                                        <ul className="text-slate-400 text-xs space-y-1.5">
+                                            <li>✓ Beginners just getting started</li>
+                                            <li>✓ Small, everyday amounts</li>
+                                            <li>✓ Maximum privacy</li>
+                                            <li>✓ Instant, fee-free transfers</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3">
+                                        <p className="text-emerald-400 text-xs font-bold">💡 Recommended for new users!</p>
+                                        <p className="text-slate-400 text-xs">The easiest way to start using Bitcoin.</p>
+                                    </div>
+                                </>
+                            )}
+                            
+                            {expandedWalletType === 'nwc' && (
+                                <>
+                                    <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+                                        <p className="text-slate-300 text-sm leading-relaxed">
+                                            <span className="text-purple-400 font-bold">Connect your existing wallet.</span> Already using Alby, Zeus, or another Lightning wallet? Plug it right in!
+                                        </p>
+                                    </div>
+                                    
+                                    <p className="text-slate-400 text-sm leading-relaxed">
+                                        NWC (Nostr Wallet Connect) lets apps talk to your wallet securely. You keep full control — this app just sends payment requests.
+                                    </p>
+                                    
+                                    <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                        <p className="text-white font-bold text-sm">Best for:</p>
+                                        <ul className="text-slate-400 text-xs space-y-1.5">
+                                            <li>✓ Experienced Bitcoin users</li>
+                                            <li>✓ Using your existing Lightning wallet</li>
+                                            <li>✓ Keeping funds in one place</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-3">
+                                        <p className="text-purple-400 text-xs font-bold">🔗 Popular NWC wallets:</p>
+                                        <p className="text-slate-400 text-xs">Alby, Zeus, Primal, and more</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-800">
+                            <Button fullWidth onClick={() => setExpandedWalletType(null)}>Got it</Button>
                         </div>
                     </div>
                 </div>
