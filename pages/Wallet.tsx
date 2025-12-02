@@ -233,6 +233,9 @@ export const Wallet: React.FC = () => {
     const [isFetchingPrice, setIsFetchingPrice] = useState(false);
     const usdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     
+    // Fund wallet modal
+    const [showFundModal, setShowFundModal] = useState(false);
+    
     // Calculate gradient colors based on current selection
     const leftGlowType = getLeftGlowColor(walletMode);
     const rightGlowColor = WALLET_COLORS[walletMode];
@@ -1189,13 +1192,90 @@ export const Wallet: React.FC = () => {
                     </Button>
                 </div>
 
-                <div className="mt-6 w-full flex justify-center">
+                <div className="mt-6 w-full flex flex-col items-center space-y-4">
                     <div className="flex items-center space-x-2 text-brand-primary animate-pulse">
                         <Icons.Zap size={18} />
                         <span className="text-sm font-bold">Waiting for payment...</span>
                     </div>
+                    
+                    {/* Don't have Bitcoin link */}
+                    <button 
+                        onClick={() => setShowFundModal(true)}
+                        className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                        Don't have Bitcoin yet? Learn how to buy
+                    </button>
                 </div>
                 {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} />}
+                
+                {/* Fund Modal also available from receive view */}
+                {showFundModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowFundModal(false)}>
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="p-5 border-b border-slate-800">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                            <Icons.Zap size={20} className="text-amber-400" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-white">Getting Your First Sats</h3>
+                                    </div>
+                                    <button onClick={() => setShowFundModal(false)} className="text-slate-400 hover:text-white p-1">
+                                        <Icons.Close size={20} />
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {/* Content */}
+                            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                                    <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                        <span className="text-white font-bold">Here's the deal:</span> The government has made it unnecessarily complicated to buy Bitcoin. 
+                                        They'd prefer you keep your savings in dollars that lose value every year while they print trillions more.
+                                    </p>
+                                    <p className="text-slate-400 text-xs italic">
+                                        Meanwhile, Bitcoin's supply is fixed forever. No one can print more. Ever. 
+                                    </p>
+                                </div>
+                                
+                                <p className="text-slate-300 text-sm">
+                                    <span className="text-brand-primary font-bold">The good news?</span> These apps make it easy:
+                                </p>
+                                
+                                <div className="space-y-2">
+                                    <a href="https://cash.app" target="_blank" rel="noopener noreferrer" className="block p-3 bg-[#00D64F]/10 border border-[#00D64F]/30 rounded-lg hover:bg-[#00D64F]/20 transition-colors">
+                                        <p className="font-bold text-[#00D64F] text-sm">Cash App <span className="text-xs text-slate-400 font-normal">• US & UK</span></p>
+                                    </a>
+                                    <a href="https://strike.me" target="_blank" rel="noopener noreferrer" className="block p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg hover:bg-blue-500/20 transition-colors">
+                                        <p className="font-bold text-blue-400 text-sm">Strike <span className="text-xs text-slate-400 font-normal">• Americas</span></p>
+                                    </a>
+                                    <a href="https://relai.app" target="_blank" rel="noopener noreferrer" className="block p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg hover:bg-orange-500/20 transition-colors">
+                                        <p className="font-bold text-orange-400 text-sm">Relai <span className="text-xs text-slate-400 font-normal">• Europe</span></p>
+                                    </a>
+                                    <a href="https://blink.sv" target="_blank" rel="noopener noreferrer" className="block p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg hover:bg-purple-500/20 transition-colors">
+                                        <p className="font-bold text-purple-400 text-sm">Blink <span className="text-xs text-slate-400 font-normal">• Global</span></p>
+                                    </a>
+                                </div>
+                                
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(receiveAddress);
+                                        alert('Lightning Address copied!');
+                                    }}
+                                    className="w-full p-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl transition-colors flex items-center justify-center space-x-2"
+                                >
+                                    <Icons.Copy size={16} className="text-slate-400" />
+                                    <span className="text-sm text-slate-300">Copy Your Address</span>
+                                </button>
+                            </div>
+                            
+                            <div className="p-4 border-t border-slate-800">
+                                <Button fullWidth onClick={() => setShowFundModal(false)}>Got it</Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -1778,6 +1858,27 @@ export const Wallet: React.FC = () => {
                             {showUsd ? 'USD' : 'SATS'}
                         </span>
                     </button>
+                    
+                    {/* Zero Balance Prompt - Only shows when balance is 0 */}
+                    {walletBalance === 0 && !isBalanceLoading && (
+                        <button
+                            onClick={() => setShowFundModal(true)}
+                            className="w-full mb-4 p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-brand-primary/30 rounded-xl transition-all group"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-8 h-8 bg-brand-primary/20 rounded-lg flex items-center justify-center">
+                                        <Icons.Zap size={16} className="text-brand-primary" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-sm font-medium text-white">New to Bitcoin?</p>
+                                        <p className="text-xs text-slate-400">Learn how to add sats</p>
+                                    </div>
+                                </div>
+                                <Icons.Next size={18} className="text-slate-500 group-hover:text-brand-primary transition-colors" />
+                            </div>
+                        </button>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                         <button 
@@ -1868,6 +1969,145 @@ export const Wallet: React.FC = () => {
                 )}
             </div>
             {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} />}
+            
+            {/* Fund Wallet Modal */}
+            {showFundModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowFundModal(false)}>
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-5 border-b border-slate-800">
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                        <Icons.Zap size={20} className="text-amber-400" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white">Getting Your First Sats</h3>
+                                </div>
+                                <button onClick={() => setShowFundModal(false)} className="text-slate-400 hover:text-white p-1">
+                                    <Icons.Close size={20} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                            {/* The Rant */}
+                            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                                <p className="text-slate-300 text-sm leading-relaxed mb-3">
+                                    <span className="text-white font-bold">Here's the deal:</span> The government has made it unnecessarily complicated to buy Bitcoin. 
+                                    They'd prefer you keep your savings in dollars that lose value every year while they print trillions more.
+                                </p>
+                                <p className="text-slate-400 text-xs italic">
+                                    Meanwhile, Bitcoin's supply is fixed forever. No one can print more. Ever. 
+                                    That's kind of the point.
+                                </p>
+                            </div>
+                            
+                            {/* The Good News */}
+                            <p className="text-slate-300 text-sm">
+                                <span className="text-brand-primary font-bold">The good news?</span> A few apps make it easy to buy Bitcoin and send it directly to your wallet via Lightning:
+                            </p>
+                            
+                            {/* App Recommendations */}
+                            <div className="space-y-3">
+                                {/* Cash App */}
+                                <a 
+                                    href="https://cash.app" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block p-4 bg-[#00D64F]/10 border border-[#00D64F]/30 rounded-xl hover:bg-[#00D64F]/20 transition-colors group"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-[#00D64F]">Cash App</p>
+                                            <p className="text-xs text-slate-400">US & UK • Free Lightning withdrawals</p>
+                                        </div>
+                                        <Icons.Next size={18} className="text-slate-500 group-hover:text-[#00D64F] transition-colors" />
+                                    </div>
+                                </a>
+                                
+                                {/* Strike */}
+                                <a 
+                                    href="https://strike.me" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl hover:bg-blue-500/20 transition-colors group"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-blue-400">Strike</p>
+                                            <p className="text-xs text-slate-400">US & Americas • Lowest fees (0.3%)</p>
+                                        </div>
+                                        <Icons.Next size={18} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
+                                    </div>
+                                </a>
+                                
+                                {/* Relai */}
+                                <a 
+                                    href="https://relai.app" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-colors group"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-orange-400">Relai</p>
+                                            <p className="text-xs text-slate-400">Europe • No KYC for small amounts</p>
+                                        </div>
+                                        <Icons.Next size={18} className="text-slate-500 group-hover:text-orange-400 transition-colors" />
+                                    </div>
+                                </a>
+                                
+                                {/* Blink */}
+                                <a 
+                                    href="https://blink.sv" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl hover:bg-purple-500/20 transition-colors group"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-bold text-purple-400">Blink</p>
+                                            <p className="text-xs text-slate-400">Global • Great for Latin America</p>
+                                        </div>
+                                        <Icons.Next size={18} className="text-slate-500 group-hover:text-purple-400 transition-colors" />
+                                    </div>
+                                </a>
+                            </div>
+                            
+                            {/* Instructions */}
+                            <div className="bg-brand-primary/10 border border-brand-primary/30 rounded-xl p-4">
+                                <p className="text-sm text-slate-300 mb-2">
+                                    <span className="text-brand-primary font-bold">Quick steps:</span>
+                                </p>
+                                <ol className="text-xs text-slate-400 space-y-1 ml-4 list-decimal">
+                                    <li>Download one of the apps above</li>
+                                    <li>Buy some Bitcoin</li>
+                                    <li>Withdraw to Lightning</li>
+                                    <li>Paste your address: <span className="text-brand-primary font-mono">{receiveAddress.length > 20 ? receiveAddress.substring(0, 20) + '...' : receiveAddress}</span></li>
+                                </ol>
+                            </div>
+                            
+                            {/* Copy Address Button */}
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(receiveAddress);
+                                    alert('Lightning Address copied!');
+                                }}
+                                className="w-full p-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl transition-colors flex items-center justify-center space-x-2"
+                            >
+                                <Icons.Copy size={16} className="text-slate-400" />
+                                <span className="text-sm text-slate-300">Copy Your Lightning Address</span>
+                            </button>
+                        </div>
+                        
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-800">
+                            <Button fullWidth onClick={() => setShowFundModal(false)}>Got it</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };
