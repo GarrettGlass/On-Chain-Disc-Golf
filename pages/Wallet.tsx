@@ -69,17 +69,34 @@ const HelpModal: React.FC<{
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
-            <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-xl font-bold text-white">{title}</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white">
-                        <Icons.Close size={24} />
-                    </button>
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="p-5 border-b border-slate-800">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-brand-primary/20 flex items-center justify-center">
+                                <Icons.Help size={20} className="text-brand-primary" />
+                            </div>
+                            <h3 className="text-lg font-bold text-white">{title}</h3>
+                        </div>
+                        <button onClick={onClose} className="text-slate-400 hover:text-white p-1">
+                            <Icons.Close size={20} />
+                        </button>
+                    </div>
                 </div>
-                <p className="text-slate-300 leading-relaxed">
-                    {text}
-                </p>
-                <Button fullWidth className="mt-6" onClick={onClose}>Got it</Button>
+                
+                {/* Content */}
+                <div className="p-5 max-h-[60vh] overflow-y-auto">
+                    <div 
+                        className="text-slate-300 text-sm leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: text }}
+                    />
+                </div>
+                
+                {/* Footer */}
+                <div className="p-4 border-t border-slate-800">
+                    <Button fullWidth onClick={onClose}>Got it</Button>
+                </div>
             </div>
         </div>
     );
@@ -1003,8 +1020,28 @@ export const Wallet: React.FC = () => {
                         <button
                             onClick={() => setHelpModal({
                                 isOpen: true,
-                                title: "When to use an Invoice?",
-                                text: "Use an invoice when you need to request a specific amount of money. Unlike your Lightning Address, an invoice is valid for only one payment and expires after a short time."
+                                title: "Lightning Invoice",
+                                text: `
+                                    <p class="mb-3">An invoice is a <strong>one-time payment request</strong> for a specific amount.</p>
+                                    
+                                    <p class="font-bold text-white mb-2">📋 When to use:</p>
+                                    <ul class="list-disc ml-5 mb-4 space-y-1">
+                                        <li>Requesting an exact amount from someone</li>
+                                        <li>Getting paid for something specific</li>
+                                        <li>When you need proof of payment</li>
+                                    </ul>
+                                    
+                                    <p class="font-bold text-white mb-2">⚠️ Important:</p>
+                                    <ul class="list-disc ml-5 mb-4 space-y-1 text-amber-400">
+                                        <li>Invoices <strong>expire</strong> after ~10 minutes</li>
+                                        <li>Can only be paid <strong>once</strong></li>
+                                        <li>Must be paid for the <strong>exact amount</strong></li>
+                                    </ul>
+                                    
+                                    <div class="bg-slate-800 rounded-lg p-3">
+                                        <p class="text-xs text-slate-300">💡 <strong>Tip:</strong> For general receiving, use your Lightning Address instead—it never expires!</p>
+                                    </div>
+                                `
                             })}
                             className="text-slate-500 hover:text-brand-primary transition-colors"
                         >
@@ -1070,8 +1107,28 @@ export const Wallet: React.FC = () => {
                     <button
                         onClick={() => setHelpModal({
                             isOpen: true,
-                            title: "What is a Lightning Address?",
-                            text: "Think of this like your email address for money. It's permanent, so you don't need to create a new QR code every time. You can share it with anyone to receive payments instantly."
+                            title: "Lightning Address",
+                            text: `
+                                <p class="mb-3">Think of this like your <strong>email address for money</strong>. It's permanent and reusable!</p>
+                                
+                                <p class="font-bold text-white mb-2">✅ You can:</p>
+                                <ul class="list-disc ml-5 mb-4 space-y-1">
+                                    <li>Share it with anyone to receive payments</li>
+                                    <li>Post it on social media</li>
+                                    <li>Use the same address forever</li>
+                                </ul>
+                                
+                                <p class="font-bold text-white mb-2">📱 How others pay you:</p>
+                                <ol class="list-decimal ml-5 mb-4 space-y-1">
+                                    <li>They scan your QR code or copy your address</li>
+                                    <li>Enter the amount to send</li>
+                                    <li>You receive sats instantly!</li>
+                                </ol>
+                                
+                                <div class="bg-brand-primary/10 border border-brand-primary/30 rounded-lg p-3">
+                                    <p class="text-xs text-slate-300">💡 <strong>Tip:</strong> Unlike an invoice, your Lightning Address never expires. Share it freely!</p>
+                                </div>
+                            `
                         })}
                         className="text-slate-500 hover:text-brand-primary transition-colors"
                     >
@@ -1501,8 +1558,35 @@ export const Wallet: React.FC = () => {
                     <button
                         onClick={() => setHelpModal({
                             isOpen: true,
-                            title: "Wallet Help",
-                            text: "Your wallet allows you to send and receive Bitcoin instantly. You can use eCash for private, instant payments or connect your own Lightning node via NWC."
+                            title: "Your Wallet",
+                            text: `
+                                <p class="mb-4">Your wallet lets you <strong>send and receive Bitcoin</strong> instantly using the Lightning Network. Perfect for paying into rounds or collecting winnings!</p>
+                                
+                                <p class="font-bold text-white mb-2">💡 Quick Tips:</p>
+                                <ul class="list-disc ml-5 mb-4 space-y-1">
+                                    <li><strong>Tap your balance</strong> to see USD value</li>
+                                    <li><strong>Pull down</strong> to refresh your balance</li>
+                                    <li><strong>Tap the status pill</strong> (top right) for settings</li>
+                                </ul>
+                                
+                                <p class="font-bold text-white mb-2">🔄 Three Wallet Options:</p>
+                                <div class="space-y-3 mb-4">
+                                    <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                                        <p class="font-bold text-blue-400">⚡ Lightning (Breez)</p>
+                                        <p class="text-xs text-slate-400">Self-custodial Lightning wallet. You control your keys. <em>(Coming soon)</em></p>
+                                    </div>
+                                    <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                                        <p class="font-bold text-emerald-400">🥜 Cashu</p>
+                                        <p class="text-xs text-slate-400">Private eCash tokens. Instant, anonymous payments. Great for beginners!</p>
+                                    </div>
+                                    <div class="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+                                        <p class="font-bold text-purple-400">🔗 NWC</p>
+                                        <p class="text-xs text-slate-400">Connect your existing wallet (Alby, Zeus, etc.) via Nostr Wallet Connect.</p>
+                                    </div>
+                                </div>
+                                
+                                <p class="text-xs text-slate-500">Switch between wallets anytime using the selector at the top of the tile.</p>
+                            `
                         })}
                         className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                     >
