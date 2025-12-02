@@ -418,6 +418,156 @@ body {
 }
 
 /* ===========================================
+   THE MATRIX EASTER EGG - Glitch Animations
+   =========================================== */
+
+/* Main glitch animation layers */
+@keyframes glitch-1 {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-10px);
+  }
+  40% {
+    transform: translateX(10px);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes glitch-2 {
+  0%, 100% {
+    transform: translateX(0);
+    opacity: 0.8;
+  }
+  25% {
+    transform: translateX(15px);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateX(-15px);
+    opacity: 0.7;
+  }
+  75% {
+    transform: translateX(8px);
+    opacity: 0.5;
+  }
+}
+
+@keyframes glitch-3 {
+  0%, 100% {
+    transform: translateX(0);
+    opacity: 0.8;
+  }
+  33% {
+    transform: translateX(-12px);
+    opacity: 0.4;
+  }
+  66% {
+    transform: translateX(12px);
+    opacity: 0.6;
+  }
+}
+
+@keyframes glitch-noise {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  20% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  40% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  60% {
+    opacity: 0.2;
+  }
+  70% {
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.5;
+  }
+  90% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes glitch-block {
+  0%, 100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+  50% {
+    transform: scaleX(1.5);
+    opacity: 1;
+  }
+}
+
+@keyframes glitch-static {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-5%, -5%);
+  }
+  20% {
+    transform: translate(5%, 5%);
+  }
+  30% {
+    transform: translate(-3%, 3%);
+  }
+  40% {
+    transform: translate(3%, -3%);
+  }
+  50% {
+    transform: translate(-2%, 2%);
+  }
+  60% {
+    transform: translate(2%, -2%);
+  }
+  70% {
+    transform: translate(-4%, 4%);
+  }
+  80% {
+    transform: translate(4%, -4%);
+  }
+  90% {
+    transform: translate(-1%, 1%);
+  }
+}
+
+.animate-glitch-1 {
+  animation: glitch-1 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.animate-glitch-2 {
+  animation: glitch-2 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.animate-glitch-3 {
+  animation: glitch-3 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.animate-glitch-noise {
+  animation: glitch-noise 0.2s step-end infinite;
+}
+
+/* ===========================================
    Bottom Nav Safe Area Utilities
    =========================================== */
 

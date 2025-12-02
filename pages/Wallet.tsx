@@ -433,11 +433,60 @@ export const Wallet: React.FC = () => {
     
     // Fund wallet modal
     const [showFundModal, setShowFundModal] = useState(false);
-    const [rabbitHoleLevel, setRabbitHoleLevel] = useState(0); // 0 = main, 1 = deeper, 2 = deepest
+    const [rabbitHoleLevel, setRabbitHoleLevel] = useState(0); // 0 = main, 1 = deeper, 2 = deepest, 3 = matrix
+    const [showGlitch, setShowGlitch] = useState(false);
+    const [matrixText, setMatrixText] = useState('');
+    const [matrixComplete, setMatrixComplete] = useState(false);
     const [showLightningExplainer, setShowLightningExplainer] = useState(false);
     const [showWhyThreeWallets, setShowWhyThreeWallets] = useState(false);
     const [showWalletHelp, setShowWalletHelp] = useState(false);
     const [returnToWalletHelp, setReturnToWalletHelp] = useState(false); // Track if we should return to help modal
+    const [matrixClickable, setMatrixClickable] = useState(false);
+    
+    // Matrix typewriter effect
+    useEffect(() => {
+        if (rabbitHoleLevel === 3) {
+            const userName = userProfile?.name || 'friend';
+            const fullText = `Hello, ${userName}.\n\nYou've reached the bottom.\n\nCongratulations?\n\nBut here's the thing — the real revolution isn't on a screen. It's out there. On the course. With friends. Throwing plastic at chains.\n\nThe empire will crumble whether you're doom-scrolling or not.\n\nNow put your phone down and get to throwing. <3`;
+            
+            let currentIndex = 0;
+            setMatrixText('');
+            setMatrixComplete(false);
+            setMatrixClickable(false);
+            
+            // Initial blink delay
+            const blinkDelay = setTimeout(() => {
+                const typeInterval = setInterval(() => {
+                    if (currentIndex < fullText.length) {
+                        setMatrixText(fullText.slice(0, currentIndex + 1));
+                        currentIndex++;
+                    } else {
+                        clearInterval(typeInterval);
+                        setMatrixComplete(true);
+                        // Wait 3 seconds then enable clicking
+                        setTimeout(() => {
+                            setMatrixClickable(true);
+                        }, 3000);
+                    }
+                }, 35); // Typewriter speed
+                
+                return () => clearInterval(typeInterval);
+            }, 1500); // Initial blink time
+            
+            return () => clearTimeout(blinkDelay);
+        }
+    }, [rabbitHoleLevel, userProfile?.name]);
+    
+    // Handle Matrix exit
+    const handleMatrixExit = () => {
+        if (matrixClickable) {
+            setRabbitHoleLevel(0);
+            setShowFundModal(false);
+            setMatrixText('');
+            setMatrixComplete(false);
+            setMatrixClickable(false);
+        }
+    };
     
     // Calculate gradient colors based on current selection
     const leftGlowType = getLeftGlowColor(walletMode);
@@ -2322,15 +2371,15 @@ export const Wallet: React.FC = () => {
                                         <span className="text-white font-bold">Here's the deal:</span> The government has made it unnecessarily complicated to buy Bitcoin. 
                                         They'd prefer you keep your savings in dollars that lose value every year while they print trillions more.
                                     </p>
-                                    <p className="text-slate-400 text-xs italic mb-2">
-                                        Meanwhile, Bitcoin's supply is fixed forever. No one can print more. Ever.
+                                    <p className="text-slate-400 text-xs italic">
+                                        Meanwhile, Bitcoin's supply is fixed forever. No one can print more. Ever. That's kind of the point.{' '}
+                                        <button 
+                                            onClick={() => setRabbitHoleLevel(1)}
+                                            className="text-orange-400 hover:text-orange-300 underline transition-colors not-italic"
+                                        >
+                                            Go deeper.
+                                        </button>
                                     </p>
-                                    <button 
-                                        onClick={() => setRabbitHoleLevel(1)}
-                                        className="text-xs text-orange-400 hover:text-orange-300 underline transition-colors"
-                                    >
-                                        🐇 Go Deeper...
-                                    </button>
                                 </div>
                                 
                                 {/* The Good News */}
@@ -2405,14 +2454,9 @@ export const Wallet: React.FC = () => {
                             </div>
                         )}
                         
-                        {/* Content - Level 1: Down the Rabbit Hole */}
+                        {/* Content - Level 1: Deeper */}
                         {rabbitHoleLevel === 1 && (
                             <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
-                                <div className="text-center mb-2">
-                                    <span className="text-2xl">🐇</span>
-                                    <h3 className="text-lg font-bold text-white mt-1">Down the Rabbit Hole</h3>
-                                </div>
-                                
                                 <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
                                     <p className="text-slate-300 text-sm leading-relaxed mb-3">
                                         Governments are, at their core, <span className="text-red-400 font-bold">institutions of coercion</span>. 
@@ -2434,28 +2478,20 @@ export const Wallet: React.FC = () => {
                                 
                                 <p className="text-slate-400 text-sm leading-relaxed">
                                     Bitcoin is the first technology that allows you to <span className="text-white font-bold">opt out</span> of this system. 
-                                    Not through violence. Not through politics. Through mathematics. Through code that no government can change.
-                                </p>
-                                
-                                <div className="text-center">
+                                    Not through violence. Not through politics. Through mathematics. Through code that no government can change.{' '}
                                     <button 
                                         onClick={() => setRabbitHoleLevel(2)}
-                                        className="text-sm text-orange-400 hover:text-orange-300 underline transition-colors"
+                                        className="text-orange-400 hover:text-orange-300 underline transition-colors"
                                     >
-                                        🕳️ How deep does this go?
+                                        How deep does this go?
                                     </button>
-                                </div>
+                                </p>
                             </div>
                         )}
                         
-                        {/* Content - Level 2: The Deepest Level */}
+                        {/* Content - Level 2: The Signal */}
                         {rabbitHoleLevel === 2 && (
                             <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
-                                <div className="text-center mb-2">
-                                    <span className="text-2xl">🌌</span>
-                                    <h3 className="text-lg font-bold text-white mt-1">The Signal in the Noise</h3>
-                                </div>
-                                
                                 <div className="bg-gradient-to-br from-purple-500/10 to-orange-500/10 border border-purple-500/30 rounded-xl p-4">
                                     <p className="text-slate-300 text-sm leading-relaxed mb-3">
                                         Bitcoin isn't just a currency. It's an <span className="text-purple-400 font-bold">intergalactic protocol</span> — 
@@ -2499,24 +2535,83 @@ export const Wallet: React.FC = () => {
                                     <p className="text-slate-400 text-xs">
                                         You're early. You're here. Welcome to the revolution.
                                     </p>
-                                    <p className="text-2xl mt-2">🧡</p>
                                 </div>
+                                
+                                <p className="text-center">
+                                    <button 
+                                        onClick={() => {
+                                            setShowGlitch(true);
+                                            setTimeout(() => {
+                                                setShowGlitch(false);
+                                                setRabbitHoleLevel(3);
+                                                setMatrixText('');
+                                                setMatrixComplete(false);
+                                            }, 800);
+                                        }}
+                                        className="text-xs text-slate-600 hover:text-slate-400 transition-colors"
+                                    >
+                                        Rock bottom.
+                                    </button>
+                                </p>
                             </div>
                         )}
                         
-                        {/* Footer */}
-                        <div className="p-4 border-t border-slate-800">
-                            {rabbitHoleLevel > 0 ? (
-                                <div className="flex space-x-3">
-                                    <Button variant="secondary" onClick={() => setRabbitHoleLevel(rabbitHoleLevel - 1)}>
-                                        <Icons.Back size={16} className="mr-1" /> Back
-                                    </Button>
-                                    <Button fullWidth onClick={() => { setShowFundModal(false); setRabbitHoleLevel(0); }}>Got it</Button>
+                        {/* Glitch Overlay */}
+                        {showGlitch && (
+                            <div className="fixed inset-0 z-[9999] bg-black pointer-events-none overflow-hidden">
+                                {/* Glitch scanlines */}
+                                <div className="absolute inset-0 animate-glitch-1">
+                                    <div className="h-full w-full bg-gradient-to-b from-transparent via-green-500/20 to-transparent" 
+                                         style={{ backgroundSize: '100% 4px' }} />
                                 </div>
-                            ) : (
-                                <Button fullWidth onClick={() => { setShowFundModal(false); setRabbitHoleLevel(0); }}>Got it</Button>
-                            )}
-                        </div>
+                                {/* RGB shift layers */}
+                                <div className="absolute inset-0 animate-glitch-2 mix-blend-screen">
+                                    <div className="absolute inset-0 bg-red-500/30 translate-x-2" />
+                                </div>
+                                <div className="absolute inset-0 animate-glitch-3 mix-blend-screen">
+                                    <div className="absolute inset-0 bg-cyan-500/30 -translate-x-2" />
+                                </div>
+                                {/* Random noise blocks */}
+                                <div className="absolute inset-0 animate-glitch-noise opacity-50">
+                                    {[...Array(20)].map((_, i) => (
+                                        <div 
+                                            key={i}
+                                            className="absolute bg-white/80"
+                                            style={{
+                                                left: `${Math.random() * 100}%`,
+                                                top: `${Math.random() * 100}%`,
+                                                width: `${Math.random() * 200 + 50}px`,
+                                                height: `${Math.random() * 5 + 1}px`,
+                                                animation: `glitch-block ${Math.random() * 0.3 + 0.1}s infinite`
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                                {/* Static noise overlay */}
+                                <div className="absolute inset-0 opacity-30" 
+                                     style={{ 
+                                         backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")',
+                                         animation: 'glitch-static 0.1s infinite'
+                                     }} 
+                                />
+                            </div>
+                        )}
+                        
+                        {/* Footer - Hidden during Matrix (Level 3) */}
+                        {rabbitHoleLevel < 3 && (
+                            <div className="p-4 border-t border-slate-800">
+                                {rabbitHoleLevel > 0 ? (
+                                    <div className="flex space-x-3">
+                                        <Button variant="secondary" onClick={() => setRabbitHoleLevel(rabbitHoleLevel - 1)}>
+                                            <Icons.Back size={16} className="mr-1" /> Back
+                                        </Button>
+                                        <Button fullWidth onClick={() => { setShowFundModal(false); setRabbitHoleLevel(0); }}>Got it</Button>
+                                    </div>
+                                ) : (
+                                    <Button fullWidth onClick={() => { setShowFundModal(false); setRabbitHoleLevel(0); }}>Got it</Button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -2687,6 +2782,55 @@ export const Wallet: React.FC = () => {
                 onNewToBitcoinClick={() => { setShowWalletHelp(false); setShowFundModal(true); }}
                 showNewToBitcoin={walletBalance > 0}
             />
+            
+            {/* THE MATRIX - Level 3: Rock Bottom */}
+            {rabbitHoleLevel === 3 && (
+                <div 
+                    className="fixed inset-0 z-[99999] bg-black cursor-pointer select-none"
+                    onClick={handleMatrixExit}
+                    style={{ touchAction: 'none' }}
+                >
+                    {/* CRT Scanlines */}
+                    <div 
+                        className="absolute inset-0 pointer-events-none opacity-10"
+                        style={{
+                            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,255,0,0.03) 1px, rgba(0,255,0,0.03) 2px)',
+                            backgroundSize: '100% 2px'
+                        }}
+                    />
+                    
+                    {/* Blinking cursor / Matrix terminal */}
+                    <div className="absolute top-8 left-6 right-6 font-mono text-green-500 text-sm leading-relaxed">
+                        {/* Blinking cursor before text starts */}
+                        {!matrixText && (
+                            <span className="animate-pulse">█</span>
+                        )}
+                        
+                        {/* Typewriter text with blinking cursor */}
+                        <div className="whitespace-pre-wrap">
+                            {matrixText}
+                            {matrixText && !matrixComplete && (
+                                <span className="animate-pulse">█</span>
+                            )}
+                        </div>
+                        
+                        {/* Click to exit prompt */}
+                        {matrixClickable && (
+                            <div className="mt-8 animate-pulse text-green-400/60 text-xs">
+                                [ tap anywhere to exit ]
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Subtle CRT glow effect */}
+                    <div 
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            background: 'radial-gradient(ellipse at center, rgba(0,255,0,0.03) 0%, transparent 70%)',
+                        }}
+                    />
+                </div>
+            )}
             
         </div >
     );
