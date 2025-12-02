@@ -236,7 +236,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                                 <div className="flex items-start gap-2">
                                     <Icons.Shield size={14} className="text-brand-primary shrink-0 mt-0.5" />
                                     <p className="text-xs text-slate-400 leading-relaxed">
-                                        <strong className="text-slate-300">Private & Encrypted:</strong> Your feedback is sent via Nostr Gift Wrap (NIP-59), 
+                                        <strong className="text-slate-300">Private & Encrypted:</strong> Your feedback is sent via encrypted Nostr DM, 
                                         meaning only the developer can read it. No email, no third parties.
                                     </p>
                                 </div>

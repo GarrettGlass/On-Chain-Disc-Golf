@@ -3,6 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp, getTopHeavyDistribution, getLinearDistribution } from '../context/AppContext';
 import { Button } from '../components/Button';
 import { Icons } from '../components/Icons';
+import { Logo, LogoChainDisc, LogoMinimal } from '../components/Logo';
+
+// Logo variant options - can switch between: Logo, LogoChainDisc, LogoMinimal
+const ActiveLogo = Logo;
 import { InfoModal } from '../components/InfoModal';
 import { FeedbackModal, FeedbackButton } from '../components/FeedbackModal';
 import { useNavigate } from 'react-router-dom';
@@ -151,6 +155,32 @@ export const Home: React.FC = () => {
     // Instant Invite State
     const [showInstantInviteModal, setShowInstantInviteModal] = useState(false);
     const [instantInviteName, setInstantInviteName] = useState('');
+
+    // Wallet pill - subtle color drift animation (orange, blue, emerald, purple)
+    const [walletPillColorIndex, setWalletPillColorIndex] = useState(0);
+    
+    // Very subtle colors - barely there
+    const walletPillColors = [
+        { r: 249, g: 115, b: 22 },  // orange
+        { r: 59, g: 130, b: 246 },  // blue  
+        { r: 16, g: 185, b: 129 },  // emerald
+        { r: 168, g: 85, b: 247 },  // purple
+    ];
+    
+    // Cycle colors every 3 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setWalletPillColorIndex(prev => (prev + 1) % walletPillColors.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
+    
+    // Get current color with very low opacity for subtle effect
+    const currentColor = walletPillColors[walletPillColorIndex];
+    const pillBgColor = `rgba(${currentColor.r}, ${currentColor.g}, ${currentColor.b}, 0.15)`;
+    const pillBorderColor = `rgba(${currentColor.r}, ${currentColor.g}, ${currentColor.b}, 0.25)`;
+    const pillIconColor = `rgba(${currentColor.r}, ${currentColor.g}, ${currentColor.b}, 0.8)`;
+    const pillGlowColor = `rgba(${currentColor.r}, ${currentColor.g}, ${currentColor.b}, 0.1)`;
 
     const handleInstantInvite = () => {
         setInstantInviteName('');
@@ -461,7 +491,16 @@ export const Home: React.FC = () => {
     }, [view, playerInvoices, paidStatus, checkDepositStatus]);
 
     // Scanner Logic for Adding Players
-    const { isCameraLoading, logs, restart } = useQrScanner({
+    const { 
+        isCameraLoading, 
+        logs, 
+        restart, 
+        isNativeScanner, 
+        startNativeScan, 
+        cameraError,
+        permissionStatus,
+        openAppSettings 
+    } = useQrScanner({
         videoRef,
         canvasRef,
         active: view === 'scan_player',
@@ -1093,12 +1132,94 @@ export const Home: React.FC = () => {
 
     // --- SCANNER UI ---
     if (view === 'scan_player') {
+        // Native Scanner UI - Shows a prompt to start the native camera
+        if (isNativeScanner) {
+            return (
+                <div className="relative h-full bg-gradient-to-b from-slate-900 to-black flex flex-col">
+                    {/* Header */}
+                    <div className="p-4 flex items-center justify-between">
+                        <button
+                            onClick={() => setView('select_players')}
+                            className="p-3 bg-slate-800 rounded-full text-white hover:bg-slate-700 transition-colors"
+                        >
+                            <Icons.Close size={24} />
+                        </button>
+                        <h2 className="text-lg font-bold text-white">Scan Player QR</h2>
+                        <div className="w-12" /> {/* Spacer for centering */}
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6">
+                        {/* Camera Icon */}
+                        <div className="w-32 h-32 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center border-2 border-blue-500/30">
+                            <Icons.Camera size={64} className="text-blue-400" />
+                        </div>
+
+                        {/* Instructions */}
+                        <div className="text-center space-y-2">
+                            <h3 className="text-xl font-bold text-white">Ready to Scan</h3>
+                            <p className="text-slate-400 text-sm max-w-xs">
+                                Tap the button below to open your camera and scan a player's QR code
+                            </p>
+                        </div>
+
+                        {/* Error Display */}
+                        {cameraError && (
+                            <div className="bg-red-500/20 border border-red-500/40 rounded-xl p-4 max-w-xs">
+                                <p className="text-red-400 text-sm text-center">{cameraError}</p>
+                                {permissionStatus === 'denied' && (
+                                    <button
+                                        onClick={openAppSettings}
+                                        className="mt-3 w-full bg-red-500/20 text-red-400 py-2 rounded-lg text-sm font-bold hover:bg-red-500/30 transition-colors"
+                                    >
+                                        Open Settings
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Scan Button */}
+                        <button
+                            onClick={startNativeScan}
+                            disabled={isCameraLoading}
+                            className="w-full max-w-xs bg-gradient-to-r from-blue-500/70 via-purple-500/70 to-cyan-500/70 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isCameraLoading ? (
+                                <span className="flex items-center justify-center space-x-2">
+                                    <Icons.Zap size={20} className="animate-spin" />
+                                    <span>Opening Camera...</span>
+                                </span>
+                            ) : (
+                                <span className="flex items-center justify-center space-x-2">
+                                    <Icons.Camera size={20} />
+                                    <span>Start Scanning</span>
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Debug Logs (collapsed by default) */}
+                        {logs.length > 0 && (
+                            <details className="w-full max-w-xs">
+                                <summary className="text-slate-500 text-xs cursor-pointer hover:text-slate-400">
+                                    Debug Logs
+                                </summary>
+                                <div className="mt-2 bg-black/50 p-2 rounded text-[10px] text-green-400 font-mono border border-green-900/50">
+                                    {logs.map((l, i) => <div key={i}>{l}</div>)}
+                                </div>
+                            </details>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // Web Scanner UI - Shows the video feed with QR overlay
         return (
             <div className="relative h-full bg-black flex flex-col">
                 <div className="flex-1 relative overflow-hidden">
                     <video
                         ref={videoRef}
-                        className="absolute inset-0 w-full h-full object-cover z-10 border-2 border-red-500"
+                        className="absolute inset-0 w-full h-full object-cover z-10"
                         muted={true}
                         autoPlay={true}
                         playsInline={true}
@@ -1112,30 +1233,71 @@ export const Home: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* QR Viewfinder */}
                     <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                        <div className="w-64 h-64 border-2 border-brand-primary rounded-lg relative shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
+                        <div className="w-64 h-64 border-2 border-blue-400 rounded-lg relative shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
                             {!isCameraLoading && (
-                                <div className="absolute top-1/2 left-2 right-2 h-0.5 bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
+                                <div className="absolute top-1/2 left-2 right-2 h-0.5 bg-blue-400 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
                             )}
+                            {/* Corner markers */}
+                            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-400 rounded-tl-lg"></div>
+                            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-400 rounded-tr-lg"></div>
+                            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-400 rounded-bl-lg"></div>
+                            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-400 rounded-br-lg"></div>
                         </div>
                     </div>
 
-                    {/* Manual Start Button if stuck */}
+                    {/* Camera Error Display */}
+                    {cameraError && (
+                        <div className="absolute inset-0 flex items-center justify-center z-30 bg-black/80">
+                            <div className="bg-slate-900 border border-red-500/40 rounded-2xl p-6 max-w-xs mx-4 text-center">
+                                <Icons.AlertTriangle size={48} className="text-red-400 mx-auto mb-4" />
+                                <h3 className="text-white font-bold mb-2">Camera Error</h3>
+                                <p className="text-slate-400 text-sm mb-4">{cameraError}</p>
+                                <button
+                                    onClick={restart}
+                                    className="w-full bg-blue-500 text-white py-2 rounded-lg font-bold hover:bg-blue-400 transition-colors"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Loading indicator */}
+                    {isCameraLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center z-25 bg-black/50">
+                            <div className="text-center">
+                                <Icons.Zap size={48} className="text-blue-400 animate-spin mx-auto mb-2" />
+                                <p className="text-white text-sm">Starting camera...</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Manual Restart Button */}
                     <div className="absolute bottom-32 left-0 right-0 z-50 flex justify-center pointer-events-auto">
                         <button
-                            onClick={() => restart()}
-                            className="bg-brand-primary/80 hover:bg-brand-primary text-white px-4 py-2 rounded-full text-xs font-bold backdrop-blur-sm transition-all"
+                            onClick={restart}
+                            className="bg-blue-500/80 hover:bg-blue-500 text-white px-4 py-2 rounded-full text-xs font-bold backdrop-blur-sm transition-all"
                         >
-                            Force Restart Camera
+                            Restart Camera
                         </button>
                     </div>
 
+                    {/* Close Button */}
                     <button
                         onClick={() => setView('select_players')}
                         className="absolute top-4 left-4 z-30 p-3 bg-black/50 rounded-full text-white hover:bg-black/70 backdrop-blur-sm"
                     >
                         <Icons.Close size={24} />
                     </button>
+
+                    {/* Instructions */}
+                    <div className="absolute bottom-4 left-4 right-4 z-30 text-center">
+                        <p className="text-white/80 text-sm bg-black/50 rounded-lg py-2 px-4 backdrop-blur-sm">
+                            Point camera at a player's QR code
+                        </p>
+                    </div>
                 </div>
             </div>
         );
@@ -1164,13 +1326,19 @@ export const Home: React.FC = () => {
         });
 
         return (
-            <div className="flex flex-col h-full bg-brand-dark relative">
-                <div className="px-4 py-4 flex items-center justify-between bg-brand-dark">
-                    <div className="flex items-center space-x-2">
-                        <button onClick={() => setView('select_players')} className="text-slate-400 hover:text-white">
-                            <Icons.Prev size={24} />
+            <div className="flex flex-col h-full p-6 pb-24">
+                {/* Header - Wallet style */}
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center">
+                        <button 
+                            onClick={() => setView('select_players')} 
+                            className="mr-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors"
+                        >
+                            <Icons.Prev />
                         </button>
-                        <h2 className="text-xl font-bold">Payment & Buy-ins</h2>
+                        <h1 className="text-2xl font-bold flex items-center">
+                            <Icons.Zap className="mr-2 text-orange-400" /> Payment
+                        </h1>
                     </div>
                     <div className="flex space-x-2">
                         <button
@@ -1190,48 +1358,53 @@ export const Home: React.FC = () => {
 
                 {/* Dynamic Pot Totals */}
                 {hasEntryFee && (entryFee > 0 || acePot > 0) && (
-                    <div className="px-4 pb-1">
-                        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center">
-                                    <Icons.Zap size={14} className="text-brand-primary mr-1.5" />
-                                    Total Pot
-                                </h3>
-                                <div className="text-2xl font-bold text-white">
-                                    {(totalEntryPot + totalAcePot).toLocaleString()} <span className="text-sm text-slate-400">sats</span>
+                    <div className="bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 rounded-2xl p-5 border border-white/10 backdrop-blur-sm mb-3">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center space-x-2">
+                                <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                                    <Icons.Zap size={16} className="text-orange-400" />
                                 </div>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pot</h3>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                {entryFee > 0 && (
-                                    <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Entry Fee</p>
-                                        <p className="text-lg font-bold text-brand-accent">{totalEntryPot.toLocaleString()} <span className="text-xs text-slate-400">sats</span></p>
-                                    </div>
-                                )}
-                                {acePot > 0 && (
-                                    <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Ace Pot</p>
-                                        <p className="text-lg font-bold text-brand-secondary">{totalAcePot.toLocaleString()} <span className="text-xs text-slate-400">sats</span></p>
-                                    </div>
-                                )}
+                            <div className="text-2xl font-bold text-white">
+                                {(totalEntryPot + totalAcePot).toLocaleString()} <span className="text-sm text-slate-400">sats</span>
                             </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            {entryFee > 0 && (
+                                <div className="bg-black/30 rounded-xl p-3 border border-white/10">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Entry Fee</p>
+                                    <p className="text-lg font-bold text-orange-400">{totalEntryPot.toLocaleString()} <span className="text-xs text-slate-400">sats</span></p>
+                                </div>
+                            )}
+                            {acePot > 0 && (
+                                <div className="bg-black/30 rounded-xl p-3 border border-white/10">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Ace Pot</p>
+                                    <p className="text-lg font-bold text-emerald-400">{totalAcePot.toLocaleString()} <span className="text-xs text-slate-400">sats</span></p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 nav-safe-bottom">
+                <div className="flex-1 overflow-y-auto space-y-3">
                     {/* Customize your round - moved above player tiles */}
-                    <div className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+                    <div className="bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 rounded-2xl overflow-hidden border border-white/10 backdrop-blur-sm">
                         <button
                             onClick={() => setIsCustomExpanded(!isCustomExpanded)}
-                            className="w-full flex items-center justify-between p-2 bg-slate-800 hover:bg-slate-700/50 transition-colors"
+                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <h3 className="font-bold text-white">Customize your round</h3>
-                            <Icons.Next size={20} className={`transition-transform duration-300 ${isCustomExpanded ? '-rotate-90' : 'rotate-90'}`} />
+                            <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-blue-500/15 rounded-lg flex items-center justify-center">
+                                    <Icons.Settings size={16} className="text-blue-400/80" />
+                                </div>
+                                <h3 className="font-bold text-white">Customize Your Round</h3>
+                            </div>
+                            <Icons.Next size={20} className={`text-slate-400 transition-transform duration-300 ${isCustomExpanded ? '-rotate-90' : 'rotate-90'}`} />
                         </button>
 
                         {isCustomExpanded && (
-                            <div className="p-4 space-y-4 border-t border-slate-700 bg-slate-900/30">
+                            <div className="p-4 space-y-4 border-t border-white/5 bg-black/20">
                                 {/* Payout Distribution Mode */}
                                 {hasEntryFee && entryFee > 0 && (
                                     <div className="space-y-3">
@@ -1239,18 +1412,18 @@ export const Home: React.FC = () => {
                                         <div className="grid grid-cols-2 gap-2">
                                             <button
                                                 onClick={() => setPayoutMode('winner-take-all')}
-                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payoutMode === 'winner-take-all'
-                                                    ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all ${payoutMode === 'winner-take-all'
+                                                    ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
+                                                    : 'bg-black/30 text-slate-400 border-white/10 hover:bg-white/5'
                                                     }`}
                                             >
                                                 Winner Take All
                                             </button>
                                             <button
                                                 onClick={() => setPayoutMode('percentage-based')}
-                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payoutMode === 'percentage-based'
-                                                    ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all ${payoutMode === 'percentage-based'
+                                                    ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
+                                                    : 'bg-black/30 text-slate-400 border-white/10 hover:bg-white/5'
                                                     }`}
                                             >
                                                 Top % of Players
@@ -1266,9 +1439,9 @@ export const Home: React.FC = () => {
                                                         <button
                                                             key={pct}
                                                             onClick={() => setPayoutPercentage(pct)}
-                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${payoutPercentage === pct
-                                                                ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${payoutPercentage === pct
+                                                                ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
+                                                                : 'bg-black/30 text-slate-400 border-white/10 hover:bg-white/5'
                                                                 }`}
                                                         >
                                                             {pct}%
@@ -1276,16 +1449,16 @@ export const Home: React.FC = () => {
                                                     ))}
                                                     <button
                                                         onClick={() => setPayoutPercentage(customPayoutPercentage)}
-                                                        className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${![20, 30, 40].includes(payoutPercentage)
-                                                            ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                        className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${![20, 30, 40].includes(payoutPercentage)
+                                                            ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
+                                                            : 'bg-black/30 text-slate-400 border-white/10 hover:bg-white/5'
                                                             }`}
                                                     >
                                                         Custom
                                                     </button>
                                                 </div>
                                                 {![20, 30, 40].includes(payoutPercentage) && (
-                                                    <div className="flex items-center justify-between bg-slate-800 rounded-lg p-3 border border-slate-700 animate-in slide-in-from-top-2">
+                                                    <div className="flex items-center justify-between bg-black/30 rounded-xl p-3 border border-white/10 animate-in slide-in-from-top-2">
                                                         <span className="text-sm text-slate-400">Custom Percentage</span>
                                                         <div className="flex items-center space-x-2">
                                                             <input
@@ -1298,7 +1471,7 @@ export const Home: React.FC = () => {
                                                                     setCustomPayoutPercentage(val);
                                                                     setPayoutPercentage(val);
                                                                 }}
-                                                                className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white w-16 text-center outline-none"
+                                                                className="bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-sm text-white w-16 text-center outline-none focus:ring-2 focus:ring-orange-500"
                                                             />
                                                             <span className="text-sm text-slate-400">%</span>
                                                         </div>
@@ -1314,9 +1487,9 @@ export const Home: React.FC = () => {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <button
                                                         onClick={() => setPayoutGradient('top-heavy')}
-                                                        className={`px-3 py-3 rounded-lg text-xs font-bold border transition-all ${payoutGradient === 'top-heavy'
-                                                            ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                        className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all ${payoutGradient === 'top-heavy'
+                                                            ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
+                                                            : 'bg-black/30 text-slate-400 border-white/10 hover:bg-white/5'
                                                             }`}
                                                     >
                                                         <div>Top-Heavy</div>
@@ -1331,9 +1504,9 @@ export const Home: React.FC = () => {
                                                     </button>
                                                     <button
                                                         onClick={() => setPayoutGradient('linear')}
-                                                        className={`px-3 py-3 rounded-lg text-xs font-bold border transition-all ${payoutGradient === 'linear'
-                                                            ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
-                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                                                        className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all ${payoutGradient === 'linear'
+                                                            ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
+                                                            : 'bg-black/30 text-slate-400 border-white/10 hover:bg-white/5'
                                                             }`}
                                                     >
                                                         <div>Flat</div>
@@ -1714,18 +1887,21 @@ export const Home: React.FC = () => {
     // --- WHO'S PLAYING? (PLAYER SELECTION) ---
     if (view === 'select_players') {
         return (
-            <div className="flex flex-col h-full relative">
-                {/* Header */}
-                <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <button onClick={() => setView('setup')} className="text-slate-400 hover:text-white">
-                            <Icons.Prev size={24} />
+            <div className="flex flex-col h-full p-6 pb-24">
+                {/* Header - Wallet style */}
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center">
+                        <button 
+                            onClick={() => setView('setup')} 
+                            className="mr-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors"
+                        >
+                            <Icons.Prev />
                         </button>
-                        <h1 className="text-xl font-bold">Who's playing?</h1>
+                        <h1 className="text-2xl font-bold flex items-center">
+                            <Icons.Users className="mr-2 text-blue-400/80" /> Players
+                        </h1>
                     </div>
                     <div className="flex space-x-2">
-                        {/* Handicap Toggle */}
-
                         <button
                             onClick={() => setShowInfoModal(true)}
                             className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
@@ -1742,25 +1918,28 @@ export const Home: React.FC = () => {
                 </div>
 
                 {/* Current Card Section */}
-                <div className="px-4 py-3 bg-brand-surface/50 border-b border-slate-800">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                        Current Card ({selectedCardmates.length + 1})
-                    </h3>
+                <div className="bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 rounded-2xl p-4 border border-white/10 backdrop-blur-sm mb-3">
+                    <div className="flex items-center space-x-2 mb-3">
+                        <div className="w-6 h-6 bg-blue-500/15 rounded-lg flex items-center justify-center">
+                            <Icons.Users size={12} className="text-blue-400/80" />
+                        </div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            Current Card ({selectedCardmates.length + 1})
+                        </h3>
+                    </div>
                     <div className="space-y-2 max-h-[150px] overflow-y-auto no-scrollbar">
                         {/* Host Player */}
-                        <div className="flex items-center justify-between bg-slate-800 p-2 rounded-lg border border-slate-700">
+                        <div className="flex items-center justify-between bg-black/30 p-3 rounded-xl border border-white/10">
                             <div className="flex items-center space-x-3 min-w-0 flex-1">
-                                <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden shrink-0">
-                                    {userProfile.picture ? <img src={userProfile.picture} className="w-full h-full object-cover" /> : <Icons.Users className="p-1" />}
+                                <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden shrink-0 border-2 border-blue-500/25">
+                                    {userProfile.picture ? <img src={userProfile.picture} className="w-full h-full object-cover" /> : <Icons.Users className="p-2 text-slate-400" />}
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                     <span className="font-bold text-sm truncate">{userProfile.name} (You)</span>
-                                    <span className="text-[9px] font-bold bg-brand-primary/10 text-brand-primary px-1.5 py-0.5 rounded w-fit">HOST</span>
+                                    <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded w-fit">HOST</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
-                                {/* Handicap Controls - shown only when enabled */}
-
                                 {/* Entry/Ace Buttons - Horizontal */}
                                 {hasEntryFee && (
                                     <>
@@ -1771,8 +1950,8 @@ export const Home: React.FC = () => {
                                                     ...prev,
                                                     [currentUserPubkey]: { ...(prev[currentUserPubkey] || { entry: true, ace: true }), entry: !(prev[currentUserPubkey]?.entry ?? true) }
                                                 }))}
-                                                className={`px-3 py-2 rounded text-xs font-bold border transition-all ${(paymentSelections[currentUserPubkey]?.entry ?? true)
-                                                    ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${(paymentSelections[currentUserPubkey]?.entry ?? true)
+                                                    ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
                                                     : 'bg-slate-700/50 text-slate-500 border-slate-600'
                                                     }`}
                                             >
@@ -1787,8 +1966,8 @@ export const Home: React.FC = () => {
                                                     ...prev,
                                                     [currentUserPubkey]: { ...(prev[currentUserPubkey] || { entry: true, ace: true }), ace: !(prev[currentUserPubkey]?.ace ?? true) }
                                                 }))}
-                                                className={`px-3 py-2 rounded text-xs font-bold border transition-all ${(paymentSelections[currentUserPubkey]?.ace ?? true)
-                                                    ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${(paymentSelections[currentUserPubkey]?.ace ?? true)
+                                                    ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
                                                     : 'bg-slate-700/50 text-slate-500 border-slate-600'
                                                     }`}
                                             >
@@ -1800,9 +1979,9 @@ export const Home: React.FC = () => {
                                 {/* Host Indicator Icon */}
                                 <button
                                     onClick={handleShieldClick}
-                                    className="w-8 h-8 flex items-center justify-center bg-brand-primary/10 border-2 border-brand-primary/30 rounded-full hover:bg-brand-primary/20 hover:border-brand-primary/50 transition-all"
+                                    className="w-8 h-8 flex items-center justify-center bg-emerald-500/20 border-2 border-emerald-500/30 rounded-full hover:bg-emerald-500/30 hover:border-emerald-500/50 transition-all"
                                 >
-                                    <Icons.Shield size={16} className="text-brand-primary" />
+                                    <Icons.Shield size={16} className="text-emerald-400" />
                                 </button>
                             </div>
                         </div>
@@ -1811,18 +1990,16 @@ export const Home: React.FC = () => {
                         {selectedCardmates.map(p => {
                             const payment = paymentSelections[p.pubkey] || { entry: true, ace: true };
                             return (
-                                <div key={p.pubkey} className="flex items-center justify-between bg-slate-800 p-2 rounded-lg border border-slate-700 animate-in slide-in-from-left-2 duration-300">
+                                <div key={p.pubkey} className="flex items-center justify-between bg-black/30 p-3 rounded-xl border border-white/10 animate-in slide-in-from-left-2 duration-300">
                                     <div className="flex items-center space-x-3 min-w-0 flex-1">
-                                        <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden shrink-0">
-                                            {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : <Icons.Users className="p-1 text-slate-500" />}
+                                        <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden shrink-0 border border-white/10">
+                                            {p.image ? <img src={p.image} className="w-full h-full object-cover" /> : <Icons.Users className="p-2 text-slate-500" />}
                                         </div>
                                         <div className="flex flex-col min-w-0">
                                             <span className="font-bold text-sm truncate">{p.name}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
-                                        {/* Handicap Controls - shown only when enabled */}
-
                                         {/* Entry/Ace Buttons - Horizontal */}
                                         {hasEntryFee && (
                                             <>
@@ -1833,8 +2010,8 @@ export const Home: React.FC = () => {
                                                             ...prev,
                                                             [p.pubkey]: { ...payment, entry: !payment.entry }
                                                         }))}
-                                                        className={`px-3 py-2 rounded text-xs font-bold border transition-all ${payment.entry
-                                                            ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                        className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payment.entry
+                                                            ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
                                                             : 'bg-slate-700/50 text-slate-500 border-slate-600'
                                                             }`}
                                                     >
@@ -1849,8 +2026,8 @@ export const Home: React.FC = () => {
                                                             ...prev,
                                                             [p.pubkey]: { ...payment, ace: !payment.ace }
                                                         }))}
-                                                        className={`px-3 py-2 rounded text-xs font-bold border transition-all ${payment.ace
-                                                            ? 'bg-brand-accent/20 text-brand-accent border-brand-accent/40'
+                                                        className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${payment.ace
+                                                            ? 'bg-orange-500/20 text-orange-400 border-orange-500/40'
                                                             : 'bg-slate-700/50 text-slate-500 border-slate-600'
                                                             }`}
                                                     >
@@ -1874,19 +2051,18 @@ export const Home: React.FC = () => {
                 </div>
 
                 {/* Search Section */}
-                <div className="p-4">
+                <div className="bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 rounded-2xl p-4 border border-white/10 backdrop-blur-sm mb-3">
                     <div className="relative flex items-center space-x-2">
                         <div className="relative flex-1">
                             <Icons.Users className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
                             <input
                                 type="text"
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-3 pl-10 pr-2 text-white focus:ring-1 focus:ring-brand-primary outline-none placeholder:text-slate-500"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl py-3 pl-10 pr-2 text-white focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none placeholder:text-slate-500 transition-all"
                                 placeholder="Add player via NIP-05, npub..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                 onPaste={() => {
-                                    // Golden glow on search button when user pastes
                                     setWiggleSearchButton(true);
                                     setTimeout(() => setWiggleSearchButton(false), 5000);
                                 }}
@@ -1895,19 +2071,19 @@ export const Home: React.FC = () => {
 
                         <button
                             onClick={handleSearch}
-                            className={`p-3 rounded-lg transition-all duration-300 ${wiggleSearchButton
-                                ? 'bg-brand-accent/30 text-brand-accent border-2 border-brand-accent shadow-lg shadow-brand-accent/50 ring-4 ring-brand-accent/30 animate-pulse'
-                                : 'bg-brand-primary/10 text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/20'
+                            className={`p-3 rounded-xl transition-all duration-300 ${wiggleSearchButton
+                                ? 'bg-blue-500/25 text-blue-200 border-2 border-blue-400/60 shadow-lg shadow-blue-500/20 ring-4 ring-blue-500/15 animate-pulse'
+                                : 'bg-blue-500/15 text-blue-400/80 border border-blue-500/25 hover:bg-blue-500/25'
                                 }`}
                         >
                             {isSearching ? <Icons.Zap className="animate-spin" size={20} /> : <Icons.Search size={20} />}
                         </button>
 
-                        <div className="w-px h-8 bg-slate-700 mx-1"></div>
+                        <div className="w-px h-8 bg-white/10 mx-1"></div>
 
                         <button
                             onClick={() => setView('scan_player')}
-                            className="p-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
+                            className="p-3 bg-black/30 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-blue-500/25 transition-colors"
                             title="Scan Player QR"
                         >
                             <Icons.Camera size={24} />
@@ -1915,7 +2091,7 @@ export const Home: React.FC = () => {
 
                         <button
                             onClick={handleInstantInvite}
-                            className="p-3 bg-blue-500/10 border-2 border-blue-500/40 rounded-lg text-blue-400 hover:text-blue-300 hover:border-blue-400/60 hover:bg-blue-500/20 transition-all relative group"
+                            className="p-3 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-xl text-emerald-400 hover:text-emerald-300 hover:border-emerald-400/60 hover:bg-emerald-500/20 transition-all relative group"
                             disabled={isGeneratingInvite}
                             title="Instant Invite (New Player)"
                         >
@@ -1953,83 +2129,86 @@ export const Home: React.FC = () => {
                     )}
                 </div>
 
-                {/* Scrollable Player List - with padding for fixed button */}
-                <div className="flex-1 overflow-y-auto nav-safe-bottom">
-                    <div className="flex border-b border-slate-800 px-4 mb-2">
+                {/* Scrollable Player List */}
+                <div className="flex-1 overflow-y-auto">
+                    {/* Player Tabs */}
+                    <div className="bg-black/30 rounded-xl p-1 border border-white/10 mb-4 flex">
                         {!searchQuery && (
                             <>
                                 <button
                                     onClick={() => setPlayerTab('frequent')}
-                                    className={`px-4 py-2 font-bold text-sm transition-colors ${playerTab === 'frequent' ? 'text-brand-secondary border-b-2 border-brand-secondary' : 'text-slate-500 hover:text-white'}`}
+                                    className={`flex-1 px-4 py-2 font-bold text-sm rounded-lg transition-all ${playerTab === 'frequent' ? 'bg-gradient-to-r from-purple-500/70 to-blue-500/70 text-white shadow-lg shadow-purple-500/15' : 'text-slate-500 hover:text-white'}`}
                                 >
                                     Frequent
                                 </button>
                                 <button
                                     onClick={() => setPlayerTab('recent')}
-                                    className={`px-4 py-2 font-bold text-sm transition-colors ${playerTab === 'recent' ? 'text-brand-secondary border-b-2 border-brand-secondary' : 'text-slate-500 hover:text-white'}`}
+                                    className={`flex-1 px-4 py-2 font-bold text-sm rounded-lg transition-all ${playerTab === 'recent' ? 'bg-gradient-to-r from-purple-500/70 to-blue-500/70 text-white shadow-lg shadow-purple-500/15' : 'text-slate-500 hover:text-white'}`}
                                 >
                                     Recent
                                 </button>
                                 <button
                                     onClick={() => setPlayerTab('a-z')}
-                                    className={`px-4 py-2 font-bold text-sm transition-colors ${playerTab === 'a-z' ? 'text-brand-secondary border-b-2 border-brand-secondary' : 'text-slate-500 hover:text-white'}`}
+                                    className={`flex-1 px-4 py-2 font-bold text-sm rounded-lg transition-all ${playerTab === 'a-z' ? 'bg-gradient-to-r from-purple-500/70 to-blue-500/70 text-white shadow-lg shadow-purple-500/15' : 'text-slate-500 hover:text-white'}`}
                                 >
-                                    Search
+                                    Contacts
                                 </button>
                             </>
                         )}
                         {searchQuery && (
-                            <button className="px-4 py-2 font-bold text-sm text-brand-secondary border-b-2 border-brand-secondary">
+                            <button className="flex-1 px-4 py-2 font-bold text-sm bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg shadow-lg shadow-purple-500/25">
                                 All Results
                             </button>
                         )}
                     </div>
 
-                    {displayedList.length === 0 && !foundUser ? (
-                        <div className="p-8 text-center text-slate-500">
-                            <p>No players found.</p>
-                            {playerTab === 'a-z' && !searchQuery && <p className="text-xs mt-1">Your Nostr contact list is empty or loading.</p>}
-                        </div>
-                    ) : (
-                        displayedList.map(player => (
-                            <div
-                                key={player.pubkey}
-                                onClick={() => addCardmate(player)}
-                                className="px-4 py-3 flex items-center justify-between hover:bg-slate-800/50 cursor-pointer border-b border-slate-800/50 group"
-                            >
-                                <div className="flex items-center space-x-3 overflow-hidden min-w-0 flex-1">
-                                    <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden relative group-hover:ring-2 ring-brand-secondary transition-all shrink-0">
-                                        {player.image ? (
-                                            <img src={player.image} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <Icons.Users className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                                        )}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="font-bold text-white truncate">{player.name}</p>
-                                        <p className="text-xs text-slate-500 truncate">{formatHandle(player)}</p>
-                                    </div>
-                                </div>
-                                <div className="w-8 h-8 rounded-full border border-slate-600 flex items-center justify-center text-slate-600 group-hover:border-brand-secondary group-hover:bg-brand-secondary group-hover:text-white transition-all shrink-0 ml-3">
-                                    <Icons.Plus size={16} />
-                                </div>
+                    {/* Player List */}
+                    <div className="bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 rounded-2xl border border-white/10 backdrop-blur-sm overflow-hidden">
+                        {displayedList.length === 0 && !foundUser ? (
+                            <div className="p-8 text-center text-slate-500">
+                                <p>No players found.</p>
+                                {playerTab === 'a-z' && !searchQuery && <p className="text-xs mt-1">Your Nostr contact list is empty or loading.</p>}
                             </div>
-                        ))
-                    )}
+                        ) : (
+                            displayedList.map(player => (
+                                <div
+                                    key={player.pubkey}
+                                    onClick={() => addCardmate(player)}
+                                    className="px-4 py-3 flex items-center justify-between hover:bg-white/5 cursor-pointer border-b border-white/5 group transition-colors"
+                                >
+                                    <div className="flex items-center space-x-3 overflow-hidden min-w-0 flex-1">
+                                        <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden relative group-hover:ring-2 ring-blue-500/50 transition-all shrink-0">
+                                            {player.image ? (
+                                                <img src={player.image} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <Icons.Users className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-bold text-white truncate">{player.name}</p>
+                                            <p className="text-xs text-slate-500 truncate">{formatHandle(player)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full border border-slate-600 flex items-center justify-center text-slate-600 group-hover:border-blue-500/50 group-hover:bg-blue-600/80 group-hover:text-white transition-all shrink-0 ml-3">
+                                        <Icons.Plus size={16} />
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
 
-                {/* Fixed Button - outside scrollable area */}
-                <div className="fixed bottom-20 left-0 right-0 bg-brand-dark border-t border-slate-800 p-4 max-w-md mx-auto z-20">
+                {/* Next Button */}
+                <div className="mt-6">
                     {invoiceError && (
-                        <div className="mb-3 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+                        <div className="mb-3 p-3 bg-red-900/20 border border-red-500/30 rounded-xl">
                             <p className="text-sm text-red-400">{invoiceError}</p>
                         </div>
                     )}
-                    <Button
-                        fullWidth
+                    <button
                         onClick={handleConfirmCardmates}
                         disabled={isGeneratingInvoices}
-                        className="bg-brand-accent text-black font-bold py-4 rounded-full shadow-lg shadow-brand-accent/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-gradient-to-r from-purple-500/70 via-blue-500/70 to-cyan-500/70 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isGeneratingInvoices ? (
                             <span className="flex items-center justify-center gap-2">
@@ -2037,9 +2216,9 @@ export const Home: React.FC = () => {
                                 Sending invoices...
                             </span>
                         ) : (
-                            'Confirm cardmates'
+                            'Confirm Cardmates'
                         )}
-                    </Button>
+                    </button>
                 </div>
 
                 {/* INSTANT INVITE MODAL */}
@@ -2251,13 +2430,19 @@ export const Home: React.FC = () => {
     // --- STEP 1: ROUND SETUP ---
     if (view === 'setup') {
         return (
-            <div className="flex flex-col h-full">
-                <div className="px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <button onClick={() => setView('menu')} className="text-slate-400 hover:text-white">
-                            <Icons.Prev size={24} />
+            <div className="flex flex-col h-full p-6 pb-24">
+                {/* Header - Wallet style */}
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center">
+                        <button 
+                            onClick={() => setView('menu')} 
+                            className="mr-4 p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors"
+                        >
+                            <Icons.Prev />
                         </button>
-                        <h2 className="text-xl font-bold">Round setup</h2>
+                        <h1 className="text-2xl font-bold flex items-center">
+                            <Icons.Trophy className="mr-2 text-emerald-400" /> Round Setup
+                        </h1>
                     </div>
                     <div className="flex space-x-2">
                         <button
@@ -2275,33 +2460,36 @@ export const Home: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 py-3 nav-safe-bottom space-y-4">
+                <div className="flex-1 overflow-y-auto space-y-3">
 
-                    <div className="space-y-2">
-                        <div className="flex items-center text-slate-400 space-x-2">
-                            <Icons.Location size={14} className="text-brand-primary" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Course</span>
+                    {/* Course Name Section */}
+                    <div className="bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 rounded-2xl p-5 border border-white/10 backdrop-blur-sm">
+                        <div className="flex items-center text-slate-400 space-x-2 mb-3">
+                            <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                                <Icons.Location size={16} className="text-emerald-400" />
+                            </div>
+                            <span className="text-sm font-bold uppercase tracking-wider">Course</span>
                         </div>
                         <input
                             type="text"
                             value={courseName}
                             onChange={(e) => setCourseName(e.target.value)}
-                            className="text-xl font-bold bg-transparent border-none outline-none w-full placeholder-slate-600"
+                            className="text-xl font-bold bg-black/30 border border-white/10 rounded-xl w-full p-3 placeholder-slate-600 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                             placeholder="Enter Course Name"
                         />
 
                         {/* Recent Courses Quick Select */}
                         {recentCourses.length > 0 && (
-                            <div className="space-y-1.5">
+                            <div className="space-y-2 mt-3">
                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Recent</p>
                                 <div className="flex flex-wrap gap-2">
                                     {recentCourses.slice(0, 6).map((course) => (
                                         <button
                                             key={course}
                                             onClick={() => setCourseName(course)}
-                                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${courseName === course
-                                                ? 'bg-brand-primary text-black shadow-lg shadow-brand-primary/20'
-                                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-primary/30'
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${courseName === course
+                                                ? 'bg-gradient-to-r from-emerald-500/70 to-teal-500/70 text-white shadow-lg shadow-emerald-500/15'
+                                                : 'bg-black/30 text-slate-300 hover:bg-slate-700 border border-white/10 hover:border-emerald-500/30'
                                                 }`}
                                         >
                                             {course}
@@ -2312,74 +2500,75 @@ export const Home: React.FC = () => {
                         )}
                     </div>
 
-                    <hr className="border-slate-800" />
-
-                    <div className="space-y-2">
-                        <div className="flex items-center text-slate-400 space-x-2">
-                            <Icons.Trophy size={14} className="text-brand-secondary" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Holes</span>
+                    {/* Holes Section */}
+                    <div className="bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 rounded-2xl p-5 border border-white/10 backdrop-blur-sm">
+                        <div className="flex items-center text-slate-400 space-x-2 mb-3">
+                            <div className="w-8 h-8 bg-blue-500/15 rounded-lg flex items-center justify-center">
+                                <Icons.Trophy size={16} className="text-blue-400/80" />
+                            </div>
+                            <span className="text-sm font-bold uppercase tracking-wider">Holes</span>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-0 bg-slate-800 rounded-lg p-1 border border-slate-700">
+                        <div className="grid grid-cols-3 gap-0 bg-black/30 rounded-xl p-1 border border-white/10">
                             <button
                                 onClick={() => setLayout('9')}
-                                className={`py-1.5 rounded-md text-sm font-bold transition-all ${layout === '9' ? 'bg-brand-secondary text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                className={`py-2.5 rounded-lg text-sm font-bold transition-all ${layout === '9' ? 'bg-gradient-to-r from-blue-500/70 to-purple-500/70 text-white shadow-lg shadow-blue-500/15' : 'text-slate-400 hover:text-white'}`}
                             >
                                 9
                             </button>
                             <button
                                 onClick={() => setLayout('18')}
-                                className={`py-1.5 rounded-md text-sm font-bold transition-all ${layout === '18' ? 'bg-brand-secondary text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                className={`py-2.5 rounded-lg text-sm font-bold transition-all ${layout === '18' ? 'bg-gradient-to-r from-blue-500/70 to-purple-500/70 text-white shadow-lg shadow-blue-500/15' : 'text-slate-400 hover:text-white'}`}
                             >
                                 18
                             </button>
                             <button
                                 onClick={() => setLayout('custom')}
-                                className={`py-1.5 rounded-md text-sm font-bold transition-all ${layout === 'custom' ? 'bg-brand-secondary text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                className={`py-2.5 rounded-lg text-sm font-bold transition-all ${layout === 'custom' ? 'bg-gradient-to-r from-blue-500/70 to-purple-500/70 text-white shadow-lg shadow-blue-500/15' : 'text-slate-400 hover:text-white'}`}
                             >
                                 Custom
                             </button>
                         </div>
                         {layout === 'custom' && (
-                            <div className="flex items-center justify-between bg-slate-800/50 p-2.5 rounded-lg">
+                            <div className="flex items-center justify-between bg-black/30 p-3 rounded-xl border border-white/10 mt-3">
                                 <span className="text-sm text-slate-400">Holes</span>
                                 <input
                                     type="number"
                                     value={customHoles}
                                     onChange={(e) => setCustomHoles(parseInt(e.target.value))}
-                                    className="bg-transparent text-right font-bold outline-none w-16"
+                                    className="bg-transparent text-right font-bold outline-none w-16 focus:ring-2 focus:ring-blue-500/50"
                                 />
                             </div>
                         )}
                     </div>
 
-                    <hr className="border-slate-800" />
-
-                    <div className="space-y-3">
-                        {/* Section Header with Zap Icon */}
-                        <div className="flex items-center text-slate-400 space-x-2">
-                            <Icons.Zap size={14} className="text-brand-primary" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Entry Fee & Stakes</span>
+                    {/* Entry Fee & Stakes Section */}
+                    <div className="bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 rounded-2xl p-5 border border-white/10 backdrop-blur-sm">
+                        <div className="flex items-center text-slate-400 space-x-2 mb-3">
+                            <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                                <Icons.Zap size={16} className="text-orange-400" />
+                            </div>
+                            <span className="text-sm font-bold uppercase tracking-wider">Entry Fee & Stakes</span>
                         </div>
 
                         {/* Entry Fee Toggle */}
-                        <div className="bg-slate-800 rounded-lg p-1 border border-slate-700 flex">
+                        <div className="bg-black/30 rounded-xl p-1 border border-white/10 flex mb-4">
                             <button
                                 onClick={() => setHasEntryFee(true)}
-                                className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${hasEntryFee ? 'bg-brand-primary text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${hasEntryFee ? 'bg-gradient-to-r from-orange-500/70 to-amber-500/70 text-white shadow-lg shadow-orange-500/15' : 'text-slate-400 hover:text-white'}`}
                             >
                                 Entry Fee
                             </button>
                             <button
                                 onClick={() => setHasEntryFee(false)}
-                                className={`flex-1 py-1.5 rounded-md text-sm font-bold transition-all ${!hasEntryFee ? 'bg-brand-primary text-black shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${!hasEntryFee ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                             >
                                 No Entry Fee
                             </button>
                         </div>
 
                         {hasEntryFee && (
-                            <>
+                            <div className="space-y-4">
                                 <div className="space-y-2">
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Entry Fee (Sats)</label>
                                     <input
@@ -2392,52 +2581,59 @@ export const Home: React.FC = () => {
                                         }}
                                         onFocus={(e) => e.target.select()}
                                         placeholder="0"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-brand-primary outline-none"
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all"
                                     />
 
                                     {/* Preset Entry Fee Buttons */}
                                     <div className="flex flex-wrap gap-2">
-                                        {/* Default Presets */}
-                                        {[1000, 5000, 10000].map(amount => (
-                                            <button
-                                                key={amount}
-                                                onClick={() => setEntryFee(amount)}
-                                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${entryFee === amount
-                                                    ? 'bg-brand-primary text-black shadow-lg shadow-brand-primary/20'
-                                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-primary/30'
-                                                    }`}
-                                            >
-                                                {amount / 1000}k
-                                            </button>
-                                        ))}
-
-                                        {/* Custom Presets */}
-                                        {customPresets.map(preset => (
-                                            <div key={preset.id} className="relative group">
-                                                <button
-                                                    onClick={() => setEntryFee(preset.amount)}
-                                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${entryFee === preset.amount
-                                                        ? 'bg-brand-secondary text-white shadow-lg shadow-brand-secondary/20'
-                                                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-secondary/30'
-                                                        }`}
-                                                >
-                                                    {preset.amount >= 1000 ? `${preset.amount / 1000}k` : preset.amount}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteCustomPreset(preset.id)}
-                                                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    title="Delete preset"
-                                                >
-                                                    <Icons.Close size={10} className="text-white" strokeWidth={3} />
-                                                </button>
-                                            </div>
-                                        ))}
+                                        {/* Combined and Sorted Presets */}
+                                        {(() => {
+                                            const defaultPresets = [1000, 2000, 5000, 10000];
+                                            const allPresets = [
+                                                ...defaultPresets.map(amount => ({ amount, id: `default-${amount}`, isCustom: false })),
+                                                ...customPresets.map(preset => ({ ...preset, isCustom: true }))
+                                            ].sort((a, b) => a.amount - b.amount);
+                                            
+                                            return allPresets.map(preset => (
+                                                preset.isCustom ? (
+                                                    <div key={preset.id} className="relative group">
+                                                        <button
+                                                            onClick={() => setEntryFee(preset.amount)}
+                                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${entryFee === preset.amount
+                                                                ? 'bg-gradient-to-r from-orange-500/70 to-amber-500/70 text-white shadow-lg shadow-orange-500/15'
+                                                                : 'bg-black/30 text-slate-300 hover:bg-slate-700 border border-white/10 hover:border-orange-500/30'
+                                                                }`}
+                                                        >
+                                                            {preset.amount >= 1000 ? `${preset.amount / 1000}k` : preset.amount}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteCustomPreset(preset.id)}
+                                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Delete preset"
+                                                        >
+                                                            <Icons.Close size={10} className="text-white" strokeWidth={3} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        key={preset.id}
+                                                        onClick={() => setEntryFee(preset.amount)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${entryFee === preset.amount
+                                                            ? 'bg-gradient-to-r from-orange-500/70 to-amber-500/70 text-white shadow-lg shadow-orange-500/15'
+                                                            : 'bg-black/30 text-slate-300 hover:bg-slate-700 border border-white/10 hover:border-orange-500/30'
+                                                            }`}
+                                                    >
+                                                        {preset.amount / 1000}k
+                                                    </button>
+                                                )
+                                            ));
+                                        })()}
 
                                         {/* Add Custom Button */}
                                         {customPresets.length < 3 && !showCustomInput && (
                                             <button
                                                 onClick={() => setShowCustomInput(true)}
-                                                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 transition-all"
+                                                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-black/30 text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all"
                                             >
                                                 + Custom
                                             </button>
@@ -2446,18 +2642,18 @@ export const Home: React.FC = () => {
 
                                     {/* Custom Input UI */}
                                     {showCustomInput && (
-                                        <div className="flex items-center gap-2 bg-slate-800/50 p-2.5 rounded-lg border border-brand-primary/30 animate-in fade-in slide-in-from-top-2">
+                                        <div className="flex items-center gap-1.5 bg-black/30 p-2 rounded-xl border border-orange-500/30 animate-in fade-in slide-in-from-top-2">
                                             <input
                                                 type="number"
                                                 value={customAmount}
                                                 onChange={(e) => setCustomAmount(e.target.value)}
-                                                placeholder="Enter amount..."
-                                                className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-brand-primary"
+                                                placeholder="Amount..."
+                                                className="flex-1 min-w-0 bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white outline-none focus:ring-2 focus:ring-orange-500"
                                                 autoFocus
                                             />
                                             <button
                                                 onClick={handleSaveCustomPreset}
-                                                className="px-3 py-1.5 bg-brand-primary text-black font-bold text-xs rounded hover:bg-brand-primary/80 transition-colors"
+                                                className="px-3 py-1.5 bg-orange-500 text-white font-bold text-xs rounded-lg hover:bg-orange-400 transition-colors shrink-0"
                                             >
                                                 Save
                                             </button>
@@ -2466,7 +2662,7 @@ export const Home: React.FC = () => {
                                                     setShowCustomInput(false);
                                                     setCustomAmount('');
                                                 }}
-                                                className="px-3 py-1.5 bg-slate-700 text-white font-bold text-xs rounded hover:bg-slate-600 transition-colors"
+                                                className="px-3 py-1.5 bg-slate-700 text-white font-bold text-xs rounded-lg hover:bg-slate-600 transition-colors shrink-0"
                                             >
                                                 Cancel
                                             </button>
@@ -2486,51 +2682,59 @@ export const Home: React.FC = () => {
                                         }}
                                         onFocus={(e) => e.target.select()}
                                         placeholder="0"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-1 focus:ring-brand-primary outline-none"
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all"
                                     />
 
                                     {/* Ace Pot Quick Select */}
                                     <div className="flex flex-wrap gap-2">
-                                        {[1000, 2000, 5000, 10000].map(amount => (
-                                            <button
-                                                key={amount}
-                                                onClick={() => setAcePot(amount)}
-                                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${acePot === amount
-                                                    ? 'bg-brand-primary text-black shadow-lg shadow-brand-primary/20'
-                                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-primary/30'
-                                                    }`}
-                                            >
-                                                {amount / 1000}k
-                                            </button>
-                                        ))}
-
-                                        {/* Custom Ace Pot Presets */}
-                                        {customAcePresets.map(preset => (
-                                            <div key={preset.id} className="relative group">
-                                                <button
-                                                    onClick={() => setAcePot(preset.amount)}
-                                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${acePot === preset.amount
-                                                        ? 'bg-brand-secondary text-white shadow-lg shadow-brand-secondary/20'
-                                                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 hover:border-brand-secondary/30'
-                                                        }`}
-                                                >
-                                                    {preset.amount >= 1000 ? `${preset.amount / 1000}k` : preset.amount}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteCustomAcePreset(preset.id)}
-                                                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    title="Delete preset"
-                                                >
-                                                    <Icons.Close size={10} className="text-white" strokeWidth={3} />
-                                                </button>
-                                            </div>
-                                        ))}
+                                        {/* Combined and Sorted Ace Pot Presets */}
+                                        {(() => {
+                                            const defaultAcePresets = [1000, 2000, 5000, 10000];
+                                            const allAcePresets = [
+                                                ...defaultAcePresets.map(amount => ({ amount, id: `default-${amount}`, isCustom: false })),
+                                                ...customAcePresets.map(preset => ({ ...preset, isCustom: true }))
+                                            ].sort((a, b) => a.amount - b.amount);
+                                            
+                                            return allAcePresets.map(preset => (
+                                                preset.isCustom ? (
+                                                    <div key={preset.id} className="relative group">
+                                                        <button
+                                                            onClick={() => setAcePot(preset.amount)}
+                                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${acePot === preset.amount
+                                                                ? 'bg-gradient-to-r from-orange-500/70 to-amber-500/70 text-white shadow-lg shadow-orange-500/15'
+                                                                : 'bg-black/30 text-slate-300 hover:bg-slate-700 border border-white/10 hover:border-orange-500/30'
+                                                                }`}
+                                                        >
+                                                            {preset.amount >= 1000 ? `${preset.amount / 1000}k` : preset.amount}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteCustomAcePreset(preset.id)}
+                                                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Delete preset"
+                                                        >
+                                                            <Icons.Close size={10} className="text-white" strokeWidth={3} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        key={preset.id}
+                                                        onClick={() => setAcePot(preset.amount)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${acePot === preset.amount
+                                                            ? 'bg-gradient-to-r from-orange-500/70 to-amber-500/70 text-white shadow-lg shadow-orange-500/15'
+                                                            : 'bg-black/30 text-slate-300 hover:bg-slate-700 border border-white/10 hover:border-orange-500/30'
+                                                            }`}
+                                                    >
+                                                        {preset.amount / 1000}k
+                                                    </button>
+                                                )
+                                            ));
+                                        })()}
 
                                         {/* Add Custom Button */}
                                         {customAcePresets.length < 3 && !showCustomAceInput && (
                                             <button
                                                 onClick={() => setShowCustomAceInput(true)}
-                                                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 transition-all"
+                                                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-black/30 text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all"
                                             >
                                                 + Custom
                                             </button>
@@ -2539,18 +2743,18 @@ export const Home: React.FC = () => {
 
                                     {/* Custom Ace Pot Input UI */}
                                     {showCustomAceInput && (
-                                        <div className="flex items-center gap-2 bg-slate-800/50 p-2.5 rounded-lg border border-brand-primary/30 animate-in fade-in slide-in-from-top-2">
+                                        <div className="flex items-center gap-1.5 bg-black/30 p-2 rounded-xl border border-orange-500/30 animate-in fade-in slide-in-from-top-2">
                                             <input
                                                 type="number"
                                                 value={customAceAmount}
                                                 onChange={(e) => setCustomAceAmount(e.target.value)}
-                                                placeholder="Enter amount..."
-                                                className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-brand-primary"
+                                                placeholder="Amount..."
+                                                className="flex-1 min-w-0 bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white outline-none focus:ring-2 focus:ring-orange-500"
                                                 autoFocus
                                             />
                                             <button
                                                 onClick={handleSaveCustomAcePreset}
-                                                className="px-3 py-1.5 bg-brand-primary text-black font-bold text-xs rounded hover:bg-brand-primary/80 transition-colors"
+                                                className="px-3 py-1.5 bg-orange-500 text-white font-bold text-xs rounded-lg hover:bg-orange-400 transition-colors shrink-0"
                                             >
                                                 Save
                                             </button>
@@ -2559,27 +2763,27 @@ export const Home: React.FC = () => {
                                                     setShowCustomAceInput(false);
                                                     setCustomAceAmount('');
                                                 }}
-                                                className="px-3 py-1.5 bg-slate-700 text-white font-bold text-xs rounded hover:bg-slate-600 transition-colors"
+                                                className="px-3 py-1.5 bg-slate-700 text-white font-bold text-xs rounded-lg hover:bg-slate-600 transition-colors shrink-0"
                                             >
                                                 Cancel
                                             </button>
                                         </div>
                                     )}
                                 </div>
-                            </>
+                            </div>
                         )}
                     </div>
 
                 </div>
 
-                <div className="fixed bottom-20 left-0 right-0 bg-brand-dark border-t border-slate-800 p-4 max-w-md mx-auto z-20">
-                    <Button
-                        fullWidth
+                {/* Next Button */}
+                <div className="mt-6">
+                    <button
                         onClick={() => setView('select_players')}
-                        className="bg-brand-accent text-black font-bold py-4 rounded-full shadow-lg shadow-brand-accent/20"
+                        className="w-full bg-gradient-to-r from-emerald-500/70 via-teal-500/70 to-cyan-500/70 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/35 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
                         Next
-                    </Button>
+                    </button>
                 </div>
 
                 {/* Setup Help Modal */}
@@ -2683,14 +2887,26 @@ export const Home: React.FC = () => {
     // Default Menu View
     return (
         <div className="p-6 flex flex-col flex-1 w-full relative pb-20">
-            {/* Wallet Balance Pill - Top Left */}
+            {/* Wallet Balance Pill - Top Left with Subtle Color Drift */}
             <div className="absolute top-6 left-6 z-10">
                 <button
                     onClick={() => navigate('/wallet')}
-                    className="px-4 py-2 bg-gradient-to-r from-brand-primary/20 to-emerald-500/20 border border-brand-primary/40 rounded-full backdrop-blur-sm hover:from-brand-primary/30 hover:to-emerald-500/30 hover:border-brand-primary/60 active:scale-95 transition-all duration-200 cursor-pointer"
+                    className="px-4 py-2 rounded-full backdrop-blur-sm hover:scale-105 active:scale-95 cursor-pointer"
+                    style={{
+                        background: pillBgColor,
+                        border: `1px solid ${pillBorderColor}`,
+                        boxShadow: `0 4px 20px ${pillGlowColor}`,
+                        transition: 'all 2s ease-in-out', // Very slow, smooth transition
+                    }}
                 >
                     <div className="flex items-center space-x-2">
-                        <Icons.Wallet size={16} className="text-brand-primary" />
+                        <Icons.Wallet 
+                            size={16} 
+                            style={{
+                                color: pillIconColor,
+                                transition: 'color 2s ease-in-out',
+                            }}
+                        />
                         <span className="text-sm font-bold text-white">{walletBalance.toLocaleString()} Sats</span>
                     </div>
                 </button>
@@ -2712,16 +2928,16 @@ export const Home: React.FC = () => {
                 </button>
             </div>
 
-            <div className="flex-1 flex flex-col items-center pt-20 space-y-6">
+            <div className="flex-1 flex flex-col items-center pt-16 space-y-6">
+                {/* Hero Section */}
                 <div className="text-center space-y-2">
-                    <div className="inline-flex items-center justify-center mb-4 relative home-logo-container">
-                        <img
-                            src="/icon.jpg"
-                            alt="On-Chain Logo"
-                            className="w-20 h-20 rounded-2xl shadow-xl shadow-brand-primary/20"
-                        />
+                    {/* Logo */}
+                    <div className="inline-flex items-center justify-center mb-4 relative">
+                        <ActiveLogo size={80} />
                         <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse" />
                     </div>
+                    
+                    {/* Title - Original styling */}
                     <h1 className="font-extrabold tracking-tight leading-tight">
                         <div className="text-6xl mb-1">
                             <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
@@ -2730,28 +2946,30 @@ export const Home: React.FC = () => {
                             <span className="text-white">Disc Golf</span>
                         </div>
                     </h1>
+                    
+                    {/* Original Tagline */}
                     <p className="text-slate-200 text-base font-medium mt-3">Unstoppable Disc Golf Powered by Unstoppable Money</p>
                 </div>
 
-                <div className="w-full max-w-sm space-y-4">
+                <div className="w-full max-w-sm space-y-4 px-4">
                     {/* Only show Continue Round for active, non-finalized rounds */}
                     {activeRound && !activeRound.isFinalized && (
-                        <Button fullWidth onClick={() => navigate('/play')} className="golden-button-shimmer text-black font-bold hover:brightness-110 transition-all">
+                        <button 
+                            onClick={() => navigate('/play')} 
+                            className="w-full bg-gradient-to-r from-emerald-500/70 via-teal-500/70 to-cyan-500/70 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/35 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        >
                             <div className="flex items-center justify-center space-x-2">
                                 <Icons.Play fill="currentColor" />
                                 <span>{activeRound.pubkey === currentUserPubkey ? 'Continue Round' : 'View Current Round'}</span>
                             </div>
-                        </Button>
+                        </button>
                     )}
 
                     {!activeRound && (() => {
                         const saved = localStorage.getItem('cdg_round_creation');
                         return saved ? (
-                            <Button
-                                fullWidth
+                            <button
                                 onClick={() => {
-                                    // Restore state is handled by the useEffect on mount,
-                                    // but we can trigger it immediately by reloading the state
                                     try {
                                         const state: RoundCreationState = JSON.parse(saved);
                                         setView(state.view);
@@ -2772,52 +2990,53 @@ export const Home: React.FC = () => {
                                         clearRoundCreationState();
                                     }
                                 }}
-                                className="bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-transform button-gleam"
+                                className="w-full bg-gradient-to-r from-amber-500/70 via-orange-500/70 to-red-500/70 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/35 transition-all hover:scale-[1.02] active:scale-[0.98]"
                             >
                                 <div className="flex items-center justify-center space-x-2">
                                     <Icons.Play fill="currentColor" />
                                     <span>Resume Round Setup</span>
                                 </div>
-                            </Button>
+                            </button>
                         ) : null;
                     })()}
 
                     {isGuest && (
-                        <Button
-                            fullWidth
+                        <button
                             onClick={() => navigate('/profile')}
-                            className={`bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 mb-4 hover:bg-amber-400 transition-transform button-gleam ${wiggleLogin ? 'animate-wiggle' : ''}`}
+                            className={`w-full bg-gradient-to-r from-purple-500/70 via-blue-500/70 to-cyan-500/70 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 transition-all hover:scale-[1.02] active:scale-[0.98] ${wiggleLogin ? 'animate-wiggle' : ''}`}
                         >
                             <div className="flex items-center justify-center space-x-2">
                                 <Icons.Users />
                                 <span>Login or Create Profile</span>
                             </div>
-                        </Button>
+                        </button>
                     )}
 
                     {showLoginHint && isGuest && (
-                        <div className="text-brand-primary text-xs text-center bg-brand-primary/10 p-2 rounded-lg border border-brand-primary/20 animate-in fade-in slide-in-from-top-2 mb-2">
+                        <div className="text-blue-300/80 text-xs text-center bg-blue-500/10 p-3 rounded-xl border border-blue-500/20 animate-in fade-in slide-in-from-top-2 mb-2">
                             👆 Create a profile to start playing!
                         </div>
                     )}
 
-                    <Button fullWidth onClick={handleCreateRoundClick}>
+                    <button 
+                        onClick={handleCreateRoundClick}
+                        className="w-full bg-gradient-to-br from-slate-800/80 via-slate-900 to-black/90 text-white font-bold py-4 rounded-xl border border-white/10 backdrop-blur-sm hover:border-emerald-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+                    >
                         <div className="flex items-center justify-center space-x-2">
-                            <Icons.Plus />
+                            <Icons.Plus className="text-emerald-400" />
                             <span>Create Round</span>
                         </div>
-                    </Button>
+                    </button>
 
                     <button
                         onClick={() => {
-                            // If guest, wiggle login button instead
                             if (handleGuestActionAttempt()) return;
                             setShowPlayerQr(true);
                         }}
-                        className="w-full py-3 px-4 rounded-xl border-2 border-brand-primary bg-transparent text-brand-primary hover:bg-brand-primary/10 font-bold transition-colors"
+                        className="w-full py-4 px-4 rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm text-white hover:border-emerald-500/30 font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
                         <div className="flex items-center justify-center space-x-2">
-                            <Icons.QrCode />
+                            <Icons.QrCode className="text-emerald-400" />
                             <span>Scan to Join</span>
                         </div>
                     </button>
@@ -2825,14 +3044,14 @@ export const Home: React.FC = () => {
                     {/* Round History - subtle link */}
                     <button
                         onClick={() => navigate('/history')}
-                        className="w-full py-2 text-slate-400 hover:text-white text-sm font-medium transition-colors flex items-center justify-center space-x-2"
+                        className="w-full py-3 text-slate-400 hover:text-white text-sm font-medium transition-colors flex items-center justify-center space-x-2 hover:bg-white/5 rounded-xl"
                     >
                         <Icons.History size={16} />
                         <span>Round History</span>
                     </button>
 
                     {joinError && (
-                        <div className="text-red-400 text-sm text-center bg-red-500/10 p-2 rounded-lg border border-red-500/20">
+                        <div className="text-red-400 text-sm text-center bg-red-500/10 p-3 rounded-xl border border-red-500/20">
                             {joinError}
                         </div>
                     )}

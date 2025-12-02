@@ -40,10 +40,10 @@ export const Onboarding: React.FC = () => {
     const [generatedMnemonic, setGeneratedMnemonic] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // Animation State for welcome screen
     const [activeIcon, setActiveIcon] = useState(0);
-    
+
     // Modal states
     const [showWhyModal, setShowWhyModal] = useState(false);
     const [showExistingOptionsModal, setShowExistingOptionsModal] = useState(false);
@@ -137,90 +137,90 @@ export const Onboarding: React.FC = () => {
     // =========================================================================
 
     if (step === 'welcome') {
-        return (
-            <div className="min-h-screen bg-brand-dark flex flex-col">
+    return (
+        <div className="min-h-screen bg-brand-dark flex flex-col">
                 {/* Header */}
-                <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4">
-                    <div className="max-w-md mx-auto text-center">
-                        <p className="golden-shimmer text-base mb-2 font-semibold">Welcome to..</p>
-                        <h1 className="font-extrabold tracking-tight leading-tight">
-                            <div className="text-7xl mb-1">
-                                <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
-                            </div>
-                            <div className="text-6xl">
-                                <span className="text-white">Disc Golf</span>
-                            </div>
-                        </h1>
-                    </div>
+            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4">
+                <div className="max-w-md mx-auto text-center">
+                    <p className="golden-shimmer text-base mb-2 font-semibold">Welcome to..</p>
+                    <h1 className="font-extrabold tracking-tight leading-tight">
+                        <div className="text-7xl mb-1">
+                            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
+                        </div>
+                        <div className="text-6xl">
+                            <span className="text-white">Disc Golf</span>
+                        </div>
+                    </h1>
                 </div>
+            </div>
 
-                <div className="flex-1 flex flex-col items-center justify-between p-4 text-center">
-                    <div className="max-w-md w-full">
+            <div className="flex-1 flex flex-col items-center justify-between p-4 text-center">
+                <div className="max-w-md w-full">
                         {/* Animated Icon Container */}
                         <div className="relative w-28 h-28 flex items-center justify-center mx-auto mb-4">
                             {/* Disc Golf */}
-                            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 0 ? 'opacity-100' : 'opacity-0'}`}>
-                                <div className="w-24 h-24 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)]">
-                                    <Icons.Trophy className="text-brand-primary" size={48} strokeWidth={2} />
+                                <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 0 ? 'opacity-100' : 'opacity-0'}`}>
+                                    <div className="w-24 h-24 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)]">
+                                        <Icons.Trophy className="text-brand-primary" size={48} strokeWidth={2} />
+                                    </div>
                                 </div>
-                            </div>
 
                             {/* Bitcoin */}
-                            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 1 ? 'opacity-100' : 'opacity-0'}`}>
-                                <div className="w-24 h-24 bg-orange-500/20 rounded-full flex items-center justify-center border-2 border-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
-                                    <Icons.Bitcoin className="text-orange-500" size={56} strokeWidth={2} />
+                                <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 1 ? 'opacity-100' : 'opacity-0'}`}>
+                                    <div className="w-24 h-24 bg-orange-500/20 rounded-full flex items-center justify-center border-2 border-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
+                                        <Icons.Bitcoin className="text-orange-500" size={56} strokeWidth={2} />
+                                    </div>
                                 </div>
-                            </div>
 
                             {/* Nostr */}
-                            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 2 ? 'opacity-100' : 'opacity-0'}`}>
-                                <div className="w-24 h-24 bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
-                                    <Icons.Key className="text-purple-500" size={48} strokeWidth={2} />
+                                <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-1000 ${activeIcon === 2 ? 'opacity-100' : 'opacity-0'}`}>
+                                    <div className="w-24 h-24 bg-purple-500/20 rounded-full flex items-center justify-center border-2 border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
+                                        <Icons.Key className="text-purple-500" size={48} strokeWidth={2} />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
                         {/* Tagline */}
                         <div className="space-y-2 mb-6">
-                            <p className="text-slate-300 text-sm font-medium">This app uses</p>
-                            <p className="text-lg font-bold">
+                                <p className="text-slate-300 text-sm font-medium">This app uses</p>
+                                <p className="text-lg font-bold">
                                 <span className={`text-brand-primary transition-all duration-500 ${activeIcon === 0 ? 'drop-shadow-[0_0_12px_rgba(45,212,191,0.8)] scale-110 inline-block' : ''}`}>
-                                    Disc Golf
-                                </span>
-                                {' + '}
+                                        Disc Golf
+                                    </span>
+                                    {' + '}
                                 <span className={`text-orange-500 transition-all duration-500 ${activeIcon === 1 ? 'drop-shadow-[0_0_12px_rgba(249,115,22,0.8)] scale-110 inline-block' : ''}`}>
-                                    Bitcoin
-                                </span>
-                                {' + '}
+                                        Bitcoin
+                                    </span>
+                                    {' + '}
                                 <span className={`text-purple-500 transition-all duration-500 ${activeIcon === 2 ? 'drop-shadow-[0_0_12px_rgba(168,85,247,0.8)] scale-110 inline-block' : ''}`}>
-                                    Nostr
-                                </span>
-                            </p>
-                            <button
+                                        Nostr
+                                    </span>
+                                </p>
+                                <button
                                 onClick={() => setShowWhyModal(true)}
-                                className="text-slate-400 text-xs hover:text-white transition-colors border-b border-dashed border-slate-600 hover:border-white pb-0.5"
-                            >
-                                Learn why
-                            </button>
-                        </div>
+                                    className="text-slate-400 text-xs hover:text-white transition-colors border-b border-dashed border-slate-600 hover:border-white pb-0.5"
+                                >
+                                    Learn why
+                                </button>
+                            </div>
 
                         {/* Main CTA: Create New Account */}
-                        <button
+                                <button
                             onClick={handleCreateNewAccount}
                             className="w-full py-4 bg-gradient-to-r from-brand-primary to-cyan-400 text-black font-bold rounded-xl hover:opacity-90 transition-all transform hover:scale-[1.02] shadow-lg shadow-brand-primary/30 flex items-center justify-center space-x-2 mb-4"
                         >
                             <Icons.Plus size={20} />
                             <span>Create New Account</span>
-                        </button>
+                                </button>
 
                         {/* Secondary Options */}
-                        <button
+                                    <button
                             onClick={() => setShowExistingOptionsModal(true)}
                             className="w-full py-3 bg-slate-800/50 border border-slate-700 text-white font-medium rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center space-x-2"
-                        >
+                                    >
                             <Icons.Key size={18} className="text-slate-400" />
                             <span>I already have an account</span>
-                        </button>
+                                    </button>
 
                         {/* Error display */}
                         {error && (
@@ -229,7 +229,7 @@ export const Onboarding: React.FC = () => {
                             </div>
                         )}
                     </div>
-                </div>
+                        </div>
 
                 {/* Why Modal */}
                 {showWhyModal && createPortal(
@@ -257,7 +257,7 @@ export const Onboarding: React.FC = () => {
                     />,
                     document.body
                 )}
-            </div>
+                            </div>
         );
     }
 
@@ -308,7 +308,7 @@ export const Onboarding: React.FC = () => {
                     className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white transition-colors"
                 >
                     <Icons.Back size={24} />
-                </button>
+                                </button>
 
                 <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
                     <MnemonicRecoveryInput
@@ -316,9 +316,9 @@ export const Onboarding: React.FC = () => {
                         onCancel={() => setStep('welcome')}
                         error={error}
                         isLoading={isLoading}
-                    />
-                </div>
-            </div>
+                                    />
+                                </div>
+                            </div>
         );
     }
 
@@ -329,12 +329,12 @@ export const Onboarding: React.FC = () => {
     if (step === 'nsec') {
         return (
             <div className="min-h-screen bg-brand-dark flex flex-col p-4 pt-8">
-                <button
+                                <button
                     onClick={() => setStep('welcome')}
                     className="absolute top-4 left-4 p-2 text-slate-400 hover:text-white transition-colors"
-                >
+                                >
                     <Icons.Back size={24} />
-                </button>
+                                </button>
 
                 <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
                     <NsecLoginForm
@@ -343,8 +343,8 @@ export const Onboarding: React.FC = () => {
                         error={error}
                         isLoading={isLoading}
                     />
-                </div>
-            </div>
+                            </div>
+                        </div>
         );
     }
 
@@ -360,55 +360,55 @@ export const Onboarding: React.FC = () => {
  * Why Modal - Explains Bitcoin + Nostr
  */
 const WhyModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[75vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-white">Why This Combo?</h3>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[75vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-white">Why This Combo?</h3>
                     <button onClick={onClose} className="text-slate-400 hover:text-white">
-                        <Icons.Close size={24} />
-                    </button>
-                </div>
-                <div className="space-y-4 text-slate-300 leading-relaxed text-sm">
-                    <p className="text-brand-primary font-semibold italic">
-                        "We'll settle up after the round!"
-                    </p>
-                    <p>
-                        Famous last words. Every disc golfer knows the awkward shuffle at the parking lot, someone doesn't have cash, Venmo is "acting weird," and somehow those $5 ace pot donations just... evaporate into the ether.
-                    </p>
-                    <p>
-                        This app fixes that. Pay when you start. Automatic payouts when you finish. No excuses, no IOUs, no "I swear I'll get you next time."
-                    </p>
-                    <p className="font-semibold text-white">
-                        But why <span className="text-orange-500">Bitcoin</span>?
-                    </p>
-                    <p>
+                                    <Icons.Close size={24} />
+                                </button>
+                            </div>
+                            <div className="space-y-4 text-slate-300 leading-relaxed text-sm">
+                                <p className="text-brand-primary font-semibold italic">
+                                    "We'll settle up after the round!"
+                                </p>
+                                <p>
+                                    Famous last words. Every disc golfer knows the awkward shuffle at the parking lot, someone doesn't have cash, Venmo is "acting weird," and somehow those $5 ace pot donations just... evaporate into the ether.
+                                </p>
+                                <p>
+                                    This app fixes that. Pay when you start. Automatic payouts when you finish. No excuses, no IOUs, no "I swear I'll get you next time."
+                                </p>
+                                <p className="font-semibold text-white">
+                                    But why <span className="text-orange-500">Bitcoin</span>?
+                                </p>
+                                <p>
                         Because traditional money is broken. Banks print it endlessly, devaluing your savings. They freeze accounts, charge fees, and track every transaction.
-                    </p>
-                    <p>
+                                </p>
+                                <p>
                         <strong className="text-orange-500">Bitcoin</strong> is different. It's un-inflatable, unstoppable money that <em className="text-slate-200">you</em> truly own.
-                    </p>
-                    <p className="font-semibold text-white">
-                        And <span className="text-purple-500">Nostr</span>?
-                    </p>
-                    <p>
+                                </p>
+                                <p className="font-semibold text-white">
+                                    And <span className="text-purple-500">Nostr</span>?
+                                </p>
+                                <p>
                         Big Tech owns your identity. They decide what you see, who sees you, and whether you even get to speak.
-                    </p>
-                    <p>
+                                </p>
+                                <p>
                         <strong className="text-purple-500">Nostr</strong> gives that power back to you. Your identity, your content, your network—nobody can take it away.
-                    </p>
-                    <p className="italic text-brand-primary text-center pt-2">
-                        Disc golf, financial sovereignty, and digital freedom. Now let's play.
-                    </p>
-                </div>
-                <button
+                                </p>
+                                <p className="italic text-brand-primary text-center pt-2">
+                                    Disc golf, financial sovereignty, and digital freedom. Now let's play.
+                                </p>
+                            </div>
+                            <button
                     onClick={onClose}
-                    className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors mt-4"
-                >
-                    Got it
-                </button>
-            </div>
-        </div>
+                                className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors mt-4"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
     </div>
 );
 
@@ -422,15 +422,15 @@ const ExistingAccountModal: React.FC<{
     onSelectAmber: () => void;
     showAmber: boolean;
 }> = ({ onClose, onSelectRecovery, onSelectNsec, onSelectAmber, showAmber }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
         <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-white">Welcome Back!</h3>
                     <button onClick={onClose} className="text-slate-400 hover:text-white">
-                        <Icons.Close size={24} />
-                    </button>
-                </div>
+                                    <Icons.Close size={24} />
+                                </button>
+                            </div>
 
                 <p className="text-slate-400 text-sm">
                     Choose how you want to sign in:
@@ -438,7 +438,7 @@ const ExistingAccountModal: React.FC<{
 
                 <div className="space-y-3">
                     {/* Recovery Phrase (Recommended) */}
-                    <button
+                                        <button
                         onClick={onSelectRecovery}
                         className="w-full p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-colors text-left"
                     >
@@ -451,7 +451,7 @@ const ExistingAccountModal: React.FC<{
                                 <p className="text-xs text-slate-400">12 words from this app</p>
                             </div>
                         </div>
-                    </button>
+                                        </button>
 
                     {/* Nsec */}
                     <button
@@ -466,7 +466,7 @@ const ExistingAccountModal: React.FC<{
                                 <p className="font-bold text-white">Private Key (nsec)</p>
                                 <p className="text-xs text-slate-400">From Damus, Primal, etc.</p>
                             </div>
-                        </div>
+                                    </div>
                     </button>
 
                     {/* Amber (Android only) */}
@@ -488,14 +488,14 @@ const ExistingAccountModal: React.FC<{
                     )}
                 </div>
 
-                <button
+                            <button
                     onClick={onClose}
                     className="w-full py-2 text-slate-400 hover:text-white text-sm transition-colors"
-                >
+                            >
                     Cancel
-                </button>
-            </div>
-        </div>
+                            </button>
+                        </div>
+                    </div>
     </div>
 );
 

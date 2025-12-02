@@ -45,5 +45,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>On-Chain Disc Golf needs camera access to scan QR codes for adding players and receiving payments.</string>
 </dict>
 </plist>

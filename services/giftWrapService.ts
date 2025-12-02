@@ -95,23 +95,52 @@ export const sendGiftWrap = async (
 ): Promise<void> => {
     try {
         const senderPubkey = getPublicKey(senderSecretKey);
+        console.log('🎁 [GiftWrap] Starting...');
+        console.log('   From:', senderPubkey.slice(0, 8) + '...');
+        console.log('   To:', recipientPubkey.slice(0, 8) + '...');
+        console.log('   Kind:', kind);
 
         // Step 1: Create rumor (unsigned event)
         const rumor = createRumor(content, senderPubkey, kind);
+        console.log('   ✓ Rumor created');
 
         // Step 2: Create seal (encrypted rumor, signed by sender)
         const seal = await createSeal(rumor, senderSecretKey, recipientPubkey);
+        console.log('   ✓ Seal created (kind 13)');
 
         // Step 3: Create gift wrap (encrypted seal with ephemeral key)
         const giftWrap = await createGiftWrap(seal, recipientPubkey);
+        console.log('   ✓ Gift wrap created (kind 1059)');
+        console.log('   Event ID:', giftWrap.id);
+        console.log('   Ephemeral pubkey:', giftWrap.pubkey.slice(0, 8) + '...');
+        console.log('   p-tag recipient:', giftWrap.tags.find(t => t[0] === 'p')?.[1]?.slice(0, 8) + '...');
 
         // Step 4: Publish to relays
+        console.log(`   Publishing to ${relays.length} relays...`);
         const pool = getPool();
-        await Promise.any(pool.publish(relays, giftWrap));
+        const results = await Promise.allSettled(
+            relays.map(async (relay) => {
+                try {
+                    await pool.publish([relay], giftWrap);
+                    console.log(`   ✓ Published to ${relay}`);
+                    return relay;
+                } catch (e) {
+                    console.log(`   ✗ Failed on ${relay}:`, e);
+                    throw e;
+                }
+            })
+        );
+        
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        console.log(`🎁 [GiftWrap] Published to ${successful}/${relays.length} relays`);
+        
+        if (successful === 0) {
+            throw new Error('Failed to publish to any relay');
+        }
 
-        console.log(`Gift wrap sent to ${recipientPubkey.slice(0, 8)}...`);
+        console.log(`✅ Gift wrap sent! Event ID: ${giftWrap.id}`);
     } catch (error) {
-        console.error('Failed to send gift wrap:', error);
+        console.error('❌ Failed to send gift wrap:', error);
         throw new Error('Failed to send encrypted message');
     }
 };

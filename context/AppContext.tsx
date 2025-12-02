@@ -65,6 +65,14 @@ interface AppContextType extends AppState {
   setWalletMode: (mode: 'cashu' | 'nwc' | 'breez') => void;
   setNwcConnection: (uri: string) => void;
   checkForPayments: () => Promise<number>;
+  
+  // Individual Wallet Balances (for cumulative view)
+  walletBalances: {
+    cashu: number;
+    nwc: number;
+    breez: number;
+  };
+  refreshAllBalances: () => Promise<void>;
 
   // Payment Notification
   paymentNotification: {
@@ -128,6 +136,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
     return 0;
+  });
+  
+  // Individual wallet balances for cumulative view
+  const [walletBalances, setWalletBalances] = useState<{
+    cashu: number;
+    nwc: number;
+    breez: number;
+  }>(() => {
+    // Initialize Cashu balance from proofs
+    const saved = localStorage.getItem('cdg_proofs');
+    let cashuBal = 0;
+    if (saved) {
+      try {
+        const proofs = JSON.parse(saved);
+        cashuBal = WalletService.calculateBalance(proofs);
+      } catch (e) {
+        console.warn("Failed to calculate initial Cashu balance", e);
+      }
+    }
+    return {
+      cashu: cashuBal,
+      nwc: 0,
+      breez: 0
+    };
   });
 
   const [transactions, setTransactions] = useState<WalletTransaction[]>(() => {
@@ -263,8 +295,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Persistence & Auto-Calculation
   useEffect(() => {
+    const cashuBal = WalletService.calculateBalance(proofs);
+    // Always update the individual Cashu balance
+    setWalletBalances(prev => ({ ...prev, cashu: cashuBal }));
+    // Update main balance only if in Cashu mode
     if (walletMode === 'cashu') {
-      setWalletBalance(WalletService.calculateBalance(proofs));
+      setWalletBalance(cashuBal);
     }
     localStorage.setItem('cdg_proofs', JSON.stringify(proofs));
   }, [proofs, mints, walletMode]);
@@ -992,10 +1028,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createAccountFromMnemonic = async (): Promise<{ mnemonic: string }> => {
-    // Generate new identity from mnemonic (NIP-06)
+    // Generate new identity from mnemonic (NIP-06 / BIP-89)
+    // This creates both Nostr keys AND Breez wallet seed from the same 12 words
     const { mnemonic, pk } = generateNewProfileFromMnemonic();
     
-    setUserProfile({ name: 'Loading...', about: '', picture: '', lud16: '', nip05: '' });
     setCurrentUserPubkey(pk);
     setAuthMethod('local');
     setAuthSourceState('mnemonic');
@@ -1003,6 +1039,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsAuthenticated(true);
     setIsGuest(false);
     localStorage.removeItem('is_guest_mode');
+
+    // 1. Get the magic lightning address for this new pubkey
+    const magicLUD16 = getMagicLightningAddress(pk);
+
+    // 2. Set the initial profile with the magic LUD16
+    const initialProfile: UserProfile = {
+      name: 'Disc Golfer',
+      about: '',
+      picture: '',
+      lud16: magicLUD16,
+      nip05: ''
+    };
+    setUserProfile(initialProfile);
+
+    // 3. Publish the new profile (with LUD16) to Nostr
+    console.log("📤 Publishing new profile to Nostr...");
+    try {
+      await updateUserProfile(initialProfile);
+      console.log("✅ Profile published successfully!");
+    } catch (e) {
+      console.error("⚠️ Failed to publish profile:", e);
+    }
+
+    // 4. Register with payment gateways for automatic receiving
+    console.log("🔗 Registering with payment gateways...");
+    try {
+      const registrations = await registerWithAllGateways();
+      const successful = registrations.filter(r => r.success).length;
+      console.log(`✅ Registered with ${successful}/${registrations.length} gateways`);
+    } catch (e) {
+      console.error("⚠️ Gateway registration failed:", e);
+    }
+
+    // 5. Create initial wallet backup to enable payment detection
+    console.log("📦 Creating initial wallet backup for new account...");
+    try {
+      await syncWallet(proofs, mints, transactions);
+      console.log("✅ Initial wallet backup created successfully!");
+    } catch (e) {
+      console.error("⚠️ Failed to create initial wallet backup:", e);
+    }
     
     return { mnemonic };
   };
@@ -1661,6 +1738,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const bal = await nwcServiceRef.current.getBalance();
           setWalletBalance(bal);
+          // Also update individual balance
+          setWalletBalances(prev => ({ ...prev, nwc: bal }));
         } catch (e) {
           console.error("NWC Balance fetch failed", e);
         }
@@ -1798,6 +1877,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsBalanceLoading(false);
     }
+  };
+
+  // Refresh all wallet balances (for cumulative "All Wallets" view)
+  const refreshAllBalances = async () => {
+    setIsBalanceLoading(true);
+    console.log("🔄 Refreshing all wallet balances...");
+    
+    const newBalances = { cashu: 0, nwc: 0, breez: 0 };
+    
+    // 1. Get Cashu balance from proofs
+    try {
+      if (proofs.length > 0) {
+        newBalances.cashu = WalletService.calculateBalance(proofs);
+      }
+      console.log(`💰 Cashu balance: ${newBalances.cashu} sats`);
+    } catch (e) {
+      console.warn("Failed to get Cashu balance:", e);
+    }
+    
+    // 2. Get NWC balance (if connected)
+    if (nwcServiceRef.current && nwcString) {
+      try {
+        const nwcBal = await nwcServiceRef.current.getBalance();
+        newBalances.nwc = nwcBal;
+        console.log(`💰 NWC balance: ${newBalances.nwc} sats`);
+      } catch (e) {
+        console.warn("Failed to get NWC balance:", e);
+      }
+    }
+    
+    // 3. Get Breez balance (when implemented)
+    // TODO: Implement Breez balance fetch when SDK is ready
+    // try {
+    //   if (isBreezInitialized()) {
+    //     const breezBal = await getBreezBalance();
+    //     newBalances.breez = breezBal.balanceSats;
+    //   }
+    // } catch (e) {
+    //   console.warn("Failed to get Breez balance:", e);
+    // }
+    
+    setWalletBalances(newBalances);
+    
+    // Also update the main walletBalance based on current mode
+    if (walletMode === 'cashu') {
+      setWalletBalance(newBalances.cashu);
+    } else if (walletMode === 'nwc') {
+      setWalletBalance(newBalances.nwc);
+    } else if (walletMode === 'breez') {
+      setWalletBalance(newBalances.breez);
+    }
+    
+    const total = newBalances.cashu + newBalances.nwc + newBalances.breez;
+    console.log(`📊 Total balance across all wallets: ${total} sats`);
+    
+    setIsBalanceLoading(false);
   };
 
   const depositFunds = async (amount: number): Promise<{ request: string, quote: string }> => {
@@ -2162,7 +2297,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPaymentNotification,
       lightningStrike,
       roundSummary,
-      setRoundSummary
+      setRoundSummary,
+      walletBalances,
+      refreshAllBalances
     }}>
       {children}
     </AppContext.Provider>

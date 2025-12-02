@@ -6,24 +6,28 @@
  */
 
 import { nip19 } from 'nostr-tools';
-import { sendGiftWrap } from './giftWrapService';
-import { getSession, getRelays } from './nostrService';
+import { sendDirectMessage, getSession, getRelays } from './nostrService';
 
 // Developer's feedback npub - receives all feedback via encrypted Gift Wrap
 const FEEDBACK_NPUB = 'npub1xg8nc32sw6u3m337wzhk8gs3nqmh73r86z6a93s3hetca4jvktls68qyue';
+// Pre-decoded hex for the above npub (verified correct)
+const FEEDBACK_HEX = '320f3c455076b91dc63e70af63a21198377f4467d0b5d2c611be578ed64cb2ff';
 
 // Decode npub to hex pubkey
 const getFeedbackPubkey = (): string => {
     try {
         const decoded = nip19.decode(FEEDBACK_NPUB);
         if (decoded.type === 'npub') {
-            return decoded.data as string;
+            const hex = decoded.data as string;
+            console.log('📧 Feedback will be sent to:', hex.slice(0, 8) + '...');
+            return hex;
         }
     } catch (e) {
         console.error('Failed to decode feedback npub:', e);
     }
-    // Fallback hex (pre-decoded)
-    return '3207cf1150ed7239c67ce15ec7441199defc88cf684eba5884bcbc7b5932cb7f';
+    // Fallback to pre-decoded hex
+    console.log('📧 Using fallback feedback pubkey');
+    return FEEDBACK_HEX;
 };
 
 // App version - update this with your build process
@@ -192,16 +196,22 @@ export const collectLogs = (includeDevice: boolean = true): CollectedLogs => {
     return logs;
 };
 
-// Send feedback via Gift Wrap
+// Send feedback via encrypted DM (kind 4)
 export const sendFeedback = async (payload: FeedbackPayload): Promise<{ success: boolean; error?: string }> => {
     try {
+        console.log('📤 Starting feedback send...');
+        
         const session = getSession();
         if (!session?.sk) {
+            console.error('❌ No session/secret key found');
             return { success: false, error: 'Not logged in. Please create a profile first.' };
         }
+        console.log('✓ Session found, sender pubkey:', session.pk?.slice(0, 8) + '...');
         
         const feedbackPubkey = getFeedbackPubkey();
         const relays = getRelays();
+        console.log('✓ Target pubkey:', feedbackPubkey.slice(0, 8) + '...');
+        console.log('✓ Relays:', relays.slice(0, 3).join(', '), `... (${relays.length} total)`);
         
         // Build the feedback content
         const feedbackContent: any = {
@@ -218,20 +228,22 @@ export const sendFeedback = async (payload: FeedbackPayload): Promise<{ success:
             feedbackContent.device = getDeviceInfo();
         }
         
-        // Send as Gift Wrap (encrypted, private)
-        await sendGiftWrap(
-            JSON.stringify(feedbackContent, null, 2),
-            session.sk,
-            feedbackPubkey,
-            relays,
-            14 // Kind 14 = chat message
-        );
+        console.log('✓ Feedback content prepared, type:', payload.type);
         
-        console.log('✅ Feedback sent successfully');
+        // Format as readable message with JSON payload
+        const messageText = `📬 FEEDBACK (${payload.type.toUpperCase()})\n\n${payload.message}\n\n---\n${JSON.stringify(feedbackContent, null, 2)}`;
+        
+        // Send as encrypted DM (kind 4) - universally supported
+        console.log('📧 Sending via encrypted DM (kind 4)...');
+        const event = await sendDirectMessage(feedbackPubkey, messageText);
+        
+        console.log('✅ Feedback sent successfully!');
+        console.log('   Event ID:', event.id);
+        console.log('   To:', FEEDBACK_NPUB);
         return { success: true };
         
     } catch (error) {
-        console.error('Failed to send feedback:', error);
+        console.error('❌ Failed to send feedback:', error);
         return { 
             success: false, 
             error: error instanceof Error ? error.message : 'Failed to send feedback'

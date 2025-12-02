@@ -169,52 +169,102 @@ export const Scorecard: React.FC = () => {
         setViewHole(hole);
     };
 
+    // === CUSTOM STARTING HOLE HELPERS ===
+    
+    // Calculate how many holes have been played based on current position
+    const getHolesPlayedCount = (currentHole: number, startingHole: number, totalHoles: number): number => {
+        if (currentHole >= startingHole) {
+            return currentHole - startingHole + 1;
+        } else {
+            // Wrapped around: holes from startingHole to totalHoles, plus holes from 1 to currentHole
+            return (totalHoles - startingHole + 1) + currentHole;
+        }
+    };
+
+    // Calculate the next hole with wrap-around
+    const getNextHole = (currentHole: number, totalHoles: number): number => {
+        return currentHole >= totalHoles ? 1 : currentHole + 1;
+    };
+
+    // Calculate the previous hole with wrap-around
+    const getPrevHole = (currentHole: number, totalHoles: number): number => {
+        return currentHole <= 1 ? totalHoles : currentHole - 1;
+    };
+
+    // Calculate the final hole (the one before startingHole, wrapping if needed)
+    const getFinalHole = (startingHole: number, totalHoles: number): number => {
+        return startingHole === 1 ? totalHoles : startingHole - 1;
+    };
+
+    // Get all holes in play order (starting from startingHole, wrapping around)
+    const getHolesInPlayOrder = (startingHole: number, totalHoles: number): number[] => {
+        const holes: number[] = [];
+        let hole = startingHole;
+        for (let i = 0; i < totalHoles; i++) {
+            holes.push(hole);
+            hole = getNextHole(hole, totalHoles);
+        }
+        return holes;
+    };
+
     const handleNext = () => {
-        if (viewHole <= activeRound.holeCount && !isHoleComplete(viewHole)) {
+        const startingHole = activeRound.startingHole || 1;
+        const totalHoles = activeRound.holeCount;
+        const finalHole = getFinalHole(startingHole, totalHoles);
+        const holesPlayed = getHolesPlayedCount(viewHole, startingHole, totalHoles);
+        
+        // Check if current hole is incomplete
+        if (!isHoleComplete(viewHole)) {
             setToast(`Hole ${viewHole} incomplete`);
             setTimeout(() => setToast(null), 2500);
         }
-
-        if (viewHole === 9 && activeRound.holeCount >= 10 && !showHalfwayReview) {
+        
+        // Halfway review: show after half the holes are played
+        const halfwayPoint = Math.floor(totalHoles / 2);
+        if (holesPlayed === halfwayPoint && totalHoles >= 10 && !showHalfwayReview) {
             setShowHalfwayReview(true);
             return;
         }
-
+        
         if (showHalfwayReview) {
             setShowHalfwayReview(false);
-            setViewHole(10);
+            setViewHole(getNextHole(viewHole, totalHoles));
             return;
         }
-
-        if (viewHole === activeRound.holeCount && !showFinalReview) {
+        
+        // Final review: show when we've completed the final hole (one before starting)
+        if (viewHole === finalHole && !showFinalReview) {
             setShowFinalReview(true);
             return;
         }
-
-        if (viewHole < activeRound.holeCount) {
+        
+        // Normal progression with wrap-around
+        if (holesPlayed < totalHoles) {
             publishCurrentScores();
-            setViewHole(h => h + 1);
+            setViewHole(getNextHole(viewHole, totalHoles));
         }
     };
 
     const handlePrev = () => {
+        const startingHole = activeRound.startingHole || 1;
+        const totalHoles = activeRound.holeCount;
+        
         if (showFinalReview) {
             setShowFinalReview(false);
             return;
         }
-
-        if (viewHole === 10 && !showHalfwayReview) {
-            setShowHalfwayReview(true);
-            return;
-        }
-
+        
         if (showHalfwayReview) {
             setShowHalfwayReview(false);
-            setViewHole(9);
             return;
         }
-
-        setViewHole(h => Math.max(1, h - 1));
+        
+        // Don't go back past the starting hole
+        if (viewHole === startingHole) {
+            return; // Already at the first hole of the round
+        }
+        
+        setViewHole(getPrevHole(viewHole, totalHoles));
     };
 
     // Helper to calculate score info
@@ -264,10 +314,10 @@ export const Scorecard: React.FC = () => {
         return 'bg-rose-500/20 border-rose-500/50';
     };
 
-    // Check if all players have scores for a range
-    const areScoresCompleteInRange = (start: number, end: number) => {
+    // Check if all players have scores for a list of holes
+    const areScoresCompleteForHoles = (holes: number[]) => {
         for (const p of players) {
-            for (let h = start; h <= end; h++) {
+            for (const h of holes) {
                 if (!p.scores[h]) return false;
             }
         }
@@ -283,14 +333,22 @@ export const Scorecard: React.FC = () => {
 
     // --- REVIEW UI (Shared for Halfway and Final) ---
     if (showHalfwayReview || showFinalReview) {
-        const rangeStart = 1;
-        const rangeEnd = showHalfwayReview ? 9 : activeRound.holeCount;
+        const startingHole = activeRound.startingHole || 1;
+        const totalHoles = activeRound.holeCount;
+        const allHolesInOrder = getHolesInPlayOrder(startingHole, totalHoles);
+        
+        // For halfway review, show first half of holes in play order
+        // For final review, show all holes in play order
+        const halfwayCount = Math.floor(totalHoles / 2);
+        const reviewHoles = showHalfwayReview 
+            ? allHolesInOrder.slice(0, halfwayCount)
+            : allHolesInOrder;
 
-        const isComplete = areScoresCompleteInRange(rangeStart, rangeEnd);
-        const allHoles = Array.from({ length: rangeEnd - rangeStart + 1 }, (_, i) => rangeStart + i);
-
-        const front9 = allHoles.filter(h => h <= 9);
-        const back9 = allHoles.filter(h => h > 9);
+        const isComplete = areScoresCompleteForHoles(reviewHoles);
+        
+        // Split into two rows for display (first half and second half of reviewed holes)
+        const firstHalf = reviewHoles.slice(0, Math.ceil(reviewHoles.length / 2));
+        const secondHalf = reviewHoles.slice(Math.ceil(reviewHoles.length / 2));
 
         const reviewSortedPlayers = [...players].sort((a, b) => {
             const aTotal = getPlayerTotalText(a.scores, a.handicap, rangeEnd);
@@ -314,7 +372,7 @@ export const Scorecard: React.FC = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-                                    {showHalfwayReview ? 'Front 9 Review' : 'Final Review'}
+                                    {showHalfwayReview ? 'Halfway Review' : 'Final Review'}
                                 </p>
                                 <h1 className="text-xl font-bold text-white">
                                     {activeRound.courseName}
@@ -332,7 +390,7 @@ export const Scorecard: React.FC = () => {
                     <div className="max-w-md mx-auto">
                         <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2 text-center">Tap hole to edit</p>
                         <div className="flex justify-center gap-1 flex-wrap">
-                            {allHoles.map(h => {
+                            {reviewHoles.map(h => {
                                 const isMissing = isHoleMissingScore(h);
                                 return (
                                     <button
@@ -356,7 +414,12 @@ export const Scorecard: React.FC = () => {
                 <div className={`flex-1 overflow-y-auto px-4 py-4 ${showFinalReview ? 'pb-48' : 'pb-40'}`}>
                     <div className="max-w-md mx-auto space-y-4">
                         {reviewSortedPlayers.map((p, idx) => {
-                            const totalInfo = getPlayerTotalText(p.scores, p.handicap, rangeEnd);
+                            // Calculate total only for the holes being reviewed
+                            const reviewScores: Record<number, number> = {};
+                            reviewHoles.forEach(h => {
+                                if (p.scores[h]) reviewScores[h] = p.scores[h];
+                            });
+                            const totalInfo = getPlayerTotalText(reviewScores, p.handicap);
                             const isLeader = idx === 0;
                             
                             return (
@@ -399,13 +462,13 @@ export const Scorecard: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Score Grid - Clickable */}
+                                    {/* Score Grid - Clickable (in play order) */}
                                     <div className="px-4 pb-4 space-y-3">
-                                        {/* Front 9 */}
-                                        {front9.length > 0 && (
+                                        {/* First Half of Reviewed Holes */}
+                                        {firstHalf.length > 0 && (
                                             <div className="bg-slate-900/50 rounded-xl p-3">
-                                                <div className="grid gap-1 text-center" style={{ gridTemplateColumns: `repeat(${front9.length}, 1fr)` }}>
-                                                    {front9.map(h => {
+                                                <div className="grid gap-1 text-center" style={{ gridTemplateColumns: `repeat(${firstHalf.length}, 1fr)` }}>
+                                                    {firstHalf.map(h => {
                                                         const isMissing = !p.scores[h] || p.scores[h] === 0;
                                                         return (
                                                             <button
@@ -417,7 +480,7 @@ export const Scorecard: React.FC = () => {
                                                             </button>
                                                         );
                                                     })}
-                                                    {front9.map(h => {
+                                                    {firstHalf.map(h => {
                                                         const score = p.scores[h];
                                                         const isAce = score === 1;
                                                         return (
@@ -438,11 +501,11 @@ export const Scorecard: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {/* Back 9 */}
-                                        {back9.length > 0 && (
+                                        {/* Second Half of Reviewed Holes */}
+                                        {secondHalf.length > 0 && (
                                             <div className="bg-slate-900/50 rounded-xl p-3">
-                                                <div className="grid gap-1 text-center" style={{ gridTemplateColumns: `repeat(${back9.length}, 1fr)` }}>
-                                                    {back9.map(h => {
+                                                <div className="grid gap-1 text-center" style={{ gridTemplateColumns: `repeat(${secondHalf.length}, 1fr)` }}>
+                                                    {secondHalf.map(h => {
                                                         const isMissing = !p.scores[h] || p.scores[h] === 0;
                                                         return (
                                                             <button
@@ -454,7 +517,7 @@ export const Scorecard: React.FC = () => {
                                                             </button>
                                                         );
                                                     })}
-                                                    {back9.map(h => {
+                                                    {secondHalf.map(h => {
                                                         const score = p.scores[h];
                                                         const isAce = score === 1;
                                                         return (
@@ -531,7 +594,7 @@ export const Scorecard: React.FC = () => {
                                     onClick={handlePrev}
                                     className="w-full text-slate-400 text-sm font-medium hover:text-white py-2 transition-colors"
                                 >
-                                    ← Back to Hole {activeRound.holeCount}
+                                    ← Back to Scoring
                                 </button>
                             </div>
                         )}
@@ -547,11 +610,18 @@ export const Scorecard: React.FC = () => {
     // Honor system: sort players by previous hole performance
     // Best score on previous hole goes first, ties maintain current order
     const getHonorSortedPlayers = () => {
-        if (!activeRound?.useHonorSystem || viewHole === 1) {
+        const startingHole = activeRound?.startingHole || 1;
+        
+        // Don't sort if honor system disabled or on the first hole of the round
+        if (!activeRound?.useHonorSystem || viewHole === startingHole) {
             return players;
         }
         
-        const prevHole = viewHole - 1;
+        const prevHole = getPrevHole(viewHole, activeRound.holeCount);
+        const holesInOrder = getHolesInPlayOrder(startingHole, activeRound.holeCount);
+        const currentHoleIndex = holesInOrder.indexOf(viewHole);
+        const holesPlayedSoFar = holesInOrder.slice(0, currentHoleIndex);
+        
         return [...players].sort((a, b) => {
             const aScore = a.scores[prevHole] || Infinity;
             const bScore = b.scores[prevHole] || Infinity;
@@ -561,13 +631,9 @@ export const Scorecard: React.FC = () => {
                 return aScore - bScore;
             }
             
-            // If tied, check cumulative score up to previous hole
-            const aTotalToPrev = Object.entries(a.scores)
-                .filter(([h]) => parseInt(h) <= prevHole)
-                .reduce((sum, [, s]) => sum + s, 0);
-            const bTotalToPrev = Object.entries(b.scores)
-                .filter(([h]) => parseInt(h) <= prevHole)
-                .reduce((sum, [, s]) => sum + s, 0);
+            // If tied, check cumulative score for holes played so far
+            const aTotalToPrev = holesPlayedSoFar.reduce((sum, h) => sum + (a.scores[h] || 0), 0);
+            const bTotalToPrev = holesPlayedSoFar.reduce((sum, h) => sum + (b.scores[h] || 0), 0);
             
             return aTotalToPrev - bTotalToPrev;
         });
@@ -593,10 +659,14 @@ export const Scorecard: React.FC = () => {
             {/* Compact Header */}
             <div className="relative z-10 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 px-4 py-2.5">
                 <div className="max-w-md mx-auto flex items-center justify-between">
-                    {/* Left: Hole Counter */}
-                    <div className="flex items-baseline space-x-1">
-                        <span className="text-3xl font-black text-white">{viewHole}</span>
-                        <span className="text-slate-500 text-sm font-medium">/ {activeRound.holeCount}</span>
+                    {/* Left: Hole Counter - shows actual hole number and progress */}
+                    <div className="flex flex-col">
+                        <div className="flex items-baseline space-x-1">
+                            <span className="text-2xl font-black text-white">Hole {viewHole}</span>
+                        </div>
+                        <span className="text-slate-500 text-xs font-medium">
+                            {getHolesPlayedCount(viewHole, activeRound.startingHole || 1, activeRound.holeCount)} of {activeRound.holeCount}
+                        </span>
                     </div>
                     
                     {/* Center: Pots - Matching Payment Screen Style */}
@@ -615,15 +685,15 @@ export const Scorecard: React.FC = () => {
                                 return (
                                     <>
                                         {entryPot > 0 && (
-                                            <div className={`bg-slate-800/80 rounded-lg px-2 py-1 border border-slate-700/50 ${minWidth} text-center`}>
+                                            <div className={`bg-black/30 rounded-xl px-2 py-1 border border-orange-500/20 ${minWidth} text-center`}>
                                                 <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider leading-none">Entry</p>
-                                                <p className="text-sm font-bold text-brand-accent leading-tight">{entryPot.toLocaleString()}</p>
+                                                <p className="text-sm font-bold text-orange-400 leading-tight">{entryPot.toLocaleString()}</p>
                                             </div>
                                         )}
                                         {acePot > 0 && (
-                                            <div className={`bg-slate-800/80 rounded-lg px-2 py-1 border border-slate-700/50 ${minWidth} text-center`}>
+                                            <div className={`bg-black/30 rounded-xl px-2 py-1 border border-emerald-500/20 ${minWidth} text-center`}>
                                                 <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider leading-none">Ace</p>
-                                                <p className="text-sm font-bold text-brand-secondary leading-tight">{acePot.toLocaleString()}</p>
+                                                <p className="text-sm font-bold text-emerald-400 leading-tight">{acePot.toLocaleString()}</p>
                                             </div>
                                         )}
                                     </>
@@ -633,11 +703,11 @@ export const Scorecard: React.FC = () => {
                     )}
                     
                     {/* Right: Help & Settings */}
-                    <div className="flex items-center space-x-0.5">
-                        <button className="p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-800/50">
+                    <div className="flex items-center space-x-1">
+                        <button className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
                             <Icons.Help size={18} />
                         </button>
-                        <button className="p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-slate-800/50">
+                        <button className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
                             <Icons.Settings size={18} />
                         </button>
                     </div>
@@ -734,58 +804,49 @@ export const Scorecard: React.FC = () => {
             {/* Bottom Navigation Bar - Redesigned */}
             <div className="fixed bottom-16 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-slate-700/50 z-20">
                 <div className="max-w-md mx-auto px-3 py-3">
-                    {/* Progress Bar */}
+                    {/* Progress Bar - based on holes played, not hole number */}
                     <div className="mb-3">
                         <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
                             <div 
                                 className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300"
-                                style={{ width: `${(viewHole / activeRound.holeCount) * 100}%` }}
+                                style={{ width: `${(getHolesPlayedCount(viewHole, activeRound.startingHole || 1, activeRound.holeCount) / activeRound.holeCount) * 100}%` }}
                             ></div>
                         </div>
                     </div>
                     
                     <div className="flex justify-between items-center">
-                        {/* Prev Button */}
+                        {/* Prev Button - disabled at starting hole */}
                         <button
                             onClick={handlePrev}
-                            disabled={viewHole === 1}
+                            disabled={viewHole === (activeRound.startingHole || 1)}
                             className="w-11 h-11 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all hover:bg-slate-700 hover:border-slate-600"
                         >
                             <Icons.Prev className="text-white" size={18} />
                         </button>
 
-                        {/* Hole Pills */}
+                        {/* Hole Pills - show holes in play order */}
                         <div className="flex items-center justify-center gap-1 flex-1 mx-2 overflow-hidden">
                             {(() => {
-                                const count = activeRound.holeCount;
-                                let start = Math.max(1, viewHole - 2);
-                                let end = Math.min(count, start + 4);
-                                if (end - start < 4) start = Math.max(1, end - 4);
-                                start = Math.max(1, start);
+                                const startingHole = activeRound.startingHole || 1;
+                                const totalHoles = activeRound.holeCount;
+                                const allHolesInOrder = getHolesInPlayOrder(startingHole, totalHoles);
+                                const currentIndex = allHolesInOrder.indexOf(viewHole);
+                                const halfwayIndex = Math.floor(totalHoles / 2);
+                                const finalHole = getFinalHole(startingHole, totalHoles);
+                                
+                                // Show 5 holes centered around current hole
+                                let startIdx = Math.max(0, currentIndex - 2);
+                                let endIdx = Math.min(totalHoles - 1, startIdx + 4);
+                                if (endIdx - startIdx < 4) startIdx = Math.max(0, endIdx - 4);
+                                
+                                const visibleHoles = allHolesInOrder.slice(startIdx, endIdx + 1);
 
-                                const items = [];
-                                for (let i = start; i <= end; i++) {
-                                    if (i === 10 && count >= 10) items.push('REV');
-                                    items.push(i);
-                                }
-
-                                return items.map(item => {
-                                    if (item === 'REV') {
-                                        return (
-                                            <button
-                                                key="rev"
-                                                onClick={() => setShowHalfwayReview(true)}
-                                                className="w-9 h-9 rounded-lg flex items-center justify-center text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all shrink-0"
-                                            >
-                                                <span className="text-sm">⭐</span>
-                                            </button>
-                                        );
-                                    }
-
-                                    const h = item as number;
+                                return visibleHoles.map((h, idx) => {
+                                    const holeIndex = allHolesInOrder.indexOf(h);
                                     const isActive = h === viewHole;
                                     const complete = isHoleComplete(h);
-                                    const isPast = h < viewHole;
+                                    const isPast = holeIndex < currentIndex;
+                                    const isHalfway = holeIndex === halfwayIndex - 1 && totalHoles >= 10;
 
                                     return (
                                         <button
@@ -798,25 +859,27 @@ export const Scorecard: React.FC = () => {
                                                         ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse' 
                                                         : isPast && complete
                                                             ? 'bg-slate-700/80 text-emerald-400 border border-emerald-500/30'
-                                                            : 'bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-white hover:bg-slate-700'
+                                                            : isHalfway
+                                                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                                                : 'bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-white hover:bg-slate-700'
                                             }`}
                                         >
                                             {h}
                                         </button>
-                                    )
+                                    );
                                 });
                             })()}
                         </div>
 
-                        {/* Next / Finish Button */}
+                        {/* Next / Finish Button - finish at final hole (before starting hole) */}
                         <button
                             onClick={handleNext}
-                            className={`w-11 h-11 rounded-xl border flex items-center justify-center active:scale-95 transition-all ${viewHole === activeRound.holeCount
+                            className={`w-11 h-11 rounded-xl border flex items-center justify-center active:scale-95 transition-all ${viewHole === getFinalHole(activeRound.startingHole || 1, activeRound.holeCount)
                                 ? 'bg-emerald-500 border-emerald-400 text-black shadow-lg shadow-emerald-500/40 ring-2 ring-emerald-400/30 hover:bg-emerald-400'
                                 : 'bg-slate-800/80 border-slate-700 text-white hover:bg-slate-700 hover:border-slate-600'
                                 }`}
                         >
-                            {viewHole === activeRound.holeCount ? <Icons.CheckMark size={18} /> : <Icons.Next size={18} />}
+                            {viewHole === getFinalHole(activeRound.startingHole || 1, activeRound.holeCount) ? <Icons.CheckMark size={18} /> : <Icons.Next size={18} />}
                         </button>
                     </div>
                 </div>

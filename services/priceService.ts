@@ -71,15 +71,11 @@ export const satsToUsd = (sats: number, btcPrice: number): string => {
   const btc = sats / 100_000_000;
   const usd = btc * btcPrice;
   
-  // Format based on amount
-  if (usd < 0.01) {
-    return `$${usd.toFixed(4)}`;
-  } else if (usd < 1) {
-    return `$${usd.toFixed(3)}`;
-  } else if (usd < 100) {
-    return `$${usd.toFixed(2)}`;
-  } else {
+  // Always use 2 decimal places for consistency
+  if (usd >= 1000) {
     return `$${usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  } else {
+    return `$${usd.toFixed(2)}`;
   }
 };
 
