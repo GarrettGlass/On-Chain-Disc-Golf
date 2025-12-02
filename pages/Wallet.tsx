@@ -1158,7 +1158,7 @@ export const Wallet: React.FC = () => {
                         <div className="mt-6 bg-purple-500/5 border border-purple-500/20 rounded-xl p-4">
                             <h4 className="text-sm font-bold text-purple-400 mb-2">What is NWC?</h4>
                             <p className="text-xs text-slate-400 leading-relaxed mb-3">
-                                <strong className="text-slate-300">Nostr Wallet Connect</strong> is a protocol that lets this app communicate securely with your existing Lightning wallet. Think of it like connecting your bank account to Venmo — your funds stay in your wallet, and this app just sends payment requests.
+                                <strong className="text-slate-300">Nostr Wallet Connect</strong> is a protocol that lets this app communicate securely with your existing <strong className="text-slate-300">external</strong> Lightning wallet. Think of it like connecting your bank account to Venmo — your funds stay in your wallet, and this app just sends payment requests.
                             </p>
                             
                             <h4 className="text-sm font-bold text-purple-400 mb-2">Why use NWC?</h4>
@@ -1369,13 +1369,6 @@ export const Wallet: React.FC = () => {
         if (walletMode === 'nwc' && !nwcString) {
             // Redirect to settings immediately
             setView('settings');
-            return null;
-        }
-        
-        // NWC wallet receive view - if connected, go to deposit/invoice
-        if (walletMode === 'nwc' && nwcString) {
-            // NWC uses invoice generation, not static address
-            setView('deposit');
             return null;
         }
 
