@@ -442,6 +442,7 @@ export const Wallet: React.FC = () => {
     const [showWalletHelp, setShowWalletHelp] = useState(false);
     const [returnToWalletHelp, setReturnToWalletHelp] = useState(false); // Track if we should return to help modal
     const [matrixClickable, setMatrixClickable] = useState(false);
+    const [showVisaConspiracy, setShowVisaConspiracy] = useState(false); // Easter egg: The financial system conspiracy
     
     // Matrix typewriter effect
     useEffect(() => {
@@ -2679,13 +2680,97 @@ export const Wallet: React.FC = () => {
                             </div>
                             
                             <p className="text-slate-500 text-xs italic text-center">
-                                Lightning makes Bitcoin practical for everyday use — like your $500 Zuca cart setup.
+                                Lightning makes Bitcoin practical for everyday use — why didn't you use it to pay for your{' '}
+                                <button 
+                                    onClick={() => { setShowLightningExplainer(false); setShowVisaConspiracy(true); }}
+                                    className="text-blue-400 hover:text-blue-300 underline not-italic transition-colors"
+                                >
+                                    $500 Zuca cart setup
+                                </button>?
                             </p>
                         </div>
                         
                         {/* Footer */}
                         <div className="p-4 border-t border-slate-800">
                             <Button fullWidth onClick={() => { setShowLightningExplainer(false); if (returnToWalletHelp) { setShowWalletHelp(true); setReturnToWalletHelp(false); } }}>Got it</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Visa/Apple Conspiracy Easter Egg Modal */}
+            {showVisaConspiracy && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowVisaConspiracy(false)}>
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-5 border-b border-slate-800">
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center space-x-3">
+                                    <button onClick={() => { setShowVisaConspiracy(false); setShowLightningExplainer(true); }} className="text-slate-400 hover:text-white p-1 mr-1">
+                                        <Icons.Prev size={20} />
+                                    </button>
+                                    <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                                        <Icons.AlertTriangle size={20} className="text-red-400" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white">Why Can't You?</h3>
+                                </div>
+                                <button onClick={() => setShowVisaConspiracy(false)} className="text-slate-400 hover:text-white p-1">
+                                    <Icons.Close size={20} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                                <p className="text-slate-300 text-sm leading-relaxed">
+                                    <span className="text-red-400 font-bold">The short answer?</span> The entire legacy financial system is paying billions to make sure you can't.
+                                </p>
+                            </div>
+                            
+                            <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+                                <p className="text-white font-bold text-sm">The Visa-Apple Deal</p>
+                                <p className="text-slate-400 text-xs leading-relaxed">
+                                    <span className="text-yellow-400 font-bold">Visa pays Apple $200M–$500M annually</span> (that's 2,290–5,725+ BTC) since around 2016 to ensure Apple Pay relies on Visa's network and doesn't build rival features — like direct peer-to-peer transfers that could sideline card networks.
+                                </p>
+                                <p className="text-slate-500 text-xs italic">
+                                    This was revealed in 2024 DOJ antitrust documents against Visa, which framed Apple Pay as an "existential threat" to Visa's swipe-fee empire.
+                                </p>
+                            </div>
+                            
+                            <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+                                <p className="text-white font-bold text-sm">It's Not Just Visa</p>
+                                <p className="text-slate-400 text-xs leading-relaxed">
+                                    <span className="text-blue-400 font-bold">Mastercard</span> pays Apple too. <span className="text-green-400 font-bold">Google</span> pays Apple <span className="text-white">$20 billion per year</span> (229,016 BTC) just to be the default search engine on Safari.
+                                </p>
+                                <p className="text-slate-500 text-xs">
+                                    These are called "revenue-sharing agreements." Critics call them <span className="text-red-400">anti-competitive bribes</span> to stifle innovation.
+                                </p>
+                            </div>
+                            
+                            <div className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/30 rounded-xl p-4">
+                                <p className="text-white font-bold text-sm mb-2">Why Bitcoin Threatens All of This</p>
+                                <p className="text-slate-300 text-xs leading-relaxed">
+                                    Bitcoin and Lightning could <span className="text-orange-400 font-bold">disrupt every card network</span> by enabling fee-free, instant, global payments. No swipe fees. No middlemen. No permission needed.
+                                </p>
+                                <p className="text-slate-400 text-xs mt-2">
+                                    Apple blocking early crypto apps in the App Store wasn't about "protecting users" — it was about <span className="text-red-400 font-bold">protecting its Visa/Mastercard partnerships</span>.
+                                </p>
+                            </div>
+                            
+                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
+                                <p className="text-amber-400 font-bold text-sm mb-1">
+                                    The system that makes you poorer every day?
+                                </p>
+                                <p className="text-slate-400 text-xs">
+                                    It does <span className="text-white">not</span> want Bitcoin to succeed. Because it will destroy their monopoly and their empire.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-800">
+                            <Button fullWidth onClick={() => setShowVisaConspiracy(false)}>Got it</Button>
                         </div>
                     </div>
                 </div>

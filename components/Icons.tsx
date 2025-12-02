@@ -28,6 +28,7 @@ import {
   EyeOff,
   CircleHelp,
   Camera,
+  AlertTriangle,
   Share2,
   RefreshCw,
   MapPin,
@@ -257,4 +258,5 @@ export const Icons = {
   CreditCard,
   Link: Link2,
   Cashew,
+  AlertTriangle,
 };
