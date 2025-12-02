@@ -1612,19 +1612,22 @@ export const Wallet: React.FC = () => {
                         onModeChange={handleWalletModeChange} 
                     />
 
-                    {/* Status Indicator - Consistent across all wallet types */}
-                    {walletMode === 'breez' && (
-                        <div className="flex items-center space-x-1.5 bg-black/30 px-2 py-1 rounded-md border border-white/5">
-                            {/* TODO: When Breez is connected, show blue dot + "Ready" */}
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                                Setup
-                            </span>
-                        </div>
-                    )}
-                    {walletMode === 'cashu' && (
-                        <div className="flex items-center space-x-1.5 bg-black/30 px-2 py-1 rounded-md border border-white/5">
-                            {activeMint ? (
+                    {/* Status Indicator - Tappable, goes to settings */}
+                    <button 
+                        onClick={() => setView('settings')}
+                        className="flex items-center space-x-1.5 bg-black/30 hover:bg-black/50 px-2 py-1 rounded-md border border-white/5 hover:border-white/10 transition-all active:scale-95"
+                    >
+                        {walletMode === 'breez' && (
+                            <>
+                                {/* TODO: When Breez is connected, show blue dot + "Ready" */}
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                    Setup
+                                </span>
+                            </>
+                        )}
+                        {walletMode === 'cashu' && (
+                            activeMint ? (
                                 <>
                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
                                     <span className="text-[10px] text-slate-400 font-mono truncate max-w-[80px]">
@@ -1638,12 +1641,10 @@ export const Wallet: React.FC = () => {
                                         No Mint
                                     </span>
                                 </>
-                            )}
-                        </div>
-                    )}
-                    {walletMode === 'nwc' && (
-                        <div className="flex items-center space-x-1.5 bg-black/30 px-2 py-1 rounded-md border border-white/5">
-                            {nwcString ? (
+                            )
+                        )}
+                        {walletMode === 'nwc' && (
+                            nwcString ? (
                                 <>
                                     <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_5px_rgba(168,85,247,0.5)]"></div>
                                     <span className="text-[10px] text-slate-400 font-mono">
@@ -1657,9 +1658,9 @@ export const Wallet: React.FC = () => {
                                         Not Connected
                                     </span>
                                 </>
-                            )}
-                        </div>
-                    )}
+                            )
+                        )}
+                    </button>
                 </div>
 
                 <div className="relative z-10">
