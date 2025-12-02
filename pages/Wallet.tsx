@@ -65,8 +65,18 @@ const HelpModal: React.FC<{
     title: string;
     text: string;
     onClose: () => void;
-}> = ({ isOpen, title, text, onClose }) => {
+    onAction?: (action: string) => void;
+}> = ({ isOpen, title, text, onClose, onAction }) => {
     if (!isOpen) return null;
+    
+    const handleContentClick = (e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        const action = target.getAttribute('data-action');
+        if (action && onAction) {
+            onAction(action);
+        }
+    };
+    
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
             <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -90,6 +100,7 @@ const HelpModal: React.FC<{
                     <div 
                         className="text-slate-300 text-sm leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: text }}
+                        onClick={handleContentClick}
                     />
                 </div>
                 
@@ -235,6 +246,7 @@ export const Wallet: React.FC = () => {
     
     // Fund wallet modal
     const [showFundModal, setShowFundModal] = useState(false);
+    const [showLightningExplainer, setShowLightningExplainer] = useState(false);
     
     // Calculate gradient colors based on current selection
     const leftGlowType = getLeftGlowColor(walletMode);
@@ -1090,7 +1102,7 @@ export const Wallet: React.FC = () => {
                     </div>
                 )}
 
-                {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} />}
+                {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); } }} />}
             </div>
         );
     }
@@ -1206,7 +1218,7 @@ export const Wallet: React.FC = () => {
                         Don't have Bitcoin yet? Learn how to buy
                     </button>
                 </div>
-                {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} />}
+                {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); } }} />}
                 
                 {/* Fund Modal also available from receive view */}
                 {showFundModal && (
@@ -1640,13 +1652,12 @@ export const Wallet: React.FC = () => {
                             isOpen: true,
                             title: "Your Wallet",
                             text: `
-                                <p class="mb-4">Your wallet lets you <strong>send and receive Bitcoin</strong> instantly using the Lightning Network. Perfect for paying into rounds or collecting winnings!</p>
+                                <p class="mb-2">Your wallet lets you <strong>send and receive Bitcoin</strong> instantly using the <span class="text-brand-primary cursor-pointer hover:underline" data-action="lightning-explainer">Lightning Network</span>. Perfect for paying into rounds or collecting winnings!</p>
                                 
                                 <p class="font-bold text-white mb-2">💡 Quick Tips:</p>
                                 <ul class="list-disc ml-5 mb-4 space-y-1">
                                     <li><strong>Tap your balance</strong> to see USD value</li>
                                     <li><strong>Pull down</strong> to refresh your balance</li>
-                                    <li><strong>Tap the status pill</strong> (top right) for settings</li>
                                 </ul>
                                 
                                 <p class="font-bold text-white mb-2">🔄 Three Wallet Options:</p>
@@ -1968,7 +1979,7 @@ export const Wallet: React.FC = () => {
                         ))
                 )}
             </div>
-            {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} />}
+            {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { if (action === 'lightning-explainer') { setHelpModal(null); setShowLightningExplainer(true); } }} />}
             
             {/* Fund Wallet Modal */}
             {showFundModal && (
@@ -2104,6 +2115,73 @@ export const Wallet: React.FC = () => {
                         {/* Footer */}
                         <div className="p-4 border-t border-slate-800">
                             <Button fullWidth onClick={() => setShowFundModal(false)}>Got it</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Lightning Network Explainer Modal */}
+            {showLightningExplainer && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowLightningExplainer(false)}>
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-5 border-b border-slate-800">
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                        <Icons.Zap size={20} className="text-blue-400" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white">What is Lightning?</h3>
+                                </div>
+                                <button onClick={() => setShowLightningExplainer(false)} className="text-slate-400 hover:text-white p-1">
+                                    <Icons.Close size={20} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4">
+                            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                                <p className="text-slate-300 text-sm leading-relaxed">
+                                    <span className="text-white font-bold">The Lightning Network</span> is a payment layer built on top of Bitcoin that enables instant, nearly-free transactions.
+                                </p>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <p className="text-slate-300 text-sm">
+                                    <span className="text-blue-400 font-bold">Think of it like this:</span>
+                                </p>
+                                <p className="text-slate-400 text-sm leading-relaxed">
+                                    Bitcoin is like a bank vault — super secure but slow and expensive to move money in and out. Lightning is like your everyday wallet — fast, cheap, and perfect for daily spending.
+                                </p>
+                            </div>
+                            
+                            <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                <p className="text-white font-bold text-sm">Why it matters for disc golf:</p>
+                                <ul className="text-slate-400 text-xs space-y-1.5 ml-3">
+                                    <li className="flex items-start space-x-2">
+                                        <Icons.Zap size={12} className="text-blue-400 mt-0.5 shrink-0" />
+                                        <span><strong className="text-slate-300">Instant payouts</strong> — Winners get paid the moment the round ends</span>
+                                    </li>
+                                    <li className="flex items-start space-x-2">
+                                        <Icons.Zap size={12} className="text-blue-400 mt-0.5 shrink-0" />
+                                        <span><strong className="text-slate-300">Tiny fees</strong> — Fractions of a penny, even for small bets</span>
+                                    </li>
+                                    <li className="flex items-start space-x-2">
+                                        <Icons.Zap size={12} className="text-blue-400 mt-0.5 shrink-0" />
+                                        <span><strong className="text-slate-300">No middlemen</strong> — Peer-to-peer, like handing over cash</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <p className="text-slate-500 text-xs italic text-center">
+                                Lightning makes Bitcoin practical for everyday use — like betting on your next ace.
+                            </p>
+                        </div>
+                        
+                        {/* Footer */}
+                        <div className="p-4 border-t border-slate-800">
+                            <Button fullWidth onClick={() => setShowLightningExplainer(false)}>Got it</Button>
                         </div>
                     </div>
                 </div>
