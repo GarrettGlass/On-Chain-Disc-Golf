@@ -906,36 +906,38 @@ export const Wallet: React.FC = () => {
                                         if (showNwcError) setShowNwcError(false);
                                     }}
                                 />
-                                <div className="flex justify-end mb-3">
-                                    <Button
-                                        onClick={async () => {
-                                            if (!localNwcString) return;
-                                            setIsProcessing(true);
-                                            try {
-                                                // Dynamic import to avoid circular deps or large bundles if not needed elsewhere
-                                                const { NWCService } = await import('../services/nwcService');
-                                                const tempService = new NWCService(localNwcString);
+                                <Button
+                                    fullWidth
+                                    onClick={async () => {
+                                        if (!localNwcString) return;
+                                        setIsProcessing(true);
+                                        try {
+                                            // Dynamic import to avoid circular deps or large bundles if not needed elsewhere
+                                            const { NWCService } = await import('../services/nwcService');
+                                            const tempService = new NWCService(localNwcString);
 
-                                                // Test connection by fetching balance
-                                                await tempService.getBalance();
+                                            // Test connection by fetching balance
+                                            await tempService.getBalance();
 
-                                                // If successful, save to context
-                                                setNwcConnection(localNwcString);
-                                                // Success UI is handled by re-render with nwcString present
-                                            } catch (e) {
-                                                alert("Connection Failed: " + (e instanceof Error ? e.message : "Unknown error"));
-                                            } finally {
-                                                setIsProcessing(false);
-                                            }
-                                        }}
-                                        disabled={!localNwcString || isProcessing}
-                                    >
-                                        {isProcessing ? 'Verifying...' : 'Save Connection'}
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-slate-400">
-                                    Paste your NWC connection string from Alby, Mutiny, or your home node.
-                                    <br /><span className="text-purple-400">Note: This is stored locally on your device.</span>
+                                            // If successful, save to context
+                                            setNwcConnection(localNwcString);
+                                            // Success UI is handled by re-render with nwcString present
+                                        } catch (e) {
+                                            alert("Connection Failed: " + (e instanceof Error ? e.message : "Unknown error"));
+                                        } finally {
+                                            setIsProcessing(false);
+                                        }
+                                    }}
+                                    disabled={!localNwcString || isProcessing}
+                                >
+                                    {isProcessing ? 'Verifying...' : 'Save Connection'}
+                                </Button>
+                                <p className="text-xs text-slate-400 mt-3">
+                                    Get your NWC connection string from{' '}
+                                    <a href="https://getalby.com" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Alby</a>,{' '}
+                                    <a href="https://zeusln.com" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Zeus</a>, or{' '}
+                                    <a href="https://primal.net" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Primal</a>.
+                                    <br /><span className="text-slate-500">Stored locally on your device.</span>
                                 </p>
                             </div>
                         )}
@@ -973,22 +975,6 @@ export const Wallet: React.FC = () => {
                             <Button fullWidth onClick={handleAddMint} disabled={!newMintName || !newMintUrl}>Add Mint</Button>
                         </div>
 
-
-                        <div className="mt-8 pt-6 border-t border-slate-700">
-                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Developer Tools</h3>
-                            <Button
-                                variant="secondary"
-                                fullWidth
-                                onClick={handleTestBridge}
-                                className="border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
-                            >
-                                <Icons.Zap size={16} className="mr-2" />
-                                Simulate Bridge Payment (NIP-17)
-                            </Button>
-                            <p className="text-[10px] text-slate-500 mt-2 text-center">
-                                Sends a self-encrypted Gift Wrap with a mock token to test the listener.
-                            </p>
-                        </div>
 
                         {/* Feedback Button */}
                         <FeedbackButton onClick={() => setShowFeedbackModal(true)} />
