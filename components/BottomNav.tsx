@@ -28,18 +28,28 @@ export const BottomNav: React.FC = () => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-brand-surface/90 backdrop-blur-md border-t border-slate-700 pb-safe pt-2 px-6 z-50 animate-in slide-in-from-bottom duration-300">
       <div className="flex justify-between items-center max-w-md mx-auto h-16">
-        {navItems.map((item) => (
-          <button
-            key={item.path}
-            id={item.tourId}
-            onClick={() => handleNavClick(item.path)}
-            className={`flex flex-col items-center space-y-1 w-16 transition-colors ${isActive(item.path) ? 'text-brand-primary' : 'text-slate-400 hover:text-slate-200'
-              }`}
-          >
-            <item.icon size={24} strokeWidth={isActive(item.path) ? 3 : 2} />
-            <span className="text-[10px] font-medium">{item.label}</span>
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const isBasket = item.label === 'Play';
+          const iconSize = isBasket ? 32 : 24;
+          const iconStrokeWidth = isBasket 
+            ? (isActive(item.path) ? 1.75 : 1.5) 
+            : (isActive(item.path) ? 2.5 : 2);
+          
+          return (
+            <button
+              key={item.path}
+              id={item.tourId}
+              onClick={() => handleNavClick(item.path)}
+              className={`flex flex-col items-center w-16 transition-colors ${isActive(item.path) ? 'text-brand-primary' : 'text-slate-400 hover:text-slate-200'
+                }`}
+            >
+              <div className="h-7 flex items-end justify-center">
+                <item.icon size={iconSize} strokeWidth={iconStrokeWidth} />
+              </div>
+              <span className="text-[10px] font-medium mt-1">{item.label}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
