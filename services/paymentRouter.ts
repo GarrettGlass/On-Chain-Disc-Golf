@@ -15,14 +15,97 @@
 
 import { fetchProfile, sendGiftWrap, getMagicLightningAddress } from './nostrService';
 import { 
-    resolveLightningAddress, 
-    getInvoiceFromLnurl, 
-    payInvoice,
-    payLightningAddress,
     isBreezInitialized,
-    getBreezBalance
+    getBreezBalance,
+    payLightningAddress as breezPayLightningAddress,
+    payInvoice as breezPayInvoice
 } from './breezService';
 import { nip19 } from 'nostr-tools';
+
+// =============================================================================
+// LNURL RESOLUTION (Works independently of Breez SDK)
+// =============================================================================
+
+/**
+ * Resolve a Lightning address to get payment details
+ * Works even without full SDK initialization
+ * 
+ * @param lightningAddress - Address like user@domain.com
+ */
+export const resolveLightningAddress = async (
+    lightningAddress: string
+): Promise<{
+    callback: string;
+    minSendable: number;
+    maxSendable: number;
+    metadata: string;
+} | null> => {
+    try {
+        const [name, domain] = lightningAddress.split('@');
+        if (!name || !domain) {
+            throw new Error('Invalid Lightning address format');
+        }
+
+        // Fetch LNURL-pay endpoint
+        const url = `https://${domain}/.well-known/lnurlp/${name}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Failed to resolve: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        return {
+            callback: data.callback,
+            minSendable: Math.ceil(data.minSendable / 1000), // Convert msats to sats
+            maxSendable: Math.floor(data.maxSendable / 1000),
+            metadata: data.metadata
+        };
+    } catch (error) {
+        console.error('Failed to resolve Lightning address:', error);
+        return null;
+    }
+};
+
+/**
+ * Get invoice from LNURL callback
+ * 
+ * @param callback - LNURL callback URL
+ * @param amountSats - Amount in satoshis
+ * @param comment - Optional comment
+ */
+export const getInvoiceFromLnurl = async (
+    callback: string,
+    amountSats: number,
+    comment?: string
+): Promise<string | null> => {
+    try {
+        const url = new URL(callback);
+        url.searchParams.set('amount', (amountSats * 1000).toString()); // Convert to msats
+
+        if (comment) {
+            url.searchParams.set('comment', comment);
+        }
+
+        const response = await fetch(url.toString());
+
+        if (!response.ok) {
+            throw new Error(`Failed to get invoice: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'ERROR') {
+            throw new Error(data.reason || 'LNURL error');
+        }
+
+        return data.pr; // Bolt11 invoice
+    } catch (error) {
+        console.error('Failed to get invoice from LNURL:', error);
+        return null;
+    }
+};
 
 // =============================================================================
 // TYPES
@@ -154,13 +237,13 @@ const payViaBreez = async (
         };
     }
 
-    const result = await payLightningAddress(lightningAddress, amountSats, comment);
+    const result = await breezPayLightningAddress(lightningAddress, amountSats, comment);
 
     return {
         success: result.success,
         method: 'breez',
-        txId: result.paymentHash,
-        feeSats: result.feeSats,
+        txId: result.payment?.id,
+        feeSats: result.payment ? Number(result.payment.fees) : undefined,
         error: result.error
     };
 };

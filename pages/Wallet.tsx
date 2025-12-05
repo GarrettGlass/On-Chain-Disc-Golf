@@ -10,6 +10,18 @@ import { useNavigate } from 'react-router-dom';
 import { getBtcPrice, satsToUsd } from '../services/priceService';
 import { generateMnemonic, storeMnemonicEncrypted, retrieveMnemonicEncrypted, hasStoredMnemonic, hasUnifiedSeed } from '../services/mnemonicService';
 import { downloadWalletCardPDF } from '../services/backupService';
+import { 
+    isBreezInitialized, 
+    getSparkAddress, 
+    createInvoice as createBreezInvoice,
+    prepareSendPayment,
+    sendPayment as sendBreezPayment,
+    parseInput as parseBreezInput,
+    getBreezBalance,
+    payInvoice as payBreezInvoice,
+    getLightningAddress as getBreezLightningAddress,
+    formatSats
+} from '../services/breezService';
 
 // Helper Component for Success Animation
 // Stylish Success Overlay with themed animations
@@ -709,6 +721,24 @@ export const Wallet: React.FC = () => {
     const [showBreezMnemonic, setShowBreezMnemonic] = useState(false);
     const [isCreatingBreezWallet, setIsCreatingBreezWallet] = useState(false);
     
+    // Breez Receive State (must be at top level to satisfy React hooks rules)
+    const [breezReceiveMode, setBreezReceiveMode] = useState<'address' | 'invoice'>('address');
+    const [breezInvoiceAmount, setBreezInvoiceAmount] = useState('');
+    const [breezInvoice, setBreezInvoice] = useState<string | null>(null);
+    const [breezSparkAddress, setBreezSparkAddress] = useState<string | null>(null);
+    const [breezLnAddress, setBreezLnAddress] = useState<string | null>(null);
+    const [isGeneratingBreezInvoice, setIsGeneratingBreezInvoice] = useState(false);
+    
+    // Breez Send State (must be at top level to satisfy React hooks rules)
+    const [breezSendInput, setBreezSendInput] = useState('');
+    const [breezSendAmount, setBreezSendAmount] = useState('');
+    const [breezSendParsed, setBreezSendParsed] = useState<any>(null);
+    const [breezSendFee, setBreezSendFee] = useState<number | null>(null);
+    const [breezSendPrepared, setBreezSendPrepared] = useState<any>(null);
+    const [isBreezParsing, setIsBreezParsing] = useState(false);
+    const [isBreezSending, setIsBreezSending] = useState(false);
+    const [breezSendError, setBreezSendError] = useState<string | null>(null);
+    
     // View mode for cumulative balance display ('all' shows total of all wallets)
     // Start in 'all' mode (collapsed) by default for cleaner UI
     const [viewMode, setViewMode] = useState<'all' | 'breez' | 'cashu' | 'nwc'>('all');
@@ -774,6 +804,100 @@ export const Wallet: React.FC = () => {
             refreshAllBalances();
         }
     }, [viewMode]);
+    
+    // Fetch Breez addresses when SDK initializes or wallet mode changes
+    useEffect(() => {
+        if (walletMode === 'breez' && isBreezInitialized()) {
+            getSparkAddress().then(addr => setBreezSparkAddress(addr));
+            getBreezLightningAddress().then(info => {
+                if (info) setBreezLnAddress(info.lightningAddress);
+            });
+        }
+    }, [walletMode]);
+    
+    // Breez invoice generation helper
+    const generateBreezInvoice = async () => {
+        const amount = parseInt(breezInvoiceAmount);
+        if (isNaN(amount) || amount <= 0) return;
+        
+        setIsGeneratingBreezInvoice(true);
+        try {
+            const invoice = await createBreezInvoice(amount, 'On-Chain Disc Golf Payment');
+            if (invoice) {
+                setBreezInvoice(invoice.bolt11);
+            }
+        } catch (e) {
+            console.error('Failed to create invoice:', e);
+        }
+        setIsGeneratingBreezInvoice(false);
+    };
+    
+    // Breez send helpers
+    const parseBreezSendInput = async () => {
+        if (!breezSendInput.trim()) return;
+        
+        setIsBreezParsing(true);
+        setBreezSendError(null);
+        setBreezSendParsed(null);
+        setBreezSendFee(null);
+        
+        try {
+            const parsed = await parseBreezInput(breezSendInput.trim());
+            if (parsed) {
+                setBreezSendParsed(parsed);
+                
+                // If it's a bolt11 invoice, prepare the payment to get fee
+                if (parsed.type === 'bolt11Invoice') {
+                    const prepared = await prepareSendPayment(breezSendInput.trim());
+                    if (prepared) {
+                        setBreezSendPrepared(prepared);
+                        // Fee is in the payment method details
+                        if (prepared.paymentMethod.type === 'bolt11Invoice') {
+                            setBreezSendFee(prepared.paymentMethod.lightningFeeSats);
+                        }
+                    }
+                }
+            } else {
+                setBreezSendError('Could not parse input. Check format.');
+            }
+        } catch (e) {
+            setBreezSendError('Invalid invoice or address');
+        }
+        
+        setIsBreezParsing(false);
+    };
+    
+    const executeBreezSend = async () => {
+        setIsBreezSending(true);
+        setBreezSendError(null);
+        
+        try {
+            let result;
+            
+            if (breezSendPrepared) {
+                // Use prepared payment
+                result = await sendBreezPayment(breezSendPrepared);
+            } else {
+                // Direct invoice payment
+                result = await payBreezInvoice(breezSendInput.trim());
+            }
+            
+            if (result.success) {
+                setBreezSendInput('');
+                setBreezSendParsed(null);
+                setBreezSendPrepared(null);
+                setView('main');
+                // Show success
+                alert('Payment sent successfully!');
+            } else {
+                setBreezSendError(result.error || 'Payment failed');
+            }
+        } catch (e) {
+            setBreezSendError(e instanceof Error ? e.message : 'Payment failed');
+        }
+        
+        setIsBreezSending(false);
+    };
     
     // Balance display toggle (SATS ↔ USD)
     const [showUsd, setShowUsd] = useState(false);
@@ -1694,30 +1818,42 @@ export const Wallet: React.FC = () => {
                                             <Icons.Zap size={24} className="text-blue-400" />
                                         </div>
                                         <div>
-                                            <h4 className="text-white font-bold">Breez SDK</h4>
-                                            <p className="text-slate-400 text-xs">Non-custodial Lightning</p>
+                                            <h4 className="text-white font-bold">Breez Lightning</h4>
+                                            <p className="text-slate-400 text-xs">Self-custodial wallet</p>
                                         </div>
                                     </div>
                                     
                                     <div className="space-y-3">
                                         <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
                                             <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Lightning Address</label>
-                                            <p className="text-sm text-white font-mono">Coming soon...</p>
+                                            {breezLnAddress ? (
+                                                <p className="text-sm text-white font-mono break-all">{breezLnAddress}</p>
+                                            ) : breezSparkAddress ? (
+                                                <p className="text-sm text-white font-mono break-all">{breezSparkAddress.substring(0, 20)}...</p>
+                                            ) : (
+                                                <p className="text-sm text-slate-400 italic">Loading...</p>
+                                            )}
                                         </div>
                                         
                                         <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
-                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Node Status</label>
-                                            <div className="flex items-center space-x-2">
-                                                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-                                                <p className="text-sm text-amber-400">Pending Setup</p>
-                                            </div>
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Wallet Status</label>
+                                            {isBreezInitialized() ? (
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                                    <p className="text-sm text-emerald-400">Connected</p>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                                                    <p className="text-sm text-amber-400">Connecting...</p>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                    
-                                    <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                                        <p className="text-xs text-amber-400">
-                                            <span className="font-bold">Coming Soon:</span> Breez SDK integration is in progress. Your self-custodial Lightning wallet will be available here.
-                                        </p>
+                                        
+                                        <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Balance</label>
+                                            <p className="text-sm text-white font-bold">{walletBalances.breez.toLocaleString()} sats</p>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -2056,7 +2192,8 @@ export const Wallet: React.FC = () => {
     }
 
     if (view === 'receive') {
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(receiveAddress)}&bgcolor=ffffff&color=000000&margin=2`;
+        // Add lightning: prefix so external wallets properly recognize this as a Lightning address
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent('lightning:' + receiveAddress)}&bgcolor=ffffff&color=000000&margin=2`;
 
         // Breez wallet receive view
         if (walletMode === 'breez') {
@@ -2125,44 +2262,254 @@ export const Wallet: React.FC = () => {
                 );
             }
             
-            // Has wallet but still coming soon
+            // Breez wallet receive - show Spark address or invoice generation
+            // Note: State hooks are declared at component top level to satisfy React rules
+            
+            if (!isBreezInitialized()) {
+                return (
+                    <div className="p-6 h-full flex flex-col items-center text-center">
+                        <div className="w-full flex justify-start mb-6">
+                            <button onClick={() => setView('main')} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700">
+                                <Icons.Prev />
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 flex flex-col items-center justify-center max-w-xs">
+                            <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center mb-6 animate-pulse">
+                                <Icons.Zap size={48} className="text-blue-400" />
+                            </div>
+                            
+                            <h2 className="text-2xl font-bold text-white mb-3">Initializing...</h2>
+                            <p className="text-slate-400 text-sm mb-6">
+                                Your Lightning wallet is starting up. This may take a moment.
+                            </p>
+                            
+                            <div className="w-full bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                                <div className="flex items-center justify-center space-x-2">
+                                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            
+            // Determine the address to show (prefer Lightning Address, fall back to Spark Address)
+            const breezDisplayAddress = breezLnAddress || breezSparkAddress || '';
+            const breezQrUrl = breezDisplayAddress 
+                ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(breezDisplayAddress)}&bgcolor=ffffff&color=000000&margin=2`
+                : '';
+            
             return (
                 <div className="p-6 h-full flex flex-col items-center text-center">
-                    <div className="w-full flex justify-start mb-6">
+                    <div className="w-full flex justify-between mb-6">
                         <button onClick={() => setView('main')} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700">
                             <Icons.Prev />
                         </button>
+                        {/* Gear icon to change default receive wallet */}
+                        {defaultReceiveWallet && (
+                            <button 
+                                onClick={() => setShowWalletSelectionModal('receive')}
+                                className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors"
+                                title="Change default receive wallet"
+                            >
+                                <Icons.Settings size={18} className="text-slate-400" />
+                            </button>
+                        )}
                     </div>
-                    
-                    <div className="flex-1 flex flex-col items-center justify-center max-w-xs">
-                        <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center mb-6">
-                            <Icons.Zap size={48} className="text-blue-400" />
-                        </div>
-                        
-                        <h2 className="text-2xl font-bold text-white mb-3">Breez Wallet</h2>
-                        <p className="text-slate-400 text-sm mb-6">
-                            Self-custodial Lightning receiving is coming soon! We're finishing up the integration.
-                        </p>
-                        
-                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 w-full mb-6">
-                            <div className="flex items-center space-x-3 mb-2">
-                                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                                <span className="text-amber-400 text-sm font-bold">Coming Soon</span>
-                            </div>
-                            <p className="text-slate-400 text-xs">
-                                Your Breez Lightning address will appear here once setup is complete. Until then, you can use Cashu or NWC to receive.
-                            </p>
-                        </div>
-                        
-                        <Button 
-                            fullWidth 
-                            variant="secondary"
-                            onClick={() => { setWalletMode('cashu'); setView('receive'); }}
+                    <div className="flex items-center justify-center space-x-2 mb-2">
+                        <h2 className="text-2xl font-bold">Lightning Address</h2>
+                        <button
+                            onClick={() => setHelpModal({
+                                isOpen: true,
+                                title: "Lightning Address",
+                                text: `
+                                <p class="mb-3">Think of this like your <strong>email address for money</strong>. It's permanent and reusable!</p>
+                                
+                                <p class="font-bold text-white mb-2">✅ You can:</p>
+                                <ul class="list-disc ml-5 mb-4 space-y-1">
+                                    <li>Share it with anyone to receive payments</li>
+                                    <li>Post it on social media</li>
+                                    <li>Use the same address forever</li>
+                                </ul>
+                                
+                                <p class="font-bold text-white mb-2">📱 How others pay you:</p>
+                                <ol class="list-decimal ml-5 mb-4 space-y-1">
+                                    <li>They scan your QR code or copy your address</li>
+                                    <li>Enter the amount to send</li>
+                                    <li>You receive sats instantly!</li>
+                                </ol>
+                                
+                                <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                                    <p class="text-xs text-slate-300">💡 <strong>Tip:</strong> Unlike an invoice, your Lightning Address never expires. Share it freely!</p>
+                                </div>
+                            `
+                            })}
+                            className="text-slate-500 hover:text-blue-400 transition-colors"
                         >
-                            <Icons.Cashew size={18} className="mr-2 text-emerald-400" /> 
-                            Use Cashu Instead
-                        </Button>
+                            <Icons.Help size={20} />
+                        </button>
                     </div>
+                    <p className="text-slate-400 text-sm mb-6 max-w-xs mx-auto">
+                        Your permanent address for receiving payments. Share it like a username.
+                    </p>
+
+                    {breezDisplayAddress ? (
+                        <>
+                            <div className="p-1 rounded-2xl shadow-2xl mb-6 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 shadow-blue-500/20">
+                                <div className="bg-white p-3 rounded-xl">
+                                    <img src={breezQrUrl} alt="Lightning Address QR Code" className="w-48 h-48" loading="eager" />
+                                </div>
+                            </div>
+
+                            <div className="w-full max-w-xs mb-6">
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(breezDisplayAddress);
+                                    }}
+                                    className="w-full flex items-center justify-between bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition-all group"
+                                >
+                                    <div className="flex items-center space-x-3 overflow-hidden">
+                                        <div className="p-2 rounded-lg bg-blue-500/10">
+                                            <Icons.Zap size={18} className="text-blue-400" />
+                                        </div>
+                                        <div className="flex flex-col items-start overflow-hidden">
+                                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Your Address</span>
+                                            <span className="text-sm text-white font-mono truncate w-full text-left">
+                                                {breezDisplayAddress.length > 25
+                                                    ? breezDisplayAddress.substring(0, 12) + '...' + breezDisplayAddress.substring(breezDisplayAddress.length - 12)
+                                                    : breezDisplayAddress}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <Icons.Copy size={18} className="text-slate-500 group-hover:text-white transition-colors" />
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => {
+                                        if (navigator.share) {
+                                            navigator.share({
+                                                title: 'My Lightning Address',
+                                                text: breezDisplayAddress,
+                                                url: `lightning:${breezDisplayAddress}`
+                                            }).catch(console.error);
+                                        } else {
+                                            navigator.clipboard.writeText(breezDisplayAddress);
+                                        }
+                                    }}
+                                >
+                                    <Icons.Share size={18} className="mr-2" /> Share
+                                </Button>
+                                <Button 
+                                    variant="secondary" 
+                                    onClick={() => setBreezReceiveMode('invoice')}
+                                >
+                                    <Icons.Plus size={18} className="mr-2" /> Invoice
+                                </Button>
+                            </div>
+
+                            <div className="mt-6 w-full flex flex-col items-center space-y-4">
+                                <div className="flex items-center space-x-2 animate-pulse text-blue-400">
+                                    <Icons.Zap size={18} />
+                                    <span className="text-sm font-bold">Waiting for payment...</span>
+                                </div>
+                                
+                                {/* Don't have Bitcoin link */}
+                                <button 
+                                    onClick={() => setShowFundModal(true)}
+                                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                                >
+                                    Don't have Bitcoin yet? Learn how to buy
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                            <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mb-4 animate-pulse">
+                                <Icons.Zap size={32} className="text-blue-400" />
+                            </div>
+                            <p className="text-slate-400 text-sm">Loading your Lightning Address...</p>
+                        </div>
+                    )}
+                    
+                    {/* Invoice Generation Modal */}
+                    {breezReceiveMode === 'invoice' && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => { setBreezReceiveMode('address'); setBreezInvoice(null); setBreezInvoiceAmount(''); }}>
+                            <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden" onClick={e => e.stopPropagation()}>
+                                <div className="p-5 border-b border-slate-800">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-lg font-bold text-white">Create Invoice</h3>
+                                        <button onClick={() => { setBreezReceiveMode('address'); setBreezInvoice(null); setBreezInvoiceAmount(''); }} className="text-slate-400 hover:text-white p-1">
+                                            <Icons.Close size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="p-5">
+                                    {!breezInvoice ? (
+                                        <>
+                                            <p className="text-sm text-slate-400 mb-4">Create an invoice for a specific amount</p>
+                                            <div className="relative mb-4">
+                                                <input
+                                                    type="number"
+                                                    value={breezInvoiceAmount}
+                                                    onChange={(e) => setBreezInvoiceAmount(e.target.value)}
+                                                    placeholder="Amount in sats"
+                                                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-center text-lg focus:border-blue-500 focus:outline-none"
+                                                />
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">sats</span>
+                                            </div>
+                                            <button
+                                                onClick={generateBreezInvoice}
+                                                disabled={isGeneratingBreezInvoice || !breezInvoiceAmount}
+                                                className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50"
+                                            >
+                                                {isGeneratingBreezInvoice ? 'Generating...' : 'Generate Invoice'}
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <div className="text-center">
+                                            <div className="p-1 rounded-2xl shadow-2xl mb-4 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 shadow-blue-500/20 inline-block">
+                                                <div className="bg-white p-3 rounded-xl">
+                                                    <img 
+                                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(breezInvoice)}&bgcolor=ffffff&color=000000&margin=2`}
+                                                        alt="Invoice QR"
+                                                        className="w-48 h-48"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <p className="text-lg font-bold text-white mb-2">{parseInt(breezInvoiceAmount).toLocaleString()} sats</p>
+                                            <p className="text-blue-400 font-mono text-xs break-all max-h-16 overflow-auto mb-4 px-2">{breezInvoice}</p>
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => navigator.clipboard.writeText(breezInvoice)}
+                                                    className="flex-1 px-4 py-2 bg-blue-500/20 rounded-lg text-blue-400 text-sm hover:bg-blue-500/30 flex items-center justify-center space-x-2"
+                                                >
+                                                    <Icons.Copy size={16} />
+                                                    <span>Copy</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => { setBreezInvoice(null); setBreezInvoiceAmount(''); }}
+                                                    className="flex-1 px-4 py-2 bg-slate-700 rounded-lg text-slate-300 text-sm hover:bg-slate-600"
+                                                >
+                                                    New Invoice
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {helpModal && <HelpModal isOpen={helpModal.isOpen} title={helpModal.title} text={helpModal.text} onClose={() => setHelpModal(null)} onAction={(action) => { 
+                        if (action === 'lightning-explainer') { setHelpModal(null); setReturnToWalletHelp(false); setShowLightningExplainer(true); }
+                    }} />}
                 </div>
             );
         }
@@ -2466,46 +2813,32 @@ export const Wallet: React.FC = () => {
                 );
             }
             
-            // Has wallet but still coming soon
-            return (
-                <div className="p-6 h-full flex flex-col items-center text-center">
-                    <div className="w-full flex justify-start mb-6">
-                        <button onClick={() => setView('main')} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700">
-                            <Icons.Prev />
-                        </button>
-                    </div>
-                    
-                    <div className="flex-1 flex flex-col items-center justify-center max-w-xs">
-                        <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center mb-6">
-                            <Icons.Send size={48} className="text-blue-400" />
+            // Breez send view - parse and pay invoices/addresses
+            // Note: State hooks are declared at component top level to satisfy React rules
+            
+            if (!isBreezInitialized()) {
+                return (
+                    <div className="p-6 h-full flex flex-col items-center text-center">
+                        <div className="w-full flex justify-start mb-6">
+                            <button onClick={() => setView('main')} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700">
+                                <Icons.Prev />
+                            </button>
                         </div>
                         
-                        <h2 className="text-2xl font-bold text-white mb-3">Breez Wallet</h2>
-                        <p className="text-slate-400 text-sm mb-6">
-                            Self-custodial Lightning sending is coming soon! We're finishing up the integration.
-                        </p>
-                        
-                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 w-full mb-6">
-                            <div className="flex items-center space-x-3 mb-2">
-                                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                                <span className="text-amber-400 text-sm font-bold">Coming Soon</span>
+                        <div className="flex-1 flex flex-col items-center justify-center max-w-xs">
+                            <div className="w-24 h-24 rounded-full bg-blue-500/20 flex items-center justify-center mb-6 animate-pulse">
+                                <Icons.Zap size={48} className="text-blue-400" />
                             </div>
-                            <p className="text-slate-400 text-xs">
-                                Breez sending will be available once setup is complete. Until then, you can use Cashu or NWC to send.
+                            
+                            <h2 className="text-2xl font-bold text-white mb-3">Initializing...</h2>
+                            <p className="text-slate-400 text-sm mb-6">
+                                Your Lightning wallet is starting up. This may take a moment.
                             </p>
                         </div>
-                        
-                        <Button 
-                            fullWidth 
-                            variant="secondary"
-                            onClick={() => { setWalletMode('cashu'); }}
-                        >
-                            <Icons.Cashew size={18} className="mr-2 text-emerald-400" /> 
-                            Use Cashu Instead
-                        </Button>
                     </div>
-                </div>
-            );
+                );
+            }
+            // Breez is initialized - fall through to shared grid layout
         }
         
         // NWC wallet send view - if not connected, go directly to settings
@@ -3518,24 +3851,58 @@ export const Wallet: React.FC = () => {
                                 )}
                             </div>
                             
-                            {/* Breez Option - Coming soon */}
+                            {/* Breez Lightning Option */}
                             <div className="flex items-center gap-2">
                                 <button
-                                    disabled
-                                    className="flex-1 flex items-center justify-between p-4 bg-slate-800/30 border border-slate-700/50 rounded-xl opacity-50 cursor-not-allowed"
+                                    onClick={() => {
+                                        setShowWalletSelectionModal(null);
+                                        setViewMode('breez');
+                                        setWalletMode('breez');
+                                        setIsWalletSelectorExpanded(true);
+                                        setTimeout(() => {
+                                            if (showWalletSelectionModal === 'send') {
+                                                setView('send-input');
+                                            } else {
+                                                setView('receive');
+                                            }
+                                        }, 100);
+                                    }}
+                                    className="flex-1 flex items-center justify-between p-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 rounded-xl transition-all"
                                 >
                                     <div className="flex items-center space-x-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                                            <Icons.Zap size={20} className="text-blue-400/50" />
+                                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                            <Icons.Zap size={20} className="text-blue-400" />
                                         </div>
                                         <div className="text-left">
-                                            <p className="text-slate-400 font-bold">Lightning</p>
-                                            <p className="text-slate-500 text-xs">Coming soon</p>
+                                            <p className="text-white font-bold">Lightning</p>
+                                            <p className="text-blue-400 text-xs">{walletBalances.breez.toLocaleString()} sats</p>
                                         </div>
                                     </div>
-                                    <span className="text-xs text-slate-600 bg-slate-800 px-2 py-1 rounded">Soon™</span>
+                                    <Icons.Next size={18} className="text-blue-400" />
                                 </button>
-                                <div className="w-[52px]" /> {/* Spacer */}
+                                {/* Default checkbox */}
+                                <button
+                                    onClick={() => {
+                                        if (showWalletSelectionModal === 'send') {
+                                            setDefaultSendWallet(defaultSendWallet === 'breez' ? null : 'breez');
+                                        } else {
+                                            setDefaultReceiveWallet(defaultReceiveWallet === 'breez' ? null : 'breez');
+                                        }
+                                    }}
+                                    className="flex flex-col items-center justify-center p-2"
+                                    title="Set as default"
+                                >
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                        (showWalletSelectionModal === 'send' ? defaultSendWallet : defaultReceiveWallet) === 'breez'
+                                            ? 'bg-blue-500 border-blue-500'
+                                            : 'border-slate-500 hover:border-blue-400'
+                                    }`}>
+                                        {(showWalletSelectionModal === 'send' ? defaultSendWallet : defaultReceiveWallet) === 'breez' && (
+                                            <Icons.Check size={12} className="text-white" />
+                                        )}
+                                    </div>
+                                    <span className="text-[9px] text-slate-500 mt-0.5">Default</span>
+                                </button>
                             </div>
                         </div>
                         

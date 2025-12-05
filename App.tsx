@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
+import { OnboardingProvider, useOnboarding } from './context/OnboardingContext';
 import { BottomNav } from './components/BottomNav';
 import { SplashScreen } from './components/SplashScreen';
 import { LightningStrikeNotification } from './components/LightningStrike';
@@ -13,6 +14,7 @@ import { InviteHandler } from './pages/InviteHandler';
 import { ProfileSetup } from './pages/ProfileSetup';
 import { RoundDetails } from './pages/RoundDetails';
 import { Onboarding } from './pages/Onboarding';
+import { Finalization } from './pages/Finalization';
 import { RoundHistory } from './pages/RoundHistory';
 import { useSwipeBack } from './hooks/useSwipeBack';
 import { initErrorCapture, trackNavigation } from './services/feedbackService';
@@ -22,10 +24,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   useSwipeBack(); // Enable global swipe-to-back
   const navigate = useNavigate();
   const location = useLocation();
-  const { paymentNotification, setPaymentNotification, lightningStrike, isGuest, roundSummary, setRoundSummary } = useApp();
+  const { paymentNotification, setPaymentNotification, lightningStrike, isAuthenticated, roundSummary, setRoundSummary } = useApp();
 
-  // Hide nav on onboarding/profile-setup for guests
-  const hideNav = isGuest && (location.pathname === '/' || location.pathname === '/profile-setup');
+  // Hide nav during onboarding, finalization, and profile-setup for new users
+  const hideNav = !isAuthenticated || location.pathname === '/finalization' || location.pathname === '/profile-setup';
 
   // Track navigation for feedback logs
   useEffect(() => {
@@ -87,7 +89,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <RoundSummaryModal
             isOpen={roundSummary.isOpen}
             onClose={() => setRoundSummary(null)}
-            onDone={() => navigate('/')}
             roundName={roundSummary.roundName}
             standings={roundSummary.standings}
             payouts={roundSummary.payouts}
@@ -104,10 +105,23 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 // Conditional Route Component for / route
-// Show Onboarding for guests, Home for authenticated users
+// Show Onboarding if not authenticated or in onboarding flow, Home otherwise
 const HomeOrOnboarding: React.FC = () => {
-  const { isGuest } = useApp();
-  return isGuest ? <Onboarding /> : <Home />;
+  const { isAuthenticated } = useApp();
+  const { isOnboarding } = useOnboarding();
+  
+  // If actively onboarding (started the new user flow), show Onboarding
+  if (isOnboarding) {
+    return <Onboarding />;
+  }
+  
+  // If authenticated, show Home
+  if (isAuthenticated) {
+    return <Home />;
+  }
+  
+  // Not authenticated, show Onboarding
+  return <Onboarding />;
 };
 
 const App: React.FC = () => {
@@ -161,25 +175,28 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <div className={`transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<HomeOrOnboarding />} />
-              <Route path="/play" element={<Scorecard />} />
-              <Route path="/wallet" element={<Wallet />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/invite" element={<InviteHandler />} />
-              <Route path="/profile-setup" element={<ProfileSetup />} />
-              <Route path="/round-details" element={<RoundDetails />} />
-              <Route path="/history" element={<RoundHistory />} />
-            </Routes>
-          </Layout>
-        </div>
-        <SplashScreen isVisible={showSplash} isTransitioning={isTransitioning} />
-      </BrowserRouter>
-    </AppProvider>
+    <OnboardingProvider>
+      <AppProvider>
+        <BrowserRouter>
+          <div className={`transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<HomeOrOnboarding />} />
+                <Route path="/play" element={<Scorecard />} />
+                <Route path="/wallet" element={<Wallet />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/invite" element={<InviteHandler />} />
+                <Route path="/profile-setup" element={<ProfileSetup />} />
+                <Route path="/finalization" element={<Finalization />} />
+                <Route path="/round-details" element={<RoundDetails />} />
+                <Route path="/history" element={<RoundHistory />} />
+              </Routes>
+            </Layout>
+          </div>
+          <SplashScreen isVisible={showSplash} isTransitioning={isTransitioning} />
+        </BrowserRouter>
+      </AppProvider>
+    </OnboardingProvider>
   );
 };
 

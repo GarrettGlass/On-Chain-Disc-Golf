@@ -72,8 +72,16 @@ export class WalletService {
                 return stateObj && stateObj.state === 'UNSPENT';
             });
         } catch (e) {
-            console.error("Verify proofs failed", e);
-            // If network fails, we conservatively return the original list rather than wiping the wallet
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            console.error("Verify proofs failed:", errorMsg);
+            
+            // If keyset mismatch, return empty array to trigger wallet reset
+            if (errorMsg.includes('different units') || errorMsg.includes('keyset') || errorMsg.includes('unknown keyset')) {
+                console.warn("⚠️ Keyset mismatch detected during proof verification. Returning empty proofs.");
+                return [];
+            }
+            
+            // If network fails for other reasons, conservatively return the original list
             return proofs;
         }
     }

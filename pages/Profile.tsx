@@ -125,6 +125,7 @@ export const Profile: React.FC = () => {
         setTimeout(() => {
             setIsExploding(false);
             performLogout();
+            navigate('/');  // Navigate to onboarding after logout
         }, 2000);
     };
 

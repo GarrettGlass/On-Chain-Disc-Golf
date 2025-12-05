@@ -1,42 +1,46 @@
 /**
  * Onboarding Page
  * 
- * New architecture with mnemonic-based identity:
+ * NEW FLOW (mnemonic-based identity):
  * 
- * Flow Options:
- * 1. NEW USER → Generate 12-word mnemonic → Backup → Profile Setup
- * 2. RECOVERY → Enter 12-word mnemonic → Profile Setup
- * 3. NSEC LOGIN → Enter nsec → Profile Setup
- * 4. AMBER LOGIN → Connect via NIP-46 → Profile Setup
+ * 1. NEW USER → Welcome → Profile Setup → Mnemonic Backup → Finalization → Home
+ *    - Identity generated at Welcome (stored in memory via OnboardingContext)
+ *    - Profile Setup uses real keys for NIP-98 uploads
+ *    - Nothing persisted until Finalization
  * 
- * The mnemonic serves as a UNIFIED backup for:
- * - Nostr identity (derived via NIP-06)
- * - Breez Lightning wallet (same seed)
+ * 2. RECOVERY → Enter 12-word mnemonic → Profile Setup → Home
+ *    - Skips backup and finalization (identity already exists)
+ * 
+ * 3. NSEC LOGIN → Enter nsec → Profile Setup → Home
+ * 
+ * 4. AMBER LOGIN → Connect via NIP-46 → Profile Setup → Home
  */
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
+import { useOnboarding } from '../context/OnboardingContext';
 import { Icons } from '../components/Icons';
 import { MnemonicBackup, MnemonicRecoveryInput } from '../components/MnemonicBackup';
-import { generateNewProfileFromMnemonic, loginWithMnemonic, loginWithNsec } from '../services/nostrService';
+import { loginWithMnemonic, loginWithNsec, uploadProfileImageWithKey } from '../services/nostrService';
+import { isNative, getPlatform } from '../services/capacitorService';
+import { nip19 } from 'nostr-tools';
 
 type OnboardingStep = 
     | 'welcome'           // Initial screen with options
-    | 'generating'        // Brief loading while generating keys
-    | 'backup'            // Show mnemonic backup
+    | 'profile-setup'     // Enter name, picture, pdga (NEW: comes before backup)
+    | 'backup'            // Show mnemonic backup (NEW: comes after profile setup)
     | 'recovery'          // Enter existing mnemonic
     | 'nsec'              // Enter existing nsec
-    | 'amber'             // Amber connection flow
-    | 'complete';         // Success, redirect to profile setup
+    | 'amber';            // Amber connection flow
 
 export const Onboarding: React.FC = () => {
     const navigate = useNavigate();
     const { loginNsec: appLoginNsec, loginAmber } = useApp();
+    const { identity, profile, generateIdentity, setProfileData, setIsOnboarding } = useOnboarding();
     
     const [step, setStep] = useState<OnboardingStep>('welcome');
-    const [generatedMnemonic, setGeneratedMnemonic] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -57,35 +61,42 @@ export const Onboarding: React.FC = () => {
         }
     }, [step]);
 
+    // Mark that we're in onboarding
+    useEffect(() => {
+        setIsOnboarding(true);
+        return () => setIsOnboarding(false);
+    }, [setIsOnboarding]);
+
+    // Check if user is on Android (for Amber option)
+    const showAmberOption = isNative() && getPlatform() === 'android';
 
     // =========================================================================
     // ACTION HANDLERS
     // =========================================================================
 
-    const handleCreateNewAccount = async () => {
-        setStep('generating');
+    const handleCreateNewAccount = () => {
         setError('');
-
+        
         try {
-            // Small delay for UI feedback
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Generate mnemonic and derive keys
-            const { mnemonic } = generateNewProfileFromMnemonic();
-            setGeneratedMnemonic(mnemonic);
-            setStep('backup');
-
+            // Generate identity in memory (NOT persisted yet)
+            generateIdentity();
+            
+            // Go directly to profile setup
+            setStep('profile-setup');
         } catch (e) {
             console.error('Failed to generate identity:', e);
             setError('Failed to create account. Please try again.');
-            setStep('welcome');
         }
     };
 
+    const handleProfileSetupComplete = () => {
+        // After profile setup, go to mnemonic backup
+        setStep('backup');
+    };
+
     const handleBackupComplete = () => {
-        // Mnemonic is already stored by generateNewProfileFromMnemonic
-        // Navigate to profile setup
-        navigate('/profile-setup');
+        // After backup, go to finalization where everything gets persisted
+        navigate('/finalization');
     };
 
     const handleRecoverySubmit = async (mnemonic: string) => {
@@ -94,7 +105,8 @@ export const Onboarding: React.FC = () => {
 
         try {
             loginWithMnemonic(mnemonic);
-            navigate('/profile-setup');
+            // Recovery flow: go to profile setup with recovery flag
+            navigate('/profile-setup', { state: { isRecovery: true } });
         } catch (e) {
             console.error('Recovery failed:', e);
             setError('Invalid recovery phrase. Please check and try again.');
@@ -110,7 +122,8 @@ export const Onboarding: React.FC = () => {
         try {
             loginWithNsec(nsec);
             await appLoginNsec(nsec);
-            navigate('/profile-setup');
+            // NSEC flow: go to profile setup with recovery flag
+            navigate('/profile-setup', { state: { isRecovery: true } });
         } catch (e) {
             console.error('Nsec login failed:', e);
             setError('Invalid nsec. Please check and try again.');
@@ -141,10 +154,10 @@ export const Onboarding: React.FC = () => {
                 <div className="max-w-md mx-auto text-center">
                     <p className="golden-shimmer text-base mb-2 font-semibold">Welcome to..</p>
                     <h1 className="font-extrabold tracking-tight leading-tight">
-                        <div className="text-6xl mb-1">
+                        <div className="text-7xl mb-1">
                             <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">On-Chain</span>
                         </div>
-                        <div className="text-4xl">
+                        <div className="text-6xl">
                             <span className="text-white">Disc Golf</span>
                         </div>
                     </h1>
@@ -179,7 +192,7 @@ export const Onboarding: React.FC = () => {
 
                         {/* Tagline */}
                         <div className="space-y-2 mb-6">
-                                <p className="text-slate-300 text-sm font-medium">Play with</p>
+                                <p className="text-slate-300 text-sm font-medium">This app uses</p>
                                 <p className="text-lg font-bold">
                                 <span className={`text-brand-primary transition-all duration-500 ${activeIcon === 0 ? 'drop-shadow-[0_0_12px_rgba(45,212,191,0.8)] scale-110 inline-block' : ''}`}>
                                         Disc Golf
@@ -250,6 +263,7 @@ export const Onboarding: React.FC = () => {
                             setShowExistingOptionsModal(false);
                             handleAmberConnect();
                         }}
+                        showAmber={showAmberOption}
                     />,
                     document.body
                 )}
@@ -258,34 +272,35 @@ export const Onboarding: React.FC = () => {
     }
 
     // =========================================================================
-    // RENDER: GENERATING KEYS
+    // RENDER: PROFILE SETUP (NEW - uses OnboardingContext identity)
     // =========================================================================
 
-    if (step === 'generating') {
+    if (step === 'profile-setup' && identity) {
         return (
-            <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-4">
-                <div className="w-20 h-20 bg-brand-primary/20 rounded-full flex items-center justify-center border-2 border-brand-primary shadow-[0_0_30px_rgba(45,212,191,0.3)] animate-pulse">
-                    <Icons.Key className="text-brand-primary animate-spin" size={40} />
-                </div>
-                <h2 className="text-xl font-bold text-white mt-6">Creating Your Identity</h2>
-                <p className="text-slate-400 text-sm mt-2">Generating secure keys...</p>
-            </div>
+            <OnboardingProfileSetup
+                identity={identity}
+                profile={profile}
+                setProfileData={setProfileData}
+                onComplete={handleProfileSetupComplete}
+                onBack={() => setStep('welcome')}
+            />
         );
     }
 
     // =========================================================================
-    // RENDER: MNEMONIC BACKUP
+    // RENDER: MNEMONIC BACKUP (comes after profile setup now)
     // =========================================================================
 
-    if (step === 'backup' && generatedMnemonic) {
+    if (step === 'backup' && identity) {
         return (
             <div className="min-h-screen bg-brand-dark flex flex-col p-4 pt-8">
                 <MnemonicBackup
-                    mnemonic={generatedMnemonic}
+                    mnemonic={identity.mnemonic}
                     onComplete={handleBackupComplete}
-                    onBack={() => setStep('welcome')}
+                    onBack={() => setStep('profile-setup')}
                     title="Save Your Recovery Phrase"
-                    subtitle="This recovery phrase is the only way to recover your account and Bitcoin wallet."
+                    subtitle="These 12 words are the ONLY way to recover your account AND Bitcoin wallet. Write them down and keep them safe."
+                    showVerification={true}
                 />
             </div>
         );
@@ -345,6 +360,216 @@ export const Onboarding: React.FC = () => {
 
     // Fallback
     return null;
+};
+
+// =============================================================================
+// ONBOARDING PROFILE SETUP (inline component using OnboardingContext)
+// =============================================================================
+
+interface OnboardingProfileSetupProps {
+    identity: {
+        mnemonic: string;
+        privateKey: Uint8Array;
+        privateKeyHex: string;
+        publicKey: string;
+        lightningAddress: string;
+    };
+    profile: {
+        name: string;
+        picture: string;
+        pdga?: string;
+    };
+    setProfileData: (data: Partial<{ name: string; picture: string; pdga?: string }>) => void;
+    onComplete: () => void;
+    onBack: () => void;
+}
+
+const OnboardingProfileSetup: React.FC<OnboardingProfileSetupProps> = ({
+    identity,
+    profile,
+    setProfileData,
+    onComplete,
+    onBack
+}) => {
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadError, setUploadError] = useState('');
+    const [showKeys, setShowKeys] = useState(false);
+
+    // Convert to npub/nsec for display
+    const npub = nip19.npubEncode(identity.publicKey);
+    const nsec = nip19.nsecEncode(identity.privateKey);
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+            setUploadError('Please select an image file');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setUploadError('Image must be under 5MB');
+            return;
+        }
+
+        setIsUploading(true);
+        setUploadError('');
+
+        try {
+            // Upload using the real private key (not stored in localStorage yet)
+            const imageUrl = await uploadProfileImageWithKey(file, identity.privateKey);
+            setProfileData({ picture: imageUrl });
+        } catch (e) {
+            console.error('Image upload failed:', e);
+            setUploadError('Failed to upload image. Please try again.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleContinue = () => {
+        if (!profile.name.trim()) {
+            return; // Name is required
+        }
+        onComplete();
+    };
+
+    return (
+        <div className="min-h-screen bg-brand-dark flex flex-col">
+            {/* Header */}
+            <div className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 p-4">
+                <div className="flex items-center">
+                    <button
+                        onClick={onBack}
+                        className="p-2 text-slate-400 hover:text-white transition-colors -ml-2"
+                    >
+                        <Icons.Back size={24} />
+                    </button>
+                    <h1 className="text-xl font-bold text-white ml-2">Set Up Your Profile</h1>
+                </div>
+            </div>
+
+            <div className="flex-1 p-4 overflow-y-auto">
+                <div className="max-w-md mx-auto space-y-6">
+                    
+                    {/* Profile Picture */}
+                    <div className="flex flex-col items-center">
+                        <div className="relative">
+                            <div className="w-24 h-24 rounded-full bg-slate-800 border-2 border-slate-700 overflow-hidden flex items-center justify-center">
+                                {profile.picture ? (
+                                    <img 
+                                        src={profile.picture} 
+                                        alt="Profile" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <Icons.User className="text-slate-500" size={40} />
+                                )}
+                            </div>
+                            <label className="absolute bottom-0 right-0 w-8 h-8 bg-brand-primary rounded-full flex items-center justify-center cursor-pointer hover:bg-brand-primary/80 transition-colors">
+                                <Icons.Camera className="text-black" size={16} />
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                    disabled={isUploading}
+                                />
+                            </label>
+                        </div>
+                        {isUploading && (
+                            <p className="text-sm text-slate-400 mt-2">Uploading...</p>
+                        )}
+                        {uploadError && (
+                            <p className="text-sm text-red-400 mt-2">{uploadError}</p>
+                        )}
+                    </div>
+
+                    {/* Name Input */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Display Name *
+                        </label>
+                        <input
+                            type="text"
+                            value={profile.name}
+                            onChange={(e) => setProfileData({ name: e.target.value })}
+                            placeholder="Your name"
+                            className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:border-brand-primary focus:outline-none"
+                        />
+                    </div>
+
+                    {/* PDGA Number (Optional) */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            PDGA Number <span className="text-slate-500">(optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={profile.pdga || ''}
+                            onChange={(e) => setProfileData({ pdga: e.target.value || undefined })}
+                            placeholder="e.g., 12345"
+                            className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:border-brand-primary focus:outline-none"
+                        />
+                    </div>
+
+                    {/* Your Keys Section */}
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                        <button
+                            onClick={() => setShowKeys(!showKeys)}
+                            className="w-full flex items-center justify-between text-left"
+                        >
+                            <div className="flex items-center space-x-2">
+                                <Icons.Key className="text-purple-400" size={20} />
+                                <span className="font-medium text-white">Your Nostr Keys</span>
+                            </div>
+                            <Icons.ChevronDown 
+                                className={`text-slate-400 transition-transform ${showKeys ? 'rotate-180' : ''}`} 
+                                size={20} 
+                            />
+                        </button>
+
+                        {showKeys && (
+                            <div className="mt-4 space-y-3">
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Public Key (npub)</p>
+                                    <div className="p-2 bg-slate-900/50 rounded-lg">
+                                        <p className="text-xs text-brand-primary font-mono break-all">{npub}</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Private Key (nsec) - Keep Secret!</p>
+                                    <div className="p-2 bg-slate-900/50 rounded-lg">
+                                        <p className="text-xs text-red-400 font-mono break-all">{nsec}</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400 mb-1">Lightning Address</p>
+                                    <div className="p-2 bg-slate-900/50 rounded-lg">
+                                        <p className="text-xs text-orange-400 font-mono break-all">{identity.lightningAddress}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Continue Button */}
+                    <button
+                        onClick={handleContinue}
+                        disabled={!profile.name.trim()}
+                        className="w-full py-4 bg-gradient-to-r from-brand-primary to-cyan-400 text-black font-bold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Continue
+                    </button>
+
+                    <p className="text-xs text-slate-500 text-center">
+                        Next: Save your recovery phrase
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 // =============================================================================
@@ -415,7 +640,8 @@ const ExistingAccountModal: React.FC<{
     onSelectRecovery: () => void;
     onSelectNsec: () => void;
     onSelectAmber: () => void;
-}> = ({ onClose, onSelectRecovery, onSelectNsec, onSelectAmber }) => (
+    showAmber: boolean;
+}> = ({ onClose, onSelectRecovery, onSelectNsec, onSelectAmber, showAmber }) => (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
         <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="p-6 space-y-4">
@@ -463,21 +689,23 @@ const ExistingAccountModal: React.FC<{
                                     </div>
                     </button>
 
-                    {/* Amber (Android - Always shown) */}
-                    <button
-                        onClick={onSelectAmber}
-                        className="w-full p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-colors text-left"
-                    >
-                        <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
-                                <Icons.Diamond className="text-orange-500" size={20} />
+                    {/* Amber (Android only) */}
+                    {showAmber && (
+                        <button
+                            onClick={onSelectAmber}
+                            className="w-full p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-colors text-left"
+                        >
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
+                                    <Icons.Android className="text-orange-500" size={20} />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-white">Amber Signer</p>
+                                    <p className="text-xs text-slate-400">Android key manager</p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="font-bold text-white">Amber Signer</p>
-                                <p className="text-xs text-slate-400">Android key manager</p>
-                            </div>
-                        </div>
-                    </button>
+                        </button>
+                    )}
                 </div>
 
                             <button

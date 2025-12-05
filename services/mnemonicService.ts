@@ -8,6 +8,38 @@
  * - NEW USERS: Single 12-word mnemonic → Nostr key + Breez wallet (unified backup)
  * - EXISTING NSEC USERS: Their nsec + SEPARATE Breez mnemonic (two backups)
  * - AMBER USERS: Amber holds Nostr key + SEPARATE Breez mnemonic (two backups)
+ * 
+ * ============================================================================
+ * ⚠️⚠️⚠️ CRITICAL WARNING - WALLET RECOVERY DEPENDS ON THIS FILE ⚠️⚠️⚠️
+ * ============================================================================
+ * 
+ * This service handles the most sensitive data in the entire application:
+ * user mnemonics (seed phrases) that control their Bitcoin funds AND Nostr identity.
+ * 
+ * RULES FOR MODIFYING THIS FILE:
+ * 
+ * 1. STORAGE KEYS - NEVER CHANGE
+ *    The localStorage keys below are used to store encrypted mnemonics.
+ *    If you change them, users will LOSE ACCESS to their stored wallets.
+ *    They would need to re-enter their mnemonic to recover.
+ * 
+ * 2. ENCRYPTION METHODS - NEVER CHANGE
+ *    The deriveEncryptionKey and xorEncrypt functions define how mnemonics
+ *    are encrypted. Changing the algorithm means existing encrypted data
+ *    cannot be decrypted.
+ * 
+ * 3. DERIVATION PATH - NEVER CHANGE
+ *    The NIP-06 derivation path is a standard. Changing it means the same
+ *    mnemonic produces DIFFERENT Nostr keys, breaking user identity.
+ * 
+ * 4. BIP-39 WORDLIST - COMES FROM @scure/bip39
+ *    Using the English wordlist. Don't change this or add custom words.
+ * 
+ * If you need to add NEW features, create NEW storage keys and functions.
+ * Keep backward compatibility with existing stored data.
+ * 
+ * Last verified working: December 2024
+ * ============================================================================
  */
 
 import { generateMnemonic as bip39Generate, mnemonicToSeedSync, validateMnemonic as bip39Validate } from '@scure/bip39';
@@ -16,20 +48,52 @@ import { HDKey } from '@scure/bip32';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { getPublicKey } from 'nostr-tools';
 
-// NIP-06 derivation path for Nostr keys
-// m/44'/1237'/<account>'/0/0
-// Using account 0 for simplicity
+/**
+ * ⚠️ NIP-06 DERIVATION PATH - DO NOT MODIFY ⚠️
+ * 
+ * This is the standard Nostr key derivation path as defined in NIP-06.
+ * Path: m/44'/1237'/<account>'/0/0
+ * 
+ * - 44' = BIP-44 purpose (HD wallets)
+ * - 1237' = Nostr coin type (registered)
+ * - 0' = Account 0
+ * - 0/0 = External chain, first key
+ * 
+ * Changing this path means:
+ * - Same mnemonic → Different Nostr keys
+ * - Users lose their identity and followers
+ * - Cannot recover existing accounts
+ */
 const NOSTR_DERIVATION_PATH = "m/44'/1237'/0'/0/0";
 
-// Storage keys
+/**
+ * ⚠️⚠️⚠️ STORAGE KEYS - ABSOLUTELY DO NOT CHANGE ⚠️⚠️⚠️
+ * 
+ * These localStorage key names are used to persist encrypted wallet data.
+ * Users' wallets depend on these exact key names to recover their data.
+ * 
+ * CONSEQUENCES OF CHANGING THESE:
+ * - Users appear to have no wallet on existing devices
+ * - Encrypted mnemonics become inaccessible
+ * - Users must re-enter recovery phrase manually
+ * - Could lead to permanent loss of funds if user forgot phrase
+ * 
+ * If you need additional storage, ADD new keys, don't modify existing ones.
+ */
 const STORAGE_KEYS = {
+    /** Encrypted Nostr/unified mnemonic - DO NOT RENAME */
     MNEMONIC_ENCRYPTED: 'cdg_mnemonic_enc',
+    /** Salt for Nostr/unified mnemonic encryption - DO NOT RENAME */
     MNEMONIC_SALT: 'cdg_mnemonic_salt',
+    /** Authentication source type - DO NOT RENAME */
     AUTH_SOURCE: 'cdg_auth_source', // 'mnemonic' | 'nsec' | 'amber' | 'nip46'
+    /** Encrypted Breez-specific mnemonic (for non-mnemonic users) - DO NOT RENAME */
     BREEZ_MNEMONIC_ENCRYPTED: 'cdg_breez_mnemonic_enc',
+    /** Salt for Breez mnemonic encryption - DO NOT RENAME */
     BREEZ_MNEMONIC_SALT: 'cdg_breez_mnemonic_salt',
-    HAS_UNIFIED_SEED: 'cdg_unified_seed', // true if Nostr + Breez use same mnemonic
-};
+    /** Flag: true if Nostr + Breez use same mnemonic - DO NOT RENAME */
+    HAS_UNIFIED_SEED: 'cdg_unified_seed',
+} as const; // `as const` prevents accidental modification
 
 export type AuthSource = 'mnemonic' | 'nsec' | 'amber' | 'nip46' | 'legacy';
 
@@ -110,13 +174,24 @@ export const getSeedFromMnemonic = (mnemonic: string): Uint8Array => {
 };
 
 /**
- * Simple encryption for storing mnemonic locally
- * Uses user's public key as part of the encryption key
+ * ⚠️ ENCRYPTION KEY DERIVATION - DO NOT MODIFY ALGORITHM ⚠️
+ * 
+ * This function derives the encryption key used to protect stored mnemonics.
+ * Uses user's public key as part of the encryption key.
+ * 
+ * WARNING: This algorithm MUST remain unchanged because:
+ * - Existing encrypted mnemonics were encrypted with this exact algorithm
+ * - Changing it = cannot decrypt existing user data
+ * - Users would lose access to their wallets
+ * 
+ * The algorithm: XOR of pubkey bytes with salt, repeating as needed
+ * Output: 32-byte key
  * 
  * NOTE: This is basic protection against casual reading.
- * For production, consider using Web Crypto API with user-derived keys.
+ * For production improvements, ADD a migration path, don't replace.
  */
 const deriveEncryptionKey = (pubkey: string, salt: Uint8Array): Uint8Array => {
+    // ⚠️ DO NOT MODIFY - existing data encrypted with this algorithm
     // Combine pubkey and salt to create encryption key
     // Simple derivation: interleave pubkey bytes with salt
     const pubkeyBytes = new TextEncoder().encode(pubkey);
@@ -130,9 +205,20 @@ const deriveEncryptionKey = (pubkey: string, salt: Uint8Array): Uint8Array => {
 };
 
 /**
- * XOR-based encryption (simple but effective for local storage)
+ * ⚠️ XOR ENCRYPTION - DO NOT MODIFY ALGORITHM ⚠️
+ * 
+ * XOR-based encryption for local storage.
+ * Used for both encryption and decryption (XOR is symmetric).
+ * 
+ * WARNING: This function MUST remain unchanged because:
+ * - Existing data was encrypted with this exact algorithm
+ * - Changing it = cannot decrypt existing user mnemonics
+ * - Key repeats cyclically for data longer than key
+ * 
+ * Same function works for both encrypt and decrypt due to XOR properties.
  */
 const xorEncrypt = (data: Uint8Array, key: Uint8Array): Uint8Array => {
+    // ⚠️ DO NOT MODIFY - existing data encrypted with this algorithm
     const result = new Uint8Array(data.length);
     for (let i = 0; i < data.length; i++) {
         result[i] = data[i] ^ key[i % key.length];

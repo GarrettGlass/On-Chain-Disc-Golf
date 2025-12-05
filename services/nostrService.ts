@@ -686,6 +686,49 @@ export const uploadProfileImage = async (file: File): Promise<string> => {
     throw new Error("Invalid response from upload server");
 };
 
+/**
+ * Upload profile image using an explicit private key (for onboarding flow)
+ * Uses NIP-98 HTTP Auth with the provided key instead of getSession()
+ */
+export const uploadProfileImageWithKey = async (file: File, secretKey: Uint8Array): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = 'https://nostr.build/api/v2/upload/files';
+
+    // Construct NIP-98 HTTP Auth Event using explicit key
+    const event = finalizeEvent({
+        kind: 27235,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+            ['u', url],
+            ['method', 'POST']
+        ],
+        content: '',
+    }, secretKey);
+
+    const authHeader = `Nostr ${btoa(JSON.stringify(event))}`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': authHeader
+        },
+        body: formData
+    });
+
+    if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (data && data.data && data.data.length > 0 && data.data[0].url) {
+        return data.data[0].url;
+    }
+
+    throw new Error("Invalid response from upload server");
+};
+
 // --- Publishing ---
 
 export const publishProfile = async (profile: UserProfile) => {

@@ -2,9 +2,16 @@
 import { CashuMint, CashuWallet, getDecodedToken } from '@cashu/cashu-ts';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, Player, RoundSettings, WalletTransaction, UserProfile, UserStats, NOSTR_KIND_SCORE, Mint, DisplayProfile, Proof, PayoutConfig } from '../types';
-import { DEFAULT_HOLE_COUNT } from '../constants';
+import { DEFAULT_HOLE_COUNT, BREEZ_API_KEY } from '../constants';
 import { publishProfile, publishRound, publishScore, subscribeToRound, subscribeToPlayerRounds, fetchProfile, fetchUserHistory, getSession, loginWithNsec, loginWithNip46, loginWithAmber, generateNewProfile, generateNewProfileFromMnemonic, loginWithMnemonic as nostrLoginWithMnemonic, logout as nostrLogout, publishWalletBackup, fetchWalletBackup, publishRecentPlayers, fetchRecentPlayers, fetchContactList, fetchProfilesBatch, sendDirectMessage, subscribeToDirectMessages, subscribeToGiftWraps, subscribeToNutzaps, subscribeToLightningGiftWraps, fetchHistoricalGiftWraps, getMagicLightningAddress } from '../services/nostrService';
-import { getAuthSource, hasStoredMnemonic, hasUnifiedSeed, AuthSource } from '../services/mnemonicService';
+import { getAuthSource, hasStoredMnemonic, hasUnifiedSeed, AuthSource, retrieveMnemonicEncrypted, clearMnemonicStorage } from '../services/mnemonicService';
+import { 
+    initializeBreez, 
+    isBreezInitialized, 
+    getBreezBalance, 
+    subscribeToPayments as subscribeToBreezEvents,
+    disconnectBreez 
+} from '../services/breezService';
 import { checkPendingPayments, NpubCashQuote, subscribeToQuoteUpdates, unsubscribeFromQuoteUpdates, getQuoteById, registerWithAllGateways, checkGatewayRegistration, subscribeToAllGatewayUpdates } from '../services/npubCashService';
 import { checkGatewayRegistration as getGatewayRegistrations } from '../services/npubCashService';
 import { WalletService } from '../services/walletService';
@@ -100,6 +107,19 @@ interface AppContextType extends AppState {
     isProcessingPayments: boolean;
   } | null;
   setRoundSummary: (summary: AppContextType['roundSummary']) => void;
+
+  // Finalization State Setters (for onboarding flow)
+  setAuthState: (state: {
+    isAuthenticated: boolean;
+    isGuest: boolean;
+    currentUserPubkey: string;
+    authMethod: 'local' | 'nip46' | 'amber' | null;
+  }) => void;
+  setUserProfileState: (profile: UserProfile) => void;
+  setContactsState: (contacts: DisplayProfile[]) => void;
+  setRecentPlayersState: (players: DisplayProfile[]) => void;
+  restoreWalletFromBackup: (backup: { proofs: Proof[]; mints: Mint[]; transactions: WalletTransaction[] }) => void;
+  initializeSubscriptions: (pubkey: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -385,10 +405,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auto-refresh balance when wallet mode changes
   useEffect(() => {
-    // Only clear balance if switching TO NWC (not on initial mount for Cashu)
-    if (walletMode === 'nwc') {
-      setWalletBalance(0); // Clear balance before fetching NWC balance
+    // Immediately update balance from cached values when switching modes
+    // This prevents the old wallet's balance from showing during async refresh
+    if (walletMode === 'cashu') {
+      setWalletBalance(walletBalances.cashu);
+    } else if (walletMode === 'nwc') {
+      setWalletBalance(walletBalances.nwc);
+    } else if (walletMode === 'breez') {
+      setWalletBalance(walletBalances.breez);
     }
+    // Then refresh async to get latest values
     refreshWalletBalance();
   }, [walletMode, nwcString]);
 
@@ -402,7 +428,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const initSession = async () => {
       let session = getSession();
-      let guestMode = localStorage.getItem('is_guest_mode') === 'true';
 
       // Check for completed Amber connection
       const amberResult = await completeAmberConnection();
@@ -414,29 +439,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           pk: amberResult.userPubkey,
           sk: '' // Amber handles signing
         };
-        guestMode = false;
         localStorage.removeItem('is_guest_mode');
         localStorage.setItem('amber_ephemeral_sk', bytesToHex(amberResult.ephemeralSk));
         localStorage.setItem('amber_relay', amberResult.relay);
       }
 
-      // Auto-create Guest Account if no session exists
-      if (!session) {
-        const newIdentity = generateNewProfile();
-        session = { method: 'local', pk: newIdentity.pk, sk: newIdentity.sk };
-        guestMode = true;
-        localStorage.setItem('is_guest_mode', 'true');
-      }
+      // REMOVED: Auto-create Guest Account
+      // Previously: if (!session) { generateNewProfile()... }
+      // Now: If no session, user stays unauthenticated and sees Onboarding
 
       if (session) {
         setCurrentUserPubkey(session.pk);
         setAuthMethod(session.method);
         setIsAuthenticated(true);
-        setIsGuest(guestMode);
-
-        if (guestMode) {
-          setUserProfile({ name: 'Guest Golfer', about: 'Unclaimed account', picture: '', lud16: '', nip05: '' });
-        }
+        setIsGuest(false);
+      } else {
+        // No session = not authenticated, will show Onboarding
+        setIsAuthenticated(false);
+        setIsGuest(false);
       }
     };
     initSession();
@@ -625,6 +645,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }).catch(e => console.warn("Historical Gift Wrap fetch failed:", e));
 
       // NOTE: npub.cash payments now handled by WebSocket subscription (see useEffect below)
+
+      // 6. Initialize Breez Lightning Wallet (for mnemonic-based users)
+      // This runs in background with infinite retry, never fails
+      const initBreezWallet = async () => {
+        // Check if user has a mnemonic (unified or Breez-specific)
+        const hasMnemonic = hasStoredMnemonic(false) || hasStoredMnemonic(true);
+        
+        if (hasMnemonic && !isBreezInitialized()) {
+          console.log('⚡ [AppContext] Starting Breez SDK initialization...');
+          
+          // Try unified mnemonic first, then Breez-specific
+          let mnemonic = retrieveMnemonicEncrypted(currentUserPubkey, false);
+          if (!mnemonic) {
+            mnemonic = retrieveMnemonicEncrypted(currentUserPubkey, true);
+          }
+          
+          if (mnemonic) {
+            // Initialize Breez with API key config
+            const breezConfig = {
+              apiKey: BREEZ_API_KEY,
+              environment: 'production' as const
+            };
+            
+            initializeBreez(mnemonic, breezConfig).then((success) => {
+              if (success) {
+                console.log('✅ [AppContext] Breez SDK initialized successfully');
+                
+                // Subscribe to Breez events for payment notifications
+                subscribeToBreezEvents(
+                  // On payment received
+                  (payment) => {
+                    const amountSats = payment.amountSats;
+                    console.log(`⚡ Received ${amountSats} sats via Breez!`);
+                    
+                    // Show lightning strike animation
+                    setLightningStrike({ amount: amountSats, show: true });
+                    
+                    // Refresh balances
+                    refreshAllBalances();
+                  },
+                  // On payment sent
+                  (payment) => {
+                    console.log(`⚡ Sent ${payment.amountSats} sats via Breez`);
+                    // Refresh balances after sending
+                    refreshAllBalances();
+                  }
+                );
+                
+                // Refresh balances now that Breez is ready
+                refreshAllBalances();
+              }
+            }).catch((e) => {
+              console.warn('⚠️ [AppContext] Breez initialization error (will retry):', e);
+            });
+          }
+        }
+      };
+      
+      // Start Breez initialization in background (don't await)
+      initBreezWallet();
     }
   }, [currentUserPubkey, isGuest]);
 
@@ -1164,8 +1244,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const performLogout = () => {
-    // 1. Clear authenticated user data from storage
+    // 1. Disconnect Breez SDK (fire and forget - don't block logout)
+    disconnectBreez().catch(e => console.warn('Breez disconnect error:', e));
+
+    // 2. Clear authenticated user data from storage
     nostrLogout();
+
+    // Clear mnemonic/seed phrase storage
+    clearMnemonicStorage();
 
     localStorage.removeItem('cdg_user_private_key');
     localStorage.removeItem('cdg_user_public_key');
@@ -1173,11 +1259,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem('cdg_wallet_mode');
     localStorage.removeItem('cdg_nwc_string');
     localStorage.removeItem('cdg_user_profile');
+    localStorage.removeItem('is_guest_mode');
+    localStorage.removeItem('cdg_breez_lightning_address');
 
+    // Clear wallet/payment data from localStorage
+    localStorage.removeItem('cdg_proofs');
+    localStorage.removeItem('cdg_txs');
+    localStorage.removeItem('cdg_mints');
+    localStorage.removeItem('cdg_recent_players');
+    localStorage.removeItem('cdg_round_history');
+    localStorage.removeItem('cdg_relays');
+    localStorage.removeItem('cdg_lightning_address');
+    localStorage.removeItem('cdg_nostr_backup');
+    localStorage.removeItem('cdg_nostr_backup_timestamp');
+    localStorage.removeItem('gateway_registrations');
+
+    // Clear processed payment tracking keys
+    Object.keys(localStorage).filter(k => 
+      k.startsWith('processed_token_') || k.startsWith('processed_quote_')
+    ).forEach(k => localStorage.removeItem(k));
+
+    // 3. Reset auth state (user will see Onboarding)
     setIsAuthenticated(false);
+    setIsGuest(false);
     setAuthMethod(null);
     setCurrentUserPubkey('');
-    setUserProfile({ name: 'Guest', picture: '', about: '', lud16: '', nip05: '' });
+    setUserProfile({ name: '', picture: '', about: '', lud16: '', nip05: '' });
 
     // Reset Wallet Mode
     setWalletMode('cashu');
@@ -1186,28 +1293,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       nwcServiceRef.current = null;
     }
 
-    // Clear recent players if desired, or keep them. 
-    // For now we keep them as they might be useful for re-login.
-
-    // 2. Clear sensitive app state from memory
+    // 4. Clear sensitive app state from memory
     setProofs([]);
     setTransactions([]);
     setRecentPlayers([]);
     setContacts([]);
     setActiveRound(null);
 
-    // 3. Generate a new Guest Identity immediately
-    const newIdentity = generateNewProfile();
-
-    // 4. Update State to Guest Mode
-    setCurrentUserPubkey(newIdentity.pk);
-    setAuthMethod('local');
-    setIsAuthenticated(true); // Guest is technically authenticated with ephemeral keys
-    setIsGuest(true);
-    localStorage.setItem('is_guest_mode', 'true');
-
-    // 5. Reset Profile UI
-    setUserProfile({ name: 'Guest Golfer', about: 'Unclaimed account', picture: '', lud16: '', nip05: '' });
+    // REMOVED: Guest account auto-creation
+    // Now user goes back to Onboarding to create a new account
   };
 
   const addRecentPlayer = (player: DisplayProfile) => {
@@ -1217,6 +1311,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [player, ...filtered].slice(0, 20); // Keep last 20
     });
   };
+
+  // =========================================================================
+  // FINALIZATION STATE SETTERS (for onboarding flow)
+  // =========================================================================
+
+  const setAuthState = useCallback((state: {
+    isAuthenticated: boolean;
+    isGuest: boolean;
+    currentUserPubkey: string;
+    authMethod: 'local' | 'nip46' | 'amber' | null;
+  }) => {
+    setIsAuthenticated(state.isAuthenticated);
+    setIsGuest(state.isGuest);
+    setCurrentUserPubkey(state.currentUserPubkey);
+    setAuthMethod(state.authMethod);
+  }, []);
+
+  const setUserProfileState = useCallback((profile: UserProfile) => {
+    setUserProfile(profile);
+    localStorage.setItem('cdg_user_profile', JSON.stringify(profile));
+  }, []);
+
+  const setContactsState = useCallback((newContacts: DisplayProfile[]) => {
+    setContacts(newContacts.sort((a, b) => a.name.localeCompare(b.name)));
+  }, []);
+
+  const setRecentPlayersState = useCallback((newPlayers: DisplayProfile[]) => {
+    setRecentPlayers(prev => {
+      const existingPubkeys = new Set(prev.map(p => p.pubkey));
+      const uniqueNew = newPlayers.filter(p => !existingPubkeys.has(p.pubkey));
+      return [...uniqueNew, ...prev].slice(0, 50);
+    });
+  }, []);
+
+  const restoreWalletFromBackup = useCallback((backup: { proofs: Proof[]; mints: Mint[]; transactions: WalletTransaction[] }) => {
+    if (backup.proofs && backup.proofs.length > 0) {
+      setProofs(current => WalletService.deduplicateProofs(current, backup.proofs));
+    }
+    if (backup.transactions && backup.transactions.length > 0) {
+      setTransactions(current => {
+        const existingIds = new Set(current.map(t => t.id));
+        const newTxs = backup.transactions.filter(t => !existingIds.has(t.id));
+        return [...newTxs, ...current].sort((a, b) => b.timestamp - a.timestamp);
+      });
+    }
+    if (backup.mints && backup.mints.length > 0) {
+      setMints(backup.mints);
+    }
+  }, []);
+
+  const initializeSubscriptions = useCallback((pubkey: string) => {
+    // Log the user's Lightning address for debugging
+    const lightningAddress = getMagicLightningAddress(pubkey);
+    console.log(`⚡ Your Lightning Address: ${lightningAddress}`);
+    console.log(`📡 Your Pubkey: ${pubkey}`);
+
+    // Note: Real-time subscriptions are handled by existing useEffects
+    // that react to isAuthenticated and currentUserPubkey changes
+    console.log('🔄 [Finalization] Subscriptions will be initialized by existing effects');
+  }, []);
 
   const addTransaction = (type: WalletTransaction['type'], amount: number, description: string, walletType?: 'cashu' | 'nwc') => {
     const tx: WalletTransaction = {
@@ -1744,13 +1898,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const refreshWalletBalance = async () => {
     setIsBalanceLoading(true);
     
-    // Breez Logic (placeholder - will be implemented when API key arrives)
+    // Breez Logic
     if (walletMode === 'breez') {
-      // TODO: Implement Breez balance fetch
-      // const breezBalance = await breezService.getBalance();
-      // setWalletBalance(breezBalance);
-      console.log('Breez balance fetch - pending implementation');
-      // For now, keep balance at 0 or last known value
+      if (isBreezInitialized()) {
+        try {
+          const breezBalance = await getBreezBalance();
+          setWalletBalance(breezBalance.balanceSats);
+          setWalletBalances(prev => ({ ...prev, breez: breezBalance.balanceSats }));
+          console.log(`⚡ Breez balance: ${breezBalance.balanceSats} sats`);
+        } catch (e) {
+          console.error("Breez balance fetch failed:", e);
+        }
+      } else {
+        console.log('⏳ Breez SDK not yet initialized, balance pending...');
+      }
       setIsBalanceLoading(false);
       return;
     }
@@ -1851,8 +2012,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             hasChanges = true;
           }
         } catch (e) {
-          console.warn(`Failed to verify proofs for ${mintUrl}, keeping existing.`, e);
-          // If verification fails (network), keep original proofs to be safe
+          const errorMsg = e instanceof Error ? e.message : String(e);
+          console.warn(`Failed to verify proofs for ${mintUrl}:`, errorMsg);
+          
+          // Check for keyset mismatch - clear those proofs
+          if (errorMsg.includes('different units') || errorMsg.includes('keyset') || errorMsg.includes('unknown keyset')) {
+            console.warn(`⚠️ Keyset mismatch for ${mintUrl}. Clearing invalid proofs.`);
+            hasChanges = true;
+            // Don't add these proofs to allValidProofs - they're invalid
+            continue;
+          }
+          
+          // If verification fails for other reasons (network), keep original proofs to be safe
           allValidProofs = [...allValidProofs, ...mintProofs];
         }
       }
@@ -1930,16 +2101,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
     
-    // 3. Get Breez balance (when implemented)
-    // TODO: Implement Breez balance fetch when SDK is ready
-    // try {
-    //   if (isBreezInitialized()) {
-    //     const breezBal = await getBreezBalance();
-    //     newBalances.breez = breezBal.balanceSats;
-    //   }
-    // } catch (e) {
-    //   console.warn("Failed to get Breez balance:", e);
-    // }
+    // 3. Get Breez balance (if initialized)
+    try {
+      if (isBreezInitialized()) {
+        const breezBal = await getBreezBalance();
+        newBalances.breez = breezBal.balanceSats;
+        console.log(`⚡ Breez balance: ${newBalances.breez} sats`);
+      }
+    } catch (e) {
+      console.warn("Failed to get Breez balance:", e);
+    }
     
     setWalletBalances(newBalances);
     
@@ -2072,6 +2243,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return true;
     } catch (e) {
       console.error("Send failed logic, attempting recovery:", e);
+
+      // Check for keyset mismatch error (mint rotated keys or unit mismatch)
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      if (errorMsg.includes('different units') || errorMsg.includes('keyset') || errorMsg.includes('unknown keyset')) {
+        console.warn("⚠️ Cashu keyset mismatch detected. Clearing invalid proofs.");
+        // Clear invalid proofs - the keyset has changed and old proofs are no longer valid
+        setProofs([]);
+        localStorage.removeItem('cdg_proofs');
+        alert("Your Cashu wallet has been reset due to a mint keyset change. Any previous balance has been cleared.");
+        return false;
+      }
 
       // RECOVERY: Check if proofs were spent despite the error (False Negative)
       try {
@@ -2322,7 +2504,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       roundSummary,
       setRoundSummary,
       walletBalances,
-      refreshAllBalances
+      refreshAllBalances,
+      setAuthState,
+      setUserProfileState,
+      setContactsState,
+      setRecentPlayersState,
+      restoreWalletFromBackup,
+      initializeSubscriptions
     }}>
       {children}
     </AppContext.Provider>

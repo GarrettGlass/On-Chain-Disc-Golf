@@ -1,25 +1,84 @@
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
+
+// Path to Breez SDK WASM file
+const BREEZ_WASM_SOURCE = path.join(__dirname, 'node_modules/@breeztech/breez-sdk-spark/web/breez_sdk_spark_wasm_bg.wasm');
+const BREEZ_WASM_PUBLIC = path.join(__dirname, 'public/breez_sdk_spark_wasm_bg.wasm');
+
+// Plugin to handle Breez SDK WASM
+function breezWasmPlugin(): Plugin {
+  return {
+    name: 'breez-wasm-plugin',
+    
+    // Copy WASM to public on server start
+    buildStart() {
+      if (fs.existsSync(BREEZ_WASM_SOURCE)) {
+        fs.copyFileSync(BREEZ_WASM_SOURCE, BREEZ_WASM_PUBLIC);
+        console.log('✅ [Breez WASM] Copied to public/');
+      } else {
+        console.warn('⚠️ [Breez WASM] Source file not found:', BREEZ_WASM_SOURCE);
+      }
+    },
+    
+    // Serve WASM with correct MIME type
+    configureServer(server) {
+      // This middleware runs BEFORE Vite's default handling
+      server.middlewares.use((req, res, next) => {
+        // Check if request is for WASM file (could be various paths)
+        if (req.url?.includes('breez_sdk_spark_wasm_bg.wasm')) {
+          console.log(`🔵 [Breez WASM] Intercepted request: ${req.url}`);
+          
+          // Try to serve from source location
+          if (fs.existsSync(BREEZ_WASM_SOURCE)) {
+            console.log(`✅ [Breez WASM] Serving from: ${BREEZ_WASM_SOURCE}`);
+            res.setHeader('Content-Type', 'application/wasm');
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+            fs.createReadStream(BREEZ_WASM_SOURCE).pipe(res);
+            return;
+          }
+          
+          console.warn('⚠️ [Breez WASM] File not found!');
+        }
+        next();
+      });
+    },
+    
+    // Handle WASM in production build
+    generateBundle() {
+      // Copy WASM to output for production builds
+      if (fs.existsSync(BREEZ_WASM_SOURCE)) {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'breez_sdk_spark_wasm_bg.wasm',
+          source: fs.readFileSync(BREEZ_WASM_SOURCE)
+        });
+      }
+    }
+  };
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     // Use relative paths for Capacitor compatibility
-    // This works for both PWA (web) and native (Capacitor)
     base: './',
     
     server: {
       port: 3000,
       host: '0.0.0.0',
       strictPort: true,
+      // Allow serving files from parent directories
+      fs: {
+        allow: ['..', 'node_modules']
+      }
     },
     
-    plugins: [react()],
+    plugins: [breezWasmPlugin(), react()],
     
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      // Required for some crypto libraries in native webview
       global: 'globalThis',
     },
     
@@ -33,13 +92,10 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      // Generate sourcemaps for debugging in development
       sourcemap: mode === 'development',
-      // Ensure proper chunking for mobile performance
       rollupOptions: {
         output: {
           manualChunks: {
-            // Separate vendor chunks for better caching
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
             'vendor-nostr': ['nostr-tools'],
             'vendor-cashu': ['@cashu/cashu-ts'],
@@ -48,13 +104,27 @@ export default defineConfig(({ mode }) => {
       }
     },
     
-    // Ensure crypto libraries work in native webview
     optimizeDeps: {
+      // Don't pre-bundle Breez SDK - let it load WASM at runtime
+      exclude: ['@breeztech/breez-sdk-spark'],
       esbuildOptions: {
         define: {
           global: 'globalThis'
-        }
+        },
+        target: 'esnext'
       }
+    },
+    
+    // Include WASM in asset handling
+    assetsInclude: ['**/*.wasm'],
+    
+    esbuild: {
+      target: 'esnext'
+    },
+    
+    // Worker format for WASM support
+    worker: {
+      format: 'es'
     }
   };
 });

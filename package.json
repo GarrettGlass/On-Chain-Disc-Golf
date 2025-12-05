@@ -19,6 +19,7 @@
     "cap:build:ios": "npm run build && npx cap sync ios"
   },
   "dependencies": {
+    "@breeztech/breez-sdk-spark": "^0.5.2",
     "@capacitor-mlkit/barcode-scanning": "^7.4.0",
     "@capacitor/android": "^7.4.4",
     "@capacitor/app": "^7.1.0",

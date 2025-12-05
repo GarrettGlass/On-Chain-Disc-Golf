@@ -528,3 +528,439 @@ export const KeypairBreakingAnimation: React.FC = () => {
         </div>
     );
 };
+
+/**
+ * Keypair Forming Animation with Sparkles Extension
+ * Used during Finalization screen
+ * 
+ * Phase 1: Standard forming animation (0-2.5s)
+ * Phase 2: If showSparkles=true, orbiting sparkles appear around unified keys
+ * Phase 3: If isComplete=true, success flash and the keys pulse
+ */
+interface KeypairFormingWithSparklesProps {
+    showSparkles?: boolean;
+    isComplete?: boolean;
+}
+
+export const KeypairFormingWithSparkles: React.FC<KeypairFormingWithSparklesProps> = ({ 
+    showSparkles = false,
+    isComplete = false 
+}) => {
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-b from-brand-dark via-slate-900 to-black">
+            <div className="relative w-full h-full flex items-center justify-center">
+
+                {/* Keypair Forming Together in Center */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                    {/* Left Key (Coming from left) */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: '-30px',
+                            top: '0',
+                            animation: isComplete 
+                                ? 'keyFormLeft 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, keyPulse 1s ease-in-out 0s infinite'
+                                : 'keyFormLeft 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                        }}
+                    >
+                        <Icons.Key size={60} className="text-brand-primary" style={{ filter: 'drop-shadow(0 0 15px #10b981)' }} />
+                    </div>
+
+                    {/* Right Key (Coming from right) */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: '30px',
+                            top: '0',
+                            animation: isComplete
+                                ? 'keyFormRight 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, keyPulse 1s ease-in-out 0s infinite'
+                                : 'keyFormRight 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                        }}
+                    >
+                        <Icons.Key size={60} className="text-brand-accent" style={{ filter: 'drop-shadow(0 0 15px #f59e0b)', transform: 'scaleX(-1)' }} />
+                    </div>
+
+                    {/* Connection Line appears after keys unite */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: '0',
+                            top: '15px',
+                            width: '2px',
+                            height: '30px',
+                            background: 'linear-gradient(to bottom, transparent, #10b981, #f59e0b, transparent)',
+                            boxShadow: '0 0 15px rgba(16, 185, 129, 0.8)',
+                            animation: 'connectionAppear 0.5s ease-out 1.3s forwards',
+                            opacity: 0
+                        }}
+                    />
+                </div>
+
+                {/* Inward Flash (reverse of impact) */}
+                <div
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-white"
+                    style={{
+                        animation: 'inwardFlash 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1.2s forwards',
+                        opacity: 0
+                    }}
+                />
+
+                {/* Radial Shockwave (converging inward) */}
+                {[...Array(3)].map((_, i) => (
+                    <div
+                        key={`shockwave-in-${i}`}
+                        className="absolute left-1/2 top-1/2 border-2 rounded-full"
+                        style={{
+                            borderColor: i === 0 ? '#10b981' : i === 1 ? '#3b82f6' : '#f59e0b',
+                            animation: `shockwaveInward 2.0s ease-in ${i * 0.2}s forwards`
+                        }}
+                    />
+                ))}
+
+                {/* Key Fragments Converging Inward */}
+                {[...Array(40)].map((_, i) => {
+                    const angle = (i / 40) * 360;
+                    const rad = angle * (Math.PI / 180);
+                    const distance = 300 + Math.random() * 200;
+                    const x = Math.cos(rad) * distance;
+                    const y = Math.sin(rad) * distance;
+                    const colors = ['#10b981', '#f59e0b'];
+                    const color = colors[i % 2];
+                    const size = 4 + Math.random() * 8;
+                    const rotation = Math.random() * 720;
+                    const delay = 0.1 + (Math.random() * 0.3);
+                    const maxOpacity = 1 - (distance - 300) / 400;
+
+                    return (
+                        <div
+                            key={`fragment-in-${i}`}
+                            className="absolute left-1/2 top-1/2"
+                            style={{
+                                width: `${size}px`,
+                                height: `${size}px`,
+                                animation: `convergeFragmentSparkle-${i} 2.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${delay}s forwards`
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    backgroundColor: color,
+                                    borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+                                    boxShadow: `0 0 ${size * 2}px ${color}`,
+                                }}
+                            />
+                            <style>{`
+                                @keyframes convergeFragmentSparkle-${i} {
+                                    0% {
+                                        transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(0) rotate(${rotation}deg);
+                                        opacity: 0;
+                                    }
+                                    50% {
+                                        opacity: ${maxOpacity * 0.6};
+                                    }
+                                    85% {
+                                        transform: translate(-50%, -50%) scale(1.2) rotate(${rotation * 0.2}deg);
+                                        opacity: ${maxOpacity};
+                                    }
+                                    100% {
+                                        transform: translate(-50%, -50%) scale(0) rotate(0deg);
+                                        opacity: 0;
+                                    }
+                                }
+                            `}</style>
+                        </div>
+                    );
+                })}
+
+                {/* Particle Trails Converging */}
+                {[...Array(20)].map((_, i) => {
+                    const angle = (i / 20) * 360;
+                    const rad = angle * (Math.PI / 180);
+                    const distance = 350;
+                    const x = Math.cos(rad) * distance;
+                    const y = Math.sin(rad) * distance;
+
+                    return (
+                        <div
+                            key={`trail-in-${i}`}
+                            className="absolute left-1/2 top-1/2"
+                            style={{
+                                width: '3px',
+                                height: '40px',
+                                background: `linear-gradient(to bottom, ${i % 2 === 0 ? '#10b981' : '#f59e0b'}, transparent)`,
+                                animation: `trailInwardSparkle-${i} 2.0s ease-in 0.2s forwards`,
+                                transformOrigin: 'top center'
+                            }}
+                        >
+                            <style>{`
+                                @keyframes trailInwardSparkle-${i} {
+                                    0% {
+                                        transform: translate(calc(-50% + ${x * 0.7}px), calc(-50% + ${y * 0.7}px)) rotate(${angle}deg) scaleY(1.5);
+                                        opacity: 0;
+                                    }
+                                    30% {
+                                        transform: translate(calc(-50% + ${x * 0.5}px), calc(-50% + ${y * 0.5}px)) rotate(${angle}deg) scaleY(1.3);
+                                        opacity: 0.3;
+                                    }
+                                    60% {
+                                        transform: translate(-50%, -50%) rotate(${angle}deg) scaleY(1);
+                                        opacity: 0.7;
+                                    }
+                                    100% {
+                                        transform: translate(-50%, -50%) rotate(${angle}deg) scaleY(0);
+                                        opacity: 0;
+                                    }
+                                }
+                            `}</style>
+                        </div>
+                    );
+                })}
+
+                {/* ============================================= */}
+                {/* SPARKLES - Shown when backend tasks are slow */}
+                {/* ============================================= */}
+                {showSparkles && (
+                    <>
+                        {/* Orbiting Sparkle Particles */}
+                        {[...Array(12)].map((_, i) => {
+                            const orbitRadius = 80 + (i % 3) * 25;
+                            const startAngle = (i / 12) * 360;
+                            const duration = 3 + (i % 3);
+                            const size = 4 + (i % 3) * 2;
+                            const colors = ['#10b981', '#f59e0b', '#8b5cf6', '#3b82f6'];
+                            const color = colors[i % 4];
+
+                            return (
+                                <div
+                                    key={`sparkle-orbit-${i}`}
+                                    className="absolute left-1/2 top-1/2"
+                                    style={{
+                                        width: `${size}px`,
+                                        height: `${size}px`,
+                                        animation: `sparkleOrbit-${i} ${duration}s linear infinite`
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            backgroundColor: color,
+                                            borderRadius: '50%',
+                                            boxShadow: `0 0 ${size * 3}px ${color}, 0 0 ${size * 6}px ${color}`,
+                                        }}
+                                    />
+                                    <style>{`
+                                        @keyframes sparkleOrbit-${i} {
+                                            0% {
+                                                transform: translate(-50%, -50%) rotate(${startAngle}deg) translateX(${orbitRadius}px) scale(0.5);
+                                                opacity: 0.3;
+                                            }
+                                            25% {
+                                                transform: translate(-50%, -50%) rotate(${startAngle + 90}deg) translateX(${orbitRadius}px) scale(1);
+                                                opacity: 1;
+                                            }
+                                            50% {
+                                                transform: translate(-50%, -50%) rotate(${startAngle + 180}deg) translateX(${orbitRadius}px) scale(0.8);
+                                                opacity: 0.7;
+                                            }
+                                            75% {
+                                                transform: translate(-50%, -50%) rotate(${startAngle + 270}deg) translateX(${orbitRadius}px) scale(1);
+                                                opacity: 1;
+                                            }
+                                            100% {
+                                                transform: translate(-50%, -50%) rotate(${startAngle + 360}deg) translateX(${orbitRadius}px) scale(0.5);
+                                                opacity: 0.3;
+                                            }
+                                        }
+                                    `}</style>
+                                </div>
+                            );
+                        })}
+
+                        {/* Floating Random Sparkles */}
+                        {[...Array(20)].map((_, i) => {
+                            const x = (Math.random() - 0.5) * 200;
+                            const y = (Math.random() - 0.5) * 200;
+                            const size = 2 + Math.random() * 4;
+                            const delay = Math.random() * 2;
+                            const duration = 1.5 + Math.random() * 1.5;
+                            const colors = ['#10b981', '#f59e0b', '#8b5cf6'];
+                            const color = colors[i % 3];
+
+                            return (
+                                <div
+                                    key={`sparkle-float-${i}`}
+                                    className="absolute left-1/2 top-1/2"
+                                    style={{
+                                        width: `${size}px`,
+                                        height: `${size}px`,
+                                        transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                                        animation: `sparkleFloat ${duration}s ease-in-out ${delay}s infinite`
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            backgroundColor: color,
+                                            borderRadius: '50%',
+                                            boxShadow: `0 0 ${size * 2}px ${color}`,
+                                        }}
+                                    />
+                                </div>
+                            );
+                        })}
+
+                        {/* Pulsing Glow Ring */}
+                        <div
+                            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full"
+                            style={{
+                                border: '2px solid transparent',
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(245, 158, 11, 0.2))',
+                                animation: 'glowRingPulse 2s ease-in-out infinite'
+                            }}
+                        />
+                    </>
+                )}
+
+                {/* ============================================= */}
+                {/* SUCCESS FLASH - When complete */}
+                {/* ============================================= */}
+                {isComplete && (
+                    <div
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full"
+                        style={{
+                            background: 'radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, transparent 70%)',
+                            animation: 'successFlash 0.8s ease-out forwards'
+                        }}
+                    />
+                )}
+
+                {/* Global Keyframes */}
+                <style>{`
+                    @keyframes keyFormLeft {
+                        0% {
+                            transform: translate(-250px, -150px) rotate(-180deg) scale(0);
+                            opacity: 0;
+                        }
+                        70% {
+                            transform: translate(-8px, 0) rotate(-15deg) scale(1);
+                            opacity: 1;
+                        }
+                        100% {
+                            transform: translate(0, 0) rotate(0deg) scale(1);
+                            opacity: 1;
+                        }
+                    }
+
+                    @keyframes keyFormRight {
+                        0% {
+                            transform: translate(250px, -150px) rotate(180deg) scale(0);
+                            opacity: 0;
+                        }
+                        70% {
+                            transform: translate(8px, 0) rotate(15deg) scale(1);
+                            opacity: 1;
+                        }
+                        100% {
+                            transform: translate(0, 0) rotate(0deg) scale(1);
+                            opacity: 1;
+                        }
+                    }
+
+                    @keyframes connectionAppear {
+                        0% {
+                            opacity: 0;
+                            transform: scaleY(0);
+                        }
+                        100% {
+                            opacity: 1;
+                            transform: scaleY(1);
+                        }
+                    }
+
+                    @keyframes inwardFlash {
+                        0% {
+                            transform: translate(-50%, -50%) scale(3);
+                            opacity: 0;
+                        }
+                        50% {
+                            transform: translate(-50%, -50%) scale(1);
+                            opacity: 0.8;
+                        }
+                        100% {
+                            transform: translate(-50%, -50%) scale(0);
+                            opacity: 0;
+                        }
+                    }
+
+                    @keyframes shockwaveInward {
+                        0% {
+                            width: 600px;
+                            height: 600px;
+                            margin-left: -300px;
+                            margin-top: -300px;
+                            opacity: 0;
+                            border-width: 1px;
+                        }
+                        100% {
+                            width: 40px;
+                            height: 40px;
+                            margin-left: -20px;
+                            margin-top: -20px;
+                            opacity: 1;
+                            border-width: 4px;
+                        }
+                    }
+
+                    @keyframes keyPulse {
+                        0%, 100% {
+                            filter: drop-shadow(0 0 15px currentColor);
+                        }
+                        50% {
+                            filter: drop-shadow(0 0 30px currentColor) drop-shadow(0 0 45px currentColor);
+                        }
+                    }
+
+                    @keyframes sparkleFloat {
+                        0%, 100% {
+                            opacity: 0.3;
+                            transform: scale(0.8);
+                        }
+                        50% {
+                            opacity: 1;
+                            transform: scale(1.2);
+                        }
+                    }
+
+                    @keyframes glowRingPulse {
+                        0%, 100% {
+                            opacity: 0.3;
+                            transform: translate(-50%, -50%) scale(1);
+                        }
+                        50% {
+                            opacity: 0.6;
+                            transform: translate(-50%, -50%) scale(1.1);
+                        }
+                    }
+
+                    @keyframes successFlash {
+                        0% {
+                            opacity: 0;
+                            transform: translate(-50%, -50%) scale(0.5);
+                        }
+                        50% {
+                            opacity: 1;
+                            transform: translate(-50%, -50%) scale(1);
+                        }
+                        100% {
+                            opacity: 0;
+                            transform: translate(-50%, -50%) scale(1.5);
+                        }
+                    }
+                `}</style>
+            </div>
+        </div>
+    );
+};
