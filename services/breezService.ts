@@ -1235,11 +1235,18 @@ export const subscribeToPayments = (
                     const isIncoming = paymentTypeRaw === 'received' || paymentTypeRaw === 'receive' || paymentTypeRaw === 'incoming';
                     
                     if (isIncoming) {
-                        console.log(`⚡ [Breez Event] INCOMING payment: ${mapped.amountSats} sats`);
-                        onPaymentReceived(mapped);
+                        console.log(`⚡ [Breez Event] INCOMING payment: ${mapped.amountSats} sats (${eventType})`);
+                        // Only trigger receive callback on paymentSucceeded, not paymentPending
+                        // This prevents duplicate notifications for the same payment
+                        if (eventType === 'paymentSucceeded') {
+                            onPaymentReceived(mapped);
+                        }
                     } else {
-                        console.log(`📤 [Breez Event] OUTGOING payment: ${mapped.amountSats} sats`);
-                        onPaymentSent(mapped);
+                        console.log(`📤 [Breez Event] OUTGOING payment: ${mapped.amountSats} sats (${eventType})`);
+                        // Only trigger send callback on paymentSucceeded, not paymentPending
+                        if (eventType === 'paymentSucceeded') {
+                            onPaymentSent(mapped);
+                        }
                     }
                 } else if (eventType === 'paymentFailed') {
                     console.warn('❌ [Breez Event] Payment failed:', event.payment);

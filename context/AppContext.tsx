@@ -682,17 +682,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   // On payment received
                   (payment) => {
                     const amountSats = payment.amountSats;
-                    console.log(`⚡ Received ${amountSats} sats via Breez!`);
-                    handleIncomingPayment('breez', amountSats, 'Received via Breez Lightning');
+                    console.log(`⚡ Received ${amountSats} sats via Breez! (id: ${payment.id})`);
+                    // Pass payment.id for deduplication
+                    handleIncomingPayment('breez', amountSats, 'Received via Breez Lightning', payment.id);
                   },
                   // On payment sent
                   (payment) => {
                     const amountSats = payment.amountSats;
-                    console.log(`⚡ Sent ${amountSats} sats via Breez`);
+                    console.log(`⚡ Sent ${amountSats} sats via Breez (id: ${payment.id})`);
                     
                     if (amountSats && amountSats > 0) {
-                      // Record transaction in history
-                      addTransaction('send', amountSats, 'Sent via Breez Lightning', 'breez');
+                      // Record transaction in history with payment ID for deduplication
+                      const txId = payment.id ? `breez-${payment.id}` : undefined;
+                      addTransaction('send', amountSats, 'Sent via Breez Lightning', 'breez', { id: txId });
                       
                       // Refresh balances after sending
                       refreshAllBalances();
@@ -859,10 +861,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
             if (recipient === currentUserPubkey || zapData.lud16 === ourLud16) {
               // This is a payment to us via Lightning
-              console.log(`⚡ Lightning nutzap received: ${amount} sats`);
+              console.log(`⚡ Lightning nutzap received: ${amount} sats (event: ${event.id})`);
 
-              // Add transaction and show notification
-              handleIncomingPayment('cashu', amount, 'Received via Lightning Zap');
+              // Add transaction and show notification (use event.id for deduplication)
+              handleIncomingPayment('cashu', amount, 'Received via Lightning Zap', event.id);
               setPaymentNotification({ amount, context: 'wallet_receive' });
               setLightningStrike({ amount, show: true });
 
@@ -900,14 +902,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             console.log("Found Cashu token in Lightning gift-wrap!");
             const tokens = content.match(/cashuA[A-Za-z0-9_=-]+/g);
             if (tokens) {
-              for (const token of tokens) {
+              for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i];
                 try {
                   const success = await receiveEcash(token);
                   if (success) {
                     console.log("Auto-redeemed token from Lightning gift-wrap!");
                     // Extract amount from token if possible
                     const amount = 0; // TODO: Extract amount from token
-                    handleIncomingPayment('cashu', amount, 'Received via Lightning Gateway');
+                    // Use event.id + token index for deduplication
+                    handleIncomingPayment('cashu', amount, 'Received via Lightning Gateway', `${event.id}-${i}`);
                     setPaymentNotification({ amount: amount || 0, context: 'wallet_receive' });
                   }
                 } catch (e) {
@@ -1031,8 +1035,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             // Mark as processed
             localStorage.setItem(processedKey, Date.now().toString());
 
-            // Add transaction record
-            handleIncomingPayment('cashu', quote.amount, `Received via ${gateway}`);
+            // Add transaction record (use quoteId for deduplication)
+            handleIncomingPayment('cashu', quote.amount, `Received via ${gateway}`, quoteId);
 
             // Trigger lightning strike notification
             setLightningStrike({ amount: quote.amount, show: true });
@@ -1889,8 +1893,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               localStorage.setItem(processedKey, Date.now().toString());
               console.log(`Auto-claimed npub.cash payment!`);
 
-              // Add transaction record
-              handleIncomingPayment('cashu', quote.amount, 'Received via npub.cash');
+              // Add transaction record (use quoteId for deduplication)
+              handleIncomingPayment('cashu', quote.amount, 'Received via npub.cash', quote.quoteId);
               alert(`Successfully received ${quote.amount} sats from npub.cash!`);
             }
           } catch (e) {
@@ -2156,10 +2160,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   /**
    * Central handler for incoming payments across wallets.
    * Adds transaction, triggers animation/notification, refreshes balances.
+   * @param paymentId - Optional unique payment ID for deduplication (prevents duplicate entries)
    */
-  const handleIncomingPayment = useCallback((walletType: 'cashu' | 'nwc' | 'breez', amount: number, description: string) => {
+  const handleIncomingPayment = useCallback((
+    walletType: 'cashu' | 'nwc' | 'breez',
+    amount: number,
+    description: string,
+    paymentId?: string
+  ) => {
     if (!amount || amount <= 0) return;
-    addTransaction('receive', amount, description, walletType);
+    // Use payment ID for deduplication if provided
+    const txId = paymentId ? `${walletType}-${paymentId}` : undefined;
+    addTransaction('receive', amount, description, walletType, { id: txId });
     setLightningStrike({ amount, show: true });
     setPaymentNotification({ amount, context: 'wallet_receive' });
     refreshAllBalances();
@@ -2192,21 +2204,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const txId = `breez-${p.id}`;
           if (existingIds.has(txId)) continue;
 
-          const ts = Math.floor(p.timestamp || Date.now() / 1000);
+          // Breez timestamps are in seconds, convert to milliseconds for JS Date
+          const tsSeconds = Math.floor(p.timestamp || Date.now() / 1000);
+          const tsMillis = tsSeconds * 1000;
           const tx: WalletTransaction = {
             id: txId,
             type: p.paymentType === 'receive' ? 'receive' : 'send',
             amountSats: p.amountSats,
             description: p.paymentType === 'receive' ? 'Received via Breez Lightning' : 'Sent via Breez Lightning',
-            timestamp: ts,
+            timestamp: tsMillis,
             walletType: 'breez' as const
           };
 
           toAdd.push(tx);
 
           if (tx.type === 'receive') {
-            if (!latestReceive || ts > latestReceive.timestamp) {
-              latestReceive = { amount: tx.amountSats, timestamp: ts };
+            if (!latestReceive || tsMillis > latestReceive.timestamp) {
+              latestReceive = { amount: tx.amountSats, timestamp: tsMillis };
             }
           }
         }
@@ -2281,7 +2295,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (walletMode === 'nwc') {
       // For NWC, if confirmed, we just refresh balance and add tx
       await refreshWalletBalance();
-      handleIncomingPayment('nwc', amount, 'Received via NWC');
+      // Use quote hash for deduplication
+      handleIncomingPayment('nwc', amount, 'Received via NWC', quote);
       return true;
     }
 
