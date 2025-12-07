@@ -464,6 +464,10 @@ export const Home: React.FC = () => {
     // Setup Help Modal
     const [showSetupHelp, setShowSetupHelp] = useState(false);
 
+    // Page-Specific Help Modals
+    const [showPlayersHelp, setShowPlayersHelp] = useState(false);
+    const [showPaymentsHelp, setShowPaymentsHelp] = useState(false);
+
     const handleGuestActionAttempt = () => {
         if (isGuest) {
             // Wiggle the login button
@@ -1476,7 +1480,7 @@ export const Home: React.FC = () => {
                         </div>
                         <div className="flex space-x-2">
                             <button
-                                onClick={() => setShowInfoModal(true)}
+                                onClick={() => setShowPaymentsHelp(true)}
                                 className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                             >
                                 <Icons.Help size={20} />
@@ -2019,6 +2023,121 @@ export const Home: React.FC = () => {
                         </div>
                     )
                 }
+
+                {/* PAYMENTS HELP MODAL */}
+                {showPaymentsHelp && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto relative animate-in zoom-in-95 duration-200">
+                            <div className="sticky top-0 bg-slate-900/95 backdrop-blur p-4 border-b border-slate-800 flex items-center justify-between z-10">
+                                <h2 className="text-xl font-bold text-white flex items-center">
+                                    <Icons.Zap className="mr-2 text-orange-400" size={22} /> Payment
+                                </h2>
+                                <button
+                                    onClick={() => setShowPaymentsHelp(false)}
+                                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+                                >
+                                    <Icons.Close size={24} />
+                                </button>
+                            </div>
+
+                            <div className="p-4 space-y-4">
+                                {/* Overview */}
+                                <p className="text-slate-300 text-sm leading-relaxed">
+                                    Review the total pot, configure payout rules, and confirm all player buy-ins before starting the round.
+                                </p>
+
+                                {/* Total Pot */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.Zap className="text-orange-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Total Pot</h3>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        The combined total of all <span className="text-orange-400 font-medium">Entry Fees</span> and
+                                        <span className="text-emerald-400 font-medium"> Ace Pot</span> contributions.
+                                        This amount is distributed to winners when the round ends.
+                                    </p>
+                                </div>
+
+                                {/* Customize Round */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.Settings className="text-blue-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Customize Round</h3>
+                                    </div>
+                                    <ul className="space-y-2 text-sm text-slate-300">
+                                        <li className="flex items-start space-x-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-2 shrink-0" />
+                                            <span><strong className="text-white">Payout Distribution</strong> — Winner-take-all or split among top % of players</span>
+                                        </li>
+                                        <li className="flex items-start space-x-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shrink-0" />
+                                            <span><strong className="text-white">If No Ace</strong> — What happens to the ace pot if nobody hits one</span>
+                                        </li>
+                                        <li className="flex items-start space-x-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 shrink-0" />
+                                            <span><strong className="text-white">Tee Order</strong> — Sort players by previous hole performance (honor system)</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                {/* Player List */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-cyan-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.Users className="text-cyan-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Player Payments</h3>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        Each player shows their participation in <span className="text-orange-400 font-medium">Entry</span> and
+                                        <span className="text-emerald-400 font-medium"> Ace</span> pools.
+                                        The checkmark indicates payment status. Players can pay their buy-in via the round details page.
+                                    </p>
+                                </div>
+
+                                {/* What Happens Next */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.Play className="text-purple-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Starting the Round</h3>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        When you tap <span className="text-emerald-400 font-medium">Start Round</span>, the scorecard opens and all players
+                                        are notified. <span className="text-orange-400 font-medium">Payments are handled on the honor system</span> —
+                                        you can start even if not everyone has paid yet.
+                                    </p>
+                                </div>
+
+                                {/* Automatic Payouts */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.Zap className="text-amber-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Automatic Payouts</h3>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        When you finalize the round, winnings are <span className="text-amber-400 font-medium">automatically sent</span> to
+                                        the winners' Lightning addresses via encrypted DM. No IOUs, no trust required!
+                                    </p>
+                                </div>
+
+                                <div className="pt-2">
+                                    <Button fullWidth onClick={() => setShowPaymentsHelp(false)} variant="secondary">
+                                        Got it
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </>
         );
     }
@@ -2042,7 +2161,7 @@ export const Home: React.FC = () => {
                     </div>
                     <div className="flex space-x-2">
                         <button
-                            onClick={() => setShowInfoModal(true)}
+                            onClick={() => setShowPlayersHelp(true)}
                             className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                         >
                             <Icons.Help size={20} />
@@ -2560,6 +2679,113 @@ export const Home: React.FC = () => {
                                 <p className="text-xs text-center text-slate-500 mt-4 italic">
                                     (Yes, we're actually making you choose between reading or paying. This is for your own good.)
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* PLAYERS HELP MODAL */}
+                {showPlayersHelp && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto relative animate-in zoom-in-95 duration-200">
+                            <div className="sticky top-0 bg-slate-900/95 backdrop-blur p-4 border-b border-slate-800 flex items-center justify-between z-10">
+                                <h2 className="text-xl font-bold text-white flex items-center">
+                                    <Icons.Users className="mr-2 text-blue-400" size={22} /> Players
+                                </h2>
+                                <button
+                                    onClick={() => setShowPlayersHelp(false)}
+                                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+                                >
+                                    <Icons.Close size={24} />
+                                </button>
+                            </div>
+
+                            <div className="p-4 space-y-4">
+                                {/* Overview */}
+                                <p className="text-slate-300 text-sm leading-relaxed">
+                                    Add players to your card before starting the round. You can search for existing Nostr users or create instant invites for new players.
+                                </p>
+
+                                {/* Current Card */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.Users className="text-blue-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Current Card</h3>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        Shows all players currently added to the round, including you as the <span className="text-emerald-400 font-medium">Host</span>.
+                                        Tap the <span className="text-red-400">X</span> button to remove a player before starting.
+                                    </p>
+                                </div>
+
+                                {/* Entry/Ace Buttons */}
+                                {hasEntryFee && (
+                                    <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
+                                                <Icons.Zap className="text-orange-400" size={20} />
+                                            </div>
+                                            <h3 className="font-bold text-white">Entry & Ace Buttons</h3>
+                                        </div>
+                                        <p className="text-slate-300 text-sm leading-relaxed">
+                                            Toggle whether each player participates in the <span className="text-orange-400 font-medium">Entry Fee</span> (prize pool)
+                                            or <span className="text-emerald-400 font-medium">Ace Pot</span> (hole-in-one side bet).
+                                            Highlighted buttons mean the player is participating in that pool.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Search */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-cyan-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.Search className="text-cyan-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Search Players</h3>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        Find existing Nostr users by their <span className="text-cyan-400 font-medium">NIP-05</span> (e.g., name@domain.com),
+                                        <span className="text-purple-400 font-medium"> npub</span>, or <span className="text-amber-400 font-medium">PDGA#</span>.
+                                        You can also scan QR codes to add players.
+                                    </p>
+                                </div>
+
+                                {/* Instant Invite */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.UserPlus className="text-emerald-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Instant Invite</h3>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        Create a new player instantly! Enter their name and a unique Nostr identity is generated for them.
+                                        They can scan the QR code to take control of their account and receive winnings.
+                                    </p>
+                                </div>
+
+                                {/* Recent & Frequent */}
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-2">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center">
+                                            <Icons.History className="text-purple-400" size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-white">Quick Add</h3>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                        See <span className="text-purple-400 font-medium">Frequent</span> (most played with),
+                                        <span className="text-blue-400 font-medium"> Recent</span> (last played with), and
+                                        <span className="text-slate-400 font-medium"> A-Z</span> (all contacts) lists for quick player selection.
+                                    </p>
+                                </div>
+
+                                <div className="pt-2">
+                                    <Button fullWidth onClick={() => setShowPlayersHelp(false)} variant="secondary">
+                                        Got it
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
