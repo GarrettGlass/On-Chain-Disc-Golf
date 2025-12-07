@@ -18,17 +18,17 @@ import { useNavigate } from 'react-router-dom';
 import { useOnboarding } from '../context/OnboardingContext';
 import { useApp } from '../context/AppContext';
 import { AccountCreatedAnimation } from '../KeypairAnimations';
-import { 
-    storeMnemonicEncrypted, 
-    setAuthSource, 
-    setUnifiedSeed 
+import {
+    storeMnemonicEncrypted,
+    setAuthSource,
+    setUnifiedSeed
 } from '../services/mnemonicService';
-import { 
+import {
     publishProfileWithKey,
     publishWalletBackup
 } from '../services/nostrService';
 import { registerWithAllGateways } from '../services/npubCashService';
-import { 
+import {
     initializeBreez,
     getLightningAddress,
     registerLightningAddress
@@ -37,8 +37,8 @@ import { UserProfile } from '../types';
 
 export const Finalization: React.FC = () => {
     const navigate = useNavigate();
-    const { identity, profile, clearOnboarding } = useOnboarding();
-    const { 
+    const { identity, profile, lightningAddressType, clearOnboarding } = useOnboarding();
+    const {
         setAuthState,
         setUserProfileState,
         setContactsState,
@@ -46,7 +46,7 @@ export const Finalization: React.FC = () => {
         restoreWalletFromBackup,
         initializeSubscriptions
     } = useApp();
-    
+
     const [isComplete, setIsComplete] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const hasStarted = useRef(false);
@@ -73,10 +73,19 @@ export const Finalization: React.FC = () => {
                 setAuthSource('mnemonic');
                 setUnifiedSeed(true);
 
-                // Store lightning address
-                localStorage.setItem('cdg_lightning_address', identity.lightningAddress);
+                // Determine which lightning address to use based on user's selection
+                const selectedLightningAddress = lightningAddressType === 'breez'
+                    ? identity.breezLightningAddress
+                    : identity.npubcashLightningAddress;
 
-                console.log('✅ [Finalization] Identity stored securely');
+                // Store both lightning addresses (for future reference)
+                localStorage.setItem('cdg_lightning_address', selectedLightningAddress);
+                localStorage.setItem('cdg_breez_lightning_address', identity.breezLightningAddress);
+                localStorage.setItem('cdg_npubcash_lightning_address', identity.npubcashLightningAddress);
+                localStorage.setItem('cdg_lightning_address_type', lightningAddressType);
+
+                console.log(`✅ [Finalization] Identity stored securely`);
+                console.log(`⚡ [Finalization] Selected Lightning Address (${lightningAddressType}): ${selectedLightningAddress}`);
 
                 // =====================================================
                 // TASK 2: Publish Profile Metadata to Nostr
@@ -87,13 +96,13 @@ export const Finalization: React.FC = () => {
                     name: profile.name || 'Disc Golfer',
                     about: '',
                     picture: profile.picture || '',
-                    lud16: identity.lightningAddress,
+                    lud16: selectedLightningAddress,
                     nip05: '',
                     pdga: profile.pdga
                 };
 
                 await publishProfileWithKey(fullProfile, identity.privateKey);
-                
+
                 // Update app state
                 setUserProfileState(fullProfile);
                 localStorage.setItem('cdg_user_profile', JSON.stringify(fullProfile));
@@ -146,21 +155,21 @@ export const Finalization: React.FC = () => {
                 initializeBreez(identity.mnemonic).then(async (success) => {
                     if (success) {
                         console.log('✅ [Finalization] Breez SDK initialized in background');
-                        
+
                         // Try to get or register Lightning address
                         try {
                             let lnAddressInfo = await getLightningAddress();
-                            
+
                             if (!lnAddressInfo) {
                                 // Try to register one based on pubkey
                                 lnAddressInfo = await registerLightningAddress(identity.publicKey);
                             }
-                            
+
                             if (lnAddressInfo) {
                                 const breezLnAddress = lnAddressInfo.lightningAddress;
                                 localStorage.setItem('cdg_breez_lightning_address', breezLnAddress);
                                 console.log(`⚡ [Finalization] Breez Lightning address: ${breezLnAddress}`);
-                                
+
                                 // Optionally update profile with Breez address
                                 // This would override the npub.cash fallback
                                 // Uncomment if you want Breez address to be primary:
@@ -179,7 +188,7 @@ export const Finalization: React.FC = () => {
                 // =====================================================
                 // COMPLETE: Update Auth State and Navigate
                 // =====================================================
-                
+
                 // Update app auth state
                 setAuthState({
                     isAuthenticated: true,

@@ -9,14 +9,19 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { generateMnemonic, deriveNostrKeyFromMnemonic } from '../services/mnemonicService';
+import { generateCustomLightningAddress } from '../services/breezService';
 import { nip19 } from 'nostr-tools';
+
+// Lightning address type selection
+export type LightningAddressType = 'breez' | 'npubcash';
 
 interface OnboardingIdentity {
     mnemonic: string;
     privateKey: Uint8Array;
     privateKeyHex: string;
     publicKey: string;
-    lightningAddress: string;
+    breezLightningAddress: string;     // xxx@breez.fun (default)
+    npubcashLightningAddress: string;  // npub...@npubx.cash
 }
 
 interface OnboardingProfile {
@@ -28,15 +33,19 @@ interface OnboardingProfile {
 interface OnboardingContextType {
     // Identity (generated at Welcome)
     identity: OnboardingIdentity | null;
-    
+
     // Profile data (collected at Profile Setup)
     profile: OnboardingProfile;
-    
+
+    // Lightning address type selection (default: breez)
+    lightningAddressType: LightningAddressType;
+    setLightningAddressType: (type: LightningAddressType) => void;
+
     // Actions
     generateIdentity: () => OnboardingIdentity;
     setProfileData: (data: Partial<OnboardingProfile>) => void;
     clearOnboarding: () => void;
-    
+
     // State
     isOnboarding: boolean;
     setIsOnboarding: (value: boolean) => void;
@@ -53,6 +62,9 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
     const [isOnboarding, setIsOnboarding] = useState(false);
 
+    // Lightning address type - Breez is default
+    const [lightningAddressType, setLightningAddressType] = useState<LightningAddressType>('breez');
+
     /**
      * Generate a new identity from mnemonic
      * Called at Welcome screen - stores in memory only
@@ -60,30 +72,32 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const generateIdentity = useCallback((): OnboardingIdentity => {
         // Generate 12-word BIP-39 mnemonic
         const mnemonic = generateMnemonic();
-        
+
         // Derive Nostr keys using NIP-06 standard
         const keys = deriveNostrKeyFromMnemonic(mnemonic);
-        
-        // ⚠️ CRITICAL: DO NOT CHANGE THE LIGHTNING ADDRESS FORMAT ⚠️
-        // The Cashu lightning address MUST be: npub...@npubx.cash
-        // - npub.cash gateway requires the npub-encoded public key (not hex)
-        // - Using hex format will break payment receiving
-        // - The nip19.npubEncode() call is REQUIRED
+
+        // Generate both lightning addresses:
+        // 1. Breez address: deterministic from mnemonic (xxx@breez.fun) - DEFAULT
+        const breezLightningAddress = generateCustomLightningAddress(mnemonic);
+
+        // 2. npub.cash address: npub...@npubx.cash (fallback/alternative)
         const npub = nip19.npubEncode(keys.publicKey);
-        const lightningAddress = `${npub}@npubx.cash`;
-        
+        const npubcashLightningAddress = `${npub}@npubx.cash`;
+
         const newIdentity: OnboardingIdentity = {
             mnemonic,
             privateKey: keys.privateKey,
             privateKeyHex: keys.privateKeyHex,
             publicKey: keys.publicKey,
-            lightningAddress
+            breezLightningAddress,
+            npubcashLightningAddress
         };
-        
+
         setIdentity(newIdentity);
         console.log('🔑 [Onboarding] Identity generated in memory (not persisted yet)');
-        console.log(`📍 [Onboarding] Lightning Address: ${lightningAddress}`);
-        
+        console.log(`⚡ [Onboarding] Breez Address: ${breezLightningAddress}`);
+        console.log(`📍 [Onboarding] npub.cash Address: ${npubcashLightningAddress}`);
+
         return newIdentity;
     }, []);
 
@@ -103,12 +117,15 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIdentity(null);
         setProfile({ name: 'Disc Golfer', picture: '', pdga: undefined });
         setIsOnboarding(false);
+        setLightningAddressType('breez'); // Reset to default
     }, []);
 
     return (
         <OnboardingContext.Provider value={{
             identity,
             profile,
+            lightningAddressType,
+            setLightningAddressType,
             generateIdentity,
             setProfileData,
             clearOnboarding,

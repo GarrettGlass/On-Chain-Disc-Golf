@@ -1720,32 +1720,7 @@ export const Wallet: React.FC = () => {
                 <div className="mb-8">
                     <h3 className="text-sm font-bold text-slate-400 mb-3 uppercase tracking-wider">Quick Scan Default</h3>
                     <p className="text-xs text-slate-500 mb-3">Choose which wallet to use when tapping the QR scan button</p>
-                    <div className="grid grid-cols-4 gap-2">
-                        {/* Auto (Smart Selection) */}
-                        <button
-                            onClick={() => setDefaultQuickSendWallet('auto')}
-                            className={`p-3 rounded-xl border flex flex-col items-center justify-center transition-all ${defaultQuickSendWallet === 'auto'
-                                ? 'bg-orange-500/20 border-orange-500'
-                                : 'bg-slate-800 border-slate-700 opacity-60 hover:opacity-80'
-                                }`}
-                        >
-                            <Icons.Zap size={18} className={`mb-1 ${defaultQuickSendWallet === 'auto' ? 'text-orange-400' : 'text-slate-400'}`} />
-                            <span className="font-bold text-[10px]">Auto</span>
-                        </button>
-                        {/* NWC */}
-                        <button
-                            onClick={() => setDefaultQuickSendWallet('nwc')}
-                            disabled={!nwcString}
-                            className={`p-3 rounded-xl border flex flex-col items-center justify-center transition-all ${defaultQuickSendWallet === 'nwc'
-                                ? 'bg-purple-500/20 border-purple-500'
-                                : !nwcString
-                                    ? 'bg-slate-800/50 border-slate-700/50 opacity-30 cursor-not-allowed'
-                                    : 'bg-slate-800 border-slate-700 opacity-60 hover:opacity-80'
-                                }`}
-                        >
-                            <Icons.Link size={18} className={`mb-1 ${defaultQuickSendWallet === 'nwc' ? 'text-purple-400' : 'text-slate-400'}`} />
-                            <span className="font-bold text-[10px]">NWC</span>
-                        </button>
+                    <div className="grid grid-cols-3 gap-2">
                         {/* Breez */}
                         <button
                             onClick={() => setDefaultQuickSendWallet('breez')}
@@ -1771,12 +1746,21 @@ export const Wallet: React.FC = () => {
                             <Icons.Cashew size={18} className={`mb-1 ${defaultQuickSendWallet === 'cashu' ? 'text-emerald-400' : 'text-slate-400'}`} />
                             <span className="font-bold text-[10px]">Cashu</span>
                         </button>
+                        {/* NWC */}
+                        <button
+                            onClick={() => setDefaultQuickSendWallet('nwc')}
+                            disabled={!nwcString}
+                            className={`p-3 rounded-xl border flex flex-col items-center justify-center transition-all ${defaultQuickSendWallet === 'nwc'
+                                ? 'bg-purple-500/20 border-purple-500'
+                                : !nwcString
+                                    ? 'bg-slate-800/50 border-slate-700/50 opacity-30 cursor-not-allowed'
+                                    : 'bg-slate-800 border-slate-700 opacity-60 hover:opacity-80'
+                                }`}
+                        >
+                            <Icons.Link size={18} className={`mb-1 ${defaultQuickSendWallet === 'nwc' ? 'text-purple-400' : 'text-slate-400'}`} />
+                            <span className="font-bold text-[10px]">NWC</span>
+                        </button>
                     </div>
-                    {defaultQuickSendWallet === 'auto' && (
-                        <p className="text-[10px] text-slate-500 mt-2 text-center">
-                            Auto mode prioritizes: NWC → Breez → Cashu (based on available balance)
-                        </p>
-                    )}
                 </div>
 
                 {/* Breez Wallet Settings */}
@@ -1962,6 +1946,39 @@ export const Wallet: React.FC = () => {
                                 )}
                             </>
                         )}
+
+                        {/* Breez Explanation */}
+                        <div className="mt-6 bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+                            <h4 className="text-sm font-bold text-blue-400 mb-2">What is Breez?</h4>
+                            <p className="text-xs text-slate-400 leading-relaxed mb-3">
+                                <strong className="text-slate-300">Breez SDK</strong> powers a self-custodial Lightning wallet built directly into this app. Your funds are secured by a 12-word seed phrase that only you control — no third party can access your Bitcoin.
+                            </p>
+
+                            <h4 className="text-sm font-bold text-blue-400 mb-2">Why use Breez?</h4>
+                            <ul className="text-xs text-slate-400 space-y-1.5 mb-3">
+                                <li className="flex items-start space-x-2">
+                                    <span className="text-blue-400">•</span>
+                                    <span><strong className="text-slate-300">True self-custody</strong> — Your keys, your Bitcoin</span>
+                                </li>
+                                <li className="flex items-start space-x-2">
+                                    <span className="text-blue-400">•</span>
+                                    <span><strong className="text-slate-300">Built-in</strong> — No external apps needed</span>
+                                </li>
+                                <li className="flex items-start space-x-2">
+                                    <span className="text-blue-400">•</span>
+                                    <span><strong className="text-slate-300">Native payments</strong> — Real Lightning channels</span>
+                                </li>
+                            </ul>
+
+                            <div className="bg-slate-800/50 rounded-lg p-3">
+                                <p className="text-xs text-slate-500">
+                                    <strong className="text-slate-400">Best for:</strong> Users who want full control of their funds with a native Lightning experience, and are comfortable backing up a seed phrase.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Feedback Button */}
+                        <FeedbackButton onClick={() => setShowFeedbackModal(true)} />
                     </div>
                 )}
 
@@ -2075,6 +2092,9 @@ export const Wallet: React.FC = () => {
                                 </p>
                             </div>
                         </div>
+
+                        {/* Feedback Button */}
+                        <FeedbackButton onClick={() => setShowFeedbackModal(true)} />
                     </div>
                 )}
                 {walletMode === 'cashu' && (
@@ -2109,6 +2129,35 @@ export const Wallet: React.FC = () => {
                             <Button fullWidth onClick={handleAddMint} disabled={!newMintName || !newMintUrl}>Add Mint</Button>
                         </div>
 
+                        {/* Cashu Explanation */}
+                        <div className="mt-6 bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+                            <h4 className="text-sm font-bold text-emerald-400 mb-2">What is Cashu?</h4>
+                            <p className="text-xs text-slate-400 leading-relaxed mb-3">
+                                <strong className="text-slate-300">Cashu</strong> is a privacy-focused eCash protocol. Think of it like digital cash tokens — you hold "proofs" that represent sats, backed by a mint. Payments are instant and private.
+                            </p>
+
+                            <h4 className="text-sm font-bold text-emerald-400 mb-2">Why use Cashu?</h4>
+                            <ul className="text-xs text-slate-400 space-y-1.5 mb-3">
+                                <li className="flex items-start space-x-2">
+                                    <span className="text-emerald-400">•</span>
+                                    <span><strong className="text-slate-300">Instant payments</strong> — No channel management needed</span>
+                                </li>
+                                <li className="flex items-start space-x-2">
+                                    <span className="text-emerald-400">•</span>
+                                    <span><strong className="text-slate-300">Privacy</strong> — Transfers are unlinkable and offline-ready</span>
+                                </li>
+                                <li className="flex items-start space-x-2">
+                                    <span className="text-emerald-400">•</span>
+                                    <span><strong className="text-slate-300">Low fees</strong> — Minimal transaction costs</span>
+                                </li>
+                            </ul>
+
+                            <div className="bg-slate-800/50 rounded-lg p-3">
+                                <p className="text-xs text-slate-500">
+                                    <strong className="text-slate-400">Best for:</strong> Day-to-day disc golf bets and quick payments. Great for beginners and users who value simplicity and privacy.
+                                </p>
+                            </div>
+                        </div>
 
                         {/* Feedback Button */}
                         <FeedbackButton onClick={() => setShowFeedbackModal(true)} />
